@@ -6,11 +6,10 @@
 
 This is the current selected raster app icon source for Ancla.
 
-## Generation
+## Source
 
-- Generated with `egaki`
-- Model: `vertex/imagen-4.0-ultra-generate-001`
-- Direction: real anchor, slate palette, minimal productivity icon, no text
+- Replaced with the user-provided skeuomorphic anchor icon.
+- Visual direction: slate palette, beveled anchor mark, rounded-square app icon, no text.
 
 ## Derived outputs
 
@@ -19,4 +18,4 @@ This is the current selected raster app icon source for Ancla.
 
 ## Notes
 
-- Several alternates were generated during exploration, but `ancla-app-icon.png` is the selected default because it reads cleanly at icon size and does not include hallucinated text.
+- The current source is the uploaded final icon, not the earlier generated alternates.
