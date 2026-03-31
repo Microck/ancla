@@ -1,0 +1,17 @@
+.DS_Store
+.idea
+.vscode
+AGENTS.md
+
+# Node and Next.js
+site/.next
+site/node_modules
+
+# Swift and Xcode
+ios/.build
+ios/DerivedData
+ios/*.xcworkspace
+ios/*.xcodeproj/project.xcworkspace
+
+# Logs
+*.log

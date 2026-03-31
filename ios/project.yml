@@ -1,0 +1,55 @@
+name: Ancla
+options:
+  minimumXcodeGenVersion: 2.39.0
+settings:
+  base:
+    SWIFT_VERSION: 5.10
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    TARGETED_DEVICE_FAMILY: "1"
+targets:
+  Ancla:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ancla-app
+      - path: ancla-shared
+    resources:
+      - path: fonts
+    entitlements:
+      path: ancla-app/ancla-app.entitlements
+    info:
+      path: ancla-app/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla
+        INFOPLIST_KEY_CFBundleDisplayName: Ancla
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+    dependencies:
+      - target: AnclaShieldExtension
+  AnclaShieldExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ancla-shield-extension
+      - path: ancla-shared
+    entitlements:
+      path: ancla-shield-extension/ancla-shield-extension.entitlements
+    info:
+      path: ancla-shield-extension/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla.shield
+        CODE_SIGN_STYLE: Automatic
+  AnclaTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ancla-tests
+      - path: ancla-shared
+    dependencies:
+      - target: Ancla

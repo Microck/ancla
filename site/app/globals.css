@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #101828;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-strong: #ffffff;
+  --surface-muted: #f1f5f9;
+  --line: rgba(148, 163, 184, 0.28);
+  --line-strong: rgba(71, 85, 105, 0.22);
+  --ink-soft: #334155;
+  --ink-muted: #64748b;
+  --shadow: 0 24px 64px rgba(15, 23, 42, 0.08);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Google Sans Flex", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    radial-gradient(circle at 8% 10%, rgba(226, 232, 240, 0.92), transparent 26%),
+    radial-gradient(circle at 84% 18%, rgba(226, 232, 240, 0.74), transparent 22%),
+    linear-gradient(180deg, #fcfcfd 0%, #f8fafc 46%, #f9fbfd 100%);
+}
+
+body {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.68)),
+    var(--background);
+  color: var(--foreground);
+  font-family: "Google Sans Flex", "Helvetica Neue", Arial, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: rgba(148, 163, 184, 0.24);
+}
+
+.noise {
+  position: relative;
+}
+
+.noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.22)),
+    radial-gradient(rgba(15, 23, 42, 0.04) 0.65px, transparent 0.65px);
+  background-size: 100% 100%, 12px 12px;
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+}
+
+.pressable {
+  transition:
+    transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease;
+}
+
+.pressable:hover {
+  transform: translateY(-1px);
+}
+
+.pressable:active {
+  transform: scale(0.98);
+}
+
+.pressable:focus-visible {
+  outline: 2px solid rgba(15, 23, 42, 0.18);
+  outline-offset: 2px;
+}
+
+.rise-in {
+  opacity: 0;
+  transform: translateY(14px) scale(0.985);
+  animation: rise-in 680ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+.float-mark {
+  animation: float-mark 7s ease-in-out infinite;
+}
+
+@keyframes rise-in {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes float-mark {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
