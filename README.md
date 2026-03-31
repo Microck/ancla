@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="brand/logo/ancla-app-icon.png" width="140" alt="ancla logo" />
+  <img src="https://raw.githubusercontent.com/Microck/ancla/main/brand/logo/ancla-app-icon.png" width="140" alt="ancla logo" />
 
   <h1>ancla</h1>
 
