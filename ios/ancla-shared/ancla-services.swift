@@ -64,7 +64,7 @@ final class ShieldingService: Shielding {
 }
 
 @MainActor
-final class StickerPairingService: NSObject, StickerPairing, NFCTagReaderSessionDelegate {
+final class StickerPairingService: NSObject, StickerPairing, @preconcurrency NFCTagReaderSessionDelegate {
   private var session: NFCTagReaderSession?
   private var continuation: CheckedContinuation<String, Error>?
 
@@ -75,14 +75,20 @@ final class StickerPairingService: NSObject, StickerPairing, NFCTagReaderSession
 
     return try await withCheckedThrowingContinuation { continuation in
       self.continuation = continuation
-      let session = NFCTagReaderSession(
+
+      guard let readerSession = NFCTagReaderSession(
         pollingOption: [.iso14443, .iso15693],
         delegate: self,
         queue: nil
-      )
-      session.alertMessage = "Hold your iPhone near the paired sticker."
-      session.begin()
-      self.session = session
+      ) else {
+        self.continuation = nil
+        continuation.resume(throwing: StickerPairingError.scanFailed)
+        return
+      }
+
+      readerSession.alertMessage = "Hold your iPhone near the paired sticker."
+      readerSession.begin()
+      self.session = readerSession
     }
   }
 

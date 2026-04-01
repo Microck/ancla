@@ -32,7 +32,7 @@ final class ShieldConfigurationExtension: ShieldConfigurationDataSource {
     let activeModeName = activeModeName(in: snapshot) ?? "Focus mode"
     let stickerName = snapshot.pairedTag?.displayName ?? "paired sticker"
 
-    ShieldConfiguration(
+    return ShieldConfiguration(
       backgroundBlurStyle: .systemMaterialLight,
       backgroundColor: UIColor(red: 0.988, green: 0.988, blue: 0.992, alpha: 1),
       icon: UIImage(systemName: "anchor"),
