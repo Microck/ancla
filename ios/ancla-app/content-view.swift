@@ -16,73 +16,62 @@ struct ContentView: View {
   @State private var isModeEditorPresented = false
   @State private var isRenamingSticker = false
   @State private var stickerNameDraft = ""
-  @State private var modePendingDeletion: BlockMode?
 
   var body: some View {
     NavigationStack {
       ZStack {
-        backgroundLayer
+        AnclaTheme.background
+          .ignoresSafeArea()
 
         ScrollView(showsIndicators: false) {
-          VStack(alignment: .leading, spacing: 20) {
+          VStack(alignment: .leading, spacing: 28) {
             header
+            headlineSection
+            sessionSurface
+
+            if viewModel.modesForDisplay.count > 1 {
+              modeSelector
+            }
+
+            actionsRow
+            systemSurface
+
+            if let lastError = viewModel.lastError, !lastError.isEmpty {
+              errorSection(lastError)
+            }
 
             if viewModel.isSideloadLiteBuild {
-              liteStatusSection
-              liteWhySection
-              buySection
-            } else {
-              nextStepSection
-              setupSection
-              sessionSection
-              modesSection
-              stickerSection
-              buySection
-              primaryActions
-            }
-
-            if let lastError = viewModel.lastError {
-              Text(lastError)
-                .font(.ancla(13, weight: .medium))
-                .foregroundStyle(Color(red: 0.71, green: 0.14, blue: 0.17))
+              sideloadFootnote
             }
           }
-          .padding(.horizontal, 20)
-          .padding(.top, 18)
-          .padding(.bottom, 32)
+          .padding(.horizontal, 24)
+          .padding(.top, 24)
+          .padding(.bottom, 132)
         }
       }
-      .navigationBarHidden(true)
+      .toolbar(.hidden, for: .navigationBar)
+      .preferredColorScheme(.dark)
+      .safeAreaInset(edge: .bottom) {
+        bottomActionBar
+      }
       .sheet(isPresented: $isModeEditorPresented) {
         ModeEditorView(
           viewModel: viewModel,
           isEditingMode: viewModel.draftModeID != nil,
           onChooseSelection: { viewModel.isPickerPresented = true }
         )
+        .presentationBackground(.clear)
       }
       .sheet(isPresented: $isRenamingSticker) {
         renameStickerSheet
+          .presentationBackground(.clear)
       }
       .familyActivityPicker(
         isPresented: $viewModel.isPickerPresented,
         selection: $viewModel.draftSelection
       )
-      .alert("Delete this mode?", isPresented: deleteAlertBinding) {
-        Button("Delete", role: .destructive) {
-          guard let mode = modePendingDeletion else {
-            return
-          }
-          Task {
-            await viewModel.deleteMode(mode.id)
-          }
-          modePendingDeletion = nil
-        }
-
-        Button("Cancel", role: .cancel) {
-          modePendingDeletion = nil
-        }
-      } message: {
-        Text("This will remove the mode and clear an armed session that uses it.")
+      .task {
+        viewModel.refreshDiagnostics()
       }
       .onChange(of: isRenamingSticker) { _, isOpen in
         if isOpen {
@@ -92,382 +81,354 @@ struct ContentView: View {
     }
   }
 
-  private var backgroundLayer: some View {
-    LinearGradient(
-      colors: [
-        Color(red: 0.98, green: 0.98, blue: 0.99),
-        Color(red: 0.95, green: 0.97, blue: 0.99),
-      ],
-      startPoint: .topLeading,
-      endPoint: .bottomTrailing
-    )
-    .ignoresSafeArea()
+  private var header: some View {
+    HStack(alignment: .center, spacing: 12) {
+      HStack(spacing: 10) {
+        AnclaMark(color: AnclaTheme.primaryText, size: 18)
+
+        Text("Ancla")
+          .font(.ancla(18, weight: .semibold))
+          .foregroundStyle(AnclaTheme.primaryText)
+      }
+
+      Spacer()
+
+      Button {
+        viewModel.refreshDiagnostics()
+      } label: {
+        HStack(spacing: 8) {
+          Image(systemName: "arrow.clockwise")
+            .font(.system(size: 12, weight: .semibold))
+
+          Text("Refresh")
+            .font(.ancla(12, weight: .medium))
+        }
+        .foregroundStyle(AnclaTheme.secondaryText)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(
+          Capsule(style: .continuous)
+            .fill(AnclaTheme.panelRaised)
+            .overlay(
+              Capsule(style: .continuous)
+                .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+            )
+        )
+      }
+      .buttonStyle(.plain)
+    }
   }
 
-  private var header: some View {
-    HStack(alignment: .top, spacing: 12) {
-      VStack(alignment: .leading, spacing: 6) {
-        Text("ANCLA")
-          .font(.ancla(11, weight: .medium))
-          .tracking(3)
-          .foregroundStyle(Color(red: 0.43, green: 0.5, blue: 0.58))
+  private var headlineSection: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text(viewModel.diagnostics.headline)
+        .font(.ancla(42, weight: .medium))
+        .foregroundStyle(AnclaTheme.primaryText)
 
-        Text(sessionStateLabel)
-          .font(.ancla(34, weight: .semibold))
-          .tracking(-0.8)
-          .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+      Text(viewModel.diagnostics.message)
+        .font(.ancla(15))
+        .foregroundStyle(AnclaTheme.secondaryText)
+        .frame(maxWidth: 320, alignment: .leading)
 
-        Text(sessionMessage)
-          .font(.ancla(14))
-          .foregroundStyle(Color(red: 0.34, green: 0.4, blue: 0.48))
-          .fixedSize(horizontal: false, vertical: true)
+      HStack(spacing: 8) {
+        Capsule()
+          .fill(primaryPillColor)
+          .frame(width: 7, height: 7)
+
+        Text(primaryPillText)
+          .font(.ancla(12, weight: .medium))
+          .foregroundStyle(AnclaTheme.secondaryText)
+      }
+      .padding(.horizontal, 12)
+      .padding(.vertical, 8)
+      .background(
+        Capsule(style: .continuous)
+          .fill(AnclaTheme.panelRaised)
+          .overlay(
+            Capsule(style: .continuous)
+              .stroke(AnclaTheme.panelStroke.opacity(0.8), lineWidth: 1)
+          )
+      )
+    }
+  }
+
+  private var sessionSurface: some View {
+    surface(title: "Current setup") {
+      VStack(spacing: 16) {
+        surfaceRow(
+          label: "Selected mode",
+          value: currentMode?.name ?? "None",
+          detail: currentModeDetail
+        )
+
+        surfaceDivider
+
+        surfaceRow(
+          label: "Sticker",
+          value: viewModel.snapshot.pairedTag?.displayName ?? "Unpaired",
+          detail: stickerDetail
+        )
+
+        if viewModel.snapshot.pairedTag != nil {
+          surfaceDivider
+
+          surfaceRow(
+            label: "Fingerprint",
+            value: fingerprintValue,
+            detail: "Short preview of the paired NFC tag fingerprint.",
+            monospaced: true
+          )
+        }
+
+        surfaceDivider
+
+        surfaceRow(
+          label: "Session",
+          value: sessionValue,
+          detail: sessionDetail,
+          accentColor: sessionAccent
+        )
+      }
+    }
+  }
+
+  private var modeSelector: some View {
+    ScrollView(.horizontal, showsIndicators: false) {
+      HStack(spacing: 10) {
+        ForEach(viewModel.modesForDisplay) { mode in
+          Button {
+            viewModel.selectMode(mode.id)
+          } label: {
+            Text(mode.name)
+              .font(.ancla(13, weight: .medium))
+              .foregroundStyle(mode.id == currentMode?.id ? AnclaTheme.ctaText : AnclaTheme.secondaryText)
+              .padding(.horizontal, 14)
+              .padding(.vertical, 10)
+              .background(
+                Capsule(style: .continuous)
+                  .fill(mode.id == currentMode?.id ? AnclaTheme.ctaFill : AnclaTheme.panelRaised)
+              )
+          }
+          .buttonStyle(.plain)
+        }
+      }
+    }
+  }
+
+  private var actionsRow: some View {
+    HStack(spacing: 10) {
+      Menu {
+        if !viewModel.modesForDisplay.isEmpty {
+          ForEach(viewModel.modesForDisplay) { mode in
+            Button(mode.name) {
+              viewModel.selectMode(mode.id)
+            }
+          }
+
+          Button("Edit current mode") {
+            if let mode = currentMode {
+              viewModel.prepareDraftForEditingMode(mode.id)
+              isModeEditorPresented = true
+            }
+          }
+        }
+
+        Button("New mode") {
+          viewModel.prepareDraftForNewMode()
+          isModeEditorPresented = true
+        }
+      } label: {
+        utilityCapsule("Modes")
+      }
+
+      if viewModel.snapshot.pairedTag != nil {
+        Menu {
+          Button("Rename sticker") {
+            isRenamingSticker = true
+          }
+
+          Button("Scan again") {
+            Task { await viewModel.pairSticker() }
+          }
+
+          Button("Unpair", role: .destructive) {
+            Task { await viewModel.unpairSticker() }
+          }
+        } label: {
+          utilityCapsule("Sticker")
+        }
+      } else if let stickerURL {
+        Link(destination: stickerURL) {
+          utilityCapsule("Buy NFC sticker")
+        }
       }
 
       Spacer(minLength: 0)
+    }
+  }
 
-      Image(systemName: "anchor")
-        .font(.system(size: 18, weight: .semibold))
-        .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
-        .frame(width: 44, height: 44)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+  private var systemSurface: some View {
+    surface(title: "System checks") {
+      VStack(spacing: 16) {
+        ForEach(systemItems.indices, id: \.self) { index in
+          let item = systemItems[index]
+
+          VStack(spacing: 0) {
+            surfaceRow(
+              label: item.title,
+              value: item.value,
+              detail: item.detail,
+              accentColor: toneColor(item.tone)
+            )
+
+            if index < systemItems.count - 1 {
+              surfaceDivider
+                .padding(.top, 16)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private func surface<Content: View>(
+    title: String,
+    @ViewBuilder content: () -> Content
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 18) {
+      Text(title)
+        .font(.ancla(12, weight: .medium))
+        .foregroundStyle(AnclaTheme.tertiaryText)
+
+      content()
+    }
+    .padding(20)
+    .background(
+      RoundedRectangle(cornerRadius: 24, style: .continuous)
+        .fill(AnclaTheme.panel)
         .overlay(
-          RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1)
+          RoundedRectangle(cornerRadius: 24, style: .continuous)
+            .stroke(AnclaTheme.panelStroke.opacity(0.8), lineWidth: 1)
         )
-    }
-  }
-
-  private var liteStatusSection: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      HStack {
-        sectionLabel("SIDELOAD")
-        Spacer()
-        Text("LITE BUILD")
-          .font(.ancla(11, weight: .medium))
-          .tracking(2)
-          .foregroundStyle(Color(red: 0.43, green: 0.5, blue: 0.58))
-      }
-
-      Text("Built to install cleanly")
-        .font(.ancla(22, weight: .semibold))
-        .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
-
-      Text("This variant removes the shield extension and Apple-managed blocking entitlements so sideload tools like Feather have a simpler app to sign and launch.")
-        .font(.ancla(14))
-        .foregroundStyle(Color(red: 0.34, green: 0.4, blue: 0.48))
-        .fixedSize(horizontal: false, vertical: true)
-    }
-    .padding(16)
-    .background(Color.white.opacity(0.74), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-    .overlay(
-      RoundedRectangle(cornerRadius: 18, style: .continuous)
-        .stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1)
     )
   }
 
-  private var liteWhySection: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      sectionLabel("LIMITS")
+  private func surfaceRow(
+    label: String,
+    value: String,
+    detail: String,
+    accentColor: Color = AnclaTheme.primaryText,
+    monospaced: Bool = false
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      HStack(alignment: .firstTextBaseline, spacing: 16) {
+        Text(label)
+          .font(.ancla(12, weight: .medium))
+          .foregroundStyle(AnclaTheme.tertiaryText)
 
-      Text("What works")
-        .font(.ancla(16, weight: .semibold))
-        .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+        Spacer(minLength: 0)
 
-      Text("A clean launchable shell for testing the branding, layout, and purchase links on a sideloaded device.")
-        .font(.ancla(14))
-        .foregroundStyle(Color(red: 0.34, green: 0.4, blue: 0.48))
-        .fixedSize(horizontal: false, vertical: true)
+        Text(value)
+          .font(monospaced ? .anclaMono(14) : .ancla(15, weight: .medium))
+          .foregroundStyle(accentColor)
+          .multilineTextAlignment(.trailing)
+      }
 
-      divider
-
-      Text("What is disabled")
-        .font(.ancla(16, weight: .semibold))
-        .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
-
-      Text("Screen Time authorization, app shielding, and NFC release remain part of the full Apple-signed build only.")
-        .font(.ancla(14))
-        .foregroundStyle(Color(red: 0.34, green: 0.4, blue: 0.48))
-        .fixedSize(horizontal: false, vertical: true)
-    }
-  }
-
-  private var setupSection: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      sectionLabel("SETUP")
-
-      Text("Order: buy one NTAG213 sticker, pair it, create a mode, then arm it.")
+      Text(detail)
         .font(.ancla(13))
-        .foregroundStyle(Color(red: 0.43, green: 0.5, blue: 0.58))
-        .fixedSize(horizontal: false, vertical: true)
-
-      setupRow(
-        "Screen Time access",
-        value: viewModel.snapshot.isAuthorized ? "Ready" : "Needed"
-      ) {
-        Task { await viewModel.requestAuthorization() }
-      }
-
-      setupRow(
-        "Paired sticker",
-        value: viewModel.snapshot.pairedTag?.displayName ?? "Pair one"
-      ) {
-        Task { await viewModel.pairSticker() }
-      }
-
-      setupRow(
-        "Default mode",
-        value: viewModel.preferredMode()?.name ?? "Create one"
-      ) {
-        if viewModel.snapshot.modes.isEmpty {
-          viewModel.prepareDraftForNewMode()
-          isModeEditorPresented = true
-        } else if let preferredMode = viewModel.preferredMode() {
-          viewModel.prepareDraftForEditingMode(preferredMode.id)
-          if viewModel.draftModeID == preferredMode.id {
-            isModeEditorPresented = true
-          }
-        }
-      }
-    }
-  }
-
-  private var nextStepSection: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      HStack {
-        sectionLabel("NEXT")
-        Spacer()
-        Text(setupProgressLabel)
-          .font(.ancla(11, weight: .medium))
-          .tracking(2)
-          .foregroundStyle(Color(red: 0.43, green: 0.5, blue: 0.58))
-      }
-
-      Text(nextStepTitle)
-        .font(.ancla(22, weight: .semibold))
-        .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
-
-      Text(nextStepMessage)
-        .font(.ancla(14))
-        .foregroundStyle(Color(red: 0.34, green: 0.4, blue: 0.48))
-        .fixedSize(horizontal: false, vertical: true)
-
-      nextStepButton
-    }
-    .padding(16)
-    .background(Color.white.opacity(0.74), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-    .overlay(
-      RoundedRectangle(cornerRadius: 18, style: .continuous)
-        .stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1)
-    )
-  }
-
-  private var sessionSection: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      sectionLabel("SESSION")
-
-      summaryRow("State", value: sessionStateLabel)
-      summaryRow("Mode", value: selectedModeName)
-      summaryRow("Sticker", value: viewModel.snapshot.pairedTag?.displayName ?? "Not paired")
-    }
-  }
-
-  private var modesSection: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      HStack {
-        sectionLabel("MODES")
-        Spacer()
-        Button("New") {
-          viewModel.prepareDraftForNewMode()
-          isModeEditorPresented = true
-        }
-        .font(.ancla(13, weight: .semibold))
-        .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
-      }
-
-      if viewModel.modesForDisplay.isEmpty {
-        Text("No modes yet.")
-          .font(.ancla(14))
-          .foregroundStyle(Color(red: 0.43, green: 0.5, blue: 0.58))
-      } else {
-        VStack(spacing: 0) {
-          ForEach(Array(viewModel.modesForDisplay.enumerated()), id: \.element.id) { index, mode in
-            modeRow(mode)
-
-            if index < viewModel.modesForDisplay.count - 1 {
-              divider
-            }
-          }
-        }
-      }
-    }
-  }
-
-  private var stickerSection: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      sectionLabel("STICKER")
-
-      if let tag = viewModel.snapshot.pairedTag {
-        summaryRow("Name", value: tag.displayName)
-        summaryRow("Fingerprint", value: tagPreview(tag.uidHash))
-
-        HStack(spacing: 8) {
-          actionPill("Rename") {
-            isRenamingSticker = true
-          }
-          actionPill("Replace") {
-            Task { await viewModel.pairSticker() }
-          }
-          actionPill("Unpair", destructive: true) {
-            Task { await viewModel.unpairSticker() }
-          }
-        }
-      } else {
-        Text("No sticker paired.")
-          .font(.ancla(14))
-          .foregroundStyle(Color(red: 0.43, green: 0.5, blue: 0.58))
-      }
-    }
-  }
-
-  private var primaryActions: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      sectionLabel("ACTIONS")
-
-      actionRow("Arm selected mode", emphasized: true) {
-        Task { await viewModel.armSelectedMode() }
-      }
-      .disabled(!viewModel.canArmSelectedMode)
-
-      actionRow("Scan to release") {
-        Task { await viewModel.releaseActiveSession() }
-      }
-      .disabled(!viewModel.canReleaseActiveSession)
-    }
-  }
-
-  private var buySection: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      sectionLabel("BUY")
-
-      Text("Buy a standard NTAG213 sticker. Use 25 mm or larger, and avoid metal surfaces unless the tag is specifically on-metal.")
-        .font(.ancla(14))
-        .foregroundStyle(Color(red: 0.34, green: 0.4, blue: 0.48))
-        .fixedSize(horizontal: false, vertical: true)
-
-      buyLinkRow(
-        "Recommended sticker",
-        detail: "AliExpress NTAG213 standard sticker - choose 38 mm if available"
-      ) {
-        URL(string: "https://s.click.aliexpress.com/e/_c3De6uih")
-      }
-
-      buyLinkRow(
-        "Amazon starter pack",
-        detail: "Standard NTAG213 adhesive sticker"
-      ) {
-        URL(string: "https://www.amazon.com/Stickers-Adhesive-Compatible-NFC-Enabled-Smartphones/dp/B07GFHLZD1")
-      }
-
-      buyLinkRow(
-        "AliExpress value pack",
-        detail: "Smaller-pack backup recommendation"
-      ) {
-        URL(string: "https://s.click.aliexpress.com/e/_c3SMBZ1j")
-      }
-    }
-  }
-
-  private func modeRow(_ mode: BlockMode) -> some View {
-    let isSelected = viewModel.selectedModeID == mode.id
-    let isArmed = viewModel.isModeArmed(mode.id)
-
-    return HStack(alignment: .center, spacing: 10) {
-      Button {
-        viewModel.selectMode(mode.id)
-      } label: {
-        VStack(alignment: .leading, spacing: 6) {
-          HStack(spacing: 7) {
-            Text(mode.name)
-              .font(.ancla(16, weight: .semibold))
-              .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
-
-            if mode.isDefault {
-              statusPill("Default")
-            }
-
-            if isArmed {
-              statusPill("Armed")
-            }
-          }
-
-          Text(viewModel.selectionSummary(for: mode))
-            .font(.ancla(13))
-            .foregroundStyle(Color(red: 0.43, green: 0.5, blue: 0.58))
-        }
+        .foregroundStyle(AnclaTheme.secondaryText)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+  }
+
+  private var surfaceDivider: some View {
+    Rectangle()
+      .fill(AnclaTheme.panelStroke.opacity(0.55))
+      .frame(height: 1)
+  }
+
+  private func utilityCapsule(_ title: String) -> some View {
+    Text(title)
+      .font(.ancla(12, weight: .medium))
+      .foregroundStyle(AnclaTheme.secondaryText)
+      .padding(.horizontal, 14)
+      .padding(.vertical, 10)
+      .background(
+        Capsule(style: .continuous)
+          .fill(AnclaTheme.panelRaised)
+          .overlay(
+            Capsule(style: .continuous)
+              .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+          )
+      )
+  }
+
+  private func errorSection(_ message: String) -> some View {
+    Text(message)
+      .font(.ancla(13, weight: .medium))
+      .foregroundStyle(AnclaTheme.errorText)
+      .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private var sideloadFootnote: some View {
+    Text("This build keeps NFC pairing and sticker release. System-level Screen Time shielding remains exclusive to the full Apple-authorized build.")
+      .font(.ancla(12))
+      .foregroundStyle(AnclaTheme.tertiaryText)
+      .frame(maxWidth: 320, alignment: .leading)
+  }
+
+  private var bottomActionBar: some View {
+    ZStack {
+      AnclaTheme.background.opacity(0.98)
+        .ignoresSafeArea(edges: .bottom)
+
+      Button(action: primaryAction) {
+        Text(primaryActionTitle)
+          .font(.ancla(15, weight: .semibold))
+          .foregroundStyle(AnclaTheme.ctaText)
+          .frame(maxWidth: .infinity)
+          .frame(height: 56)
+          .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+              .fill(AnclaTheme.ctaFill)
+          )
       }
       .buttonStyle(.plain)
-
-      Menu {
-        Button("Arm mode") {
-          Task { await viewModel.armMode(mode.id) }
-        }
-        Button("Edit mode") {
-          viewModel.prepareDraftForEditingMode(mode.id)
-          if viewModel.draftModeID == mode.id {
-            isModeEditorPresented = true
-          }
-        }
-        if !mode.isDefault {
-          Button("Set as default") {
-            Task { await viewModel.setDefaultMode(mode.id) }
-          }
-        }
-        Button("Delete mode", role: .destructive) {
-          modePendingDeletion = mode
-        }
-      } label: {
-        Image(systemName: "ellipsis")
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundStyle(Color(red: 0.45, green: 0.52, blue: 0.61))
-          .frame(width: 30, height: 30)
-      }
+      .disabled(primaryActionDisabled || viewModel.isBusy)
+      .opacity(primaryActionDisabled || viewModel.isBusy ? 0.6 : 1)
+      .padding(.horizontal, 24)
+      .padding(.top, 10)
+      .padding(.bottom, 18)
     }
-    .padding(.vertical, 12)
-    .padding(.horizontal, 2)
-    .background(
-      isSelected ? Color.white.opacity(0.78) : .clear,
-      in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-    )
   }
 
   private var renameStickerSheet: some View {
-    NavigationStack {
-      VStack(alignment: .leading, spacing: 12) {
-        Text("Sticker name")
-          .font(.ancla(14, weight: .semibold))
-          .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+    ZStack {
+      AnclaTheme.background
+        .ignoresSafeArea()
 
-        TextField("Desk sticker", text: $stickerNameDraft)
-          .textInputAutocapitalization(.words)
-          .padding(.horizontal, 14)
-          .frame(height: 48)
-          .background(
-            Color(red: 0.95, green: 0.97, blue: 0.99),
-            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-          )
+      VStack(alignment: .leading, spacing: 20) {
+        Capsule(style: .continuous)
+          .fill(AnclaTheme.tertiaryText.opacity(0.6))
+          .frame(width: 40, height: 4)
+          .frame(maxWidth: .infinity)
+          .padding(.top, 8)
 
-        Spacer()
-      }
-      .padding(20)
-      .navigationTitle("Rename sticker")
-      .toolbar {
-        ToolbarItem(placement: .topBarLeading) {
+        HStack {
           Button("Cancel") {
             isRenamingSticker = false
           }
-        }
-        ToolbarItem(placement: .topBarTrailing) {
+          .font(.ancla(16))
+          .foregroundStyle(AnclaTheme.secondaryText)
+
+          Spacer()
+
+          Text("Rename sticker")
+            .font(.ancla(18, weight: .bold))
+            .foregroundStyle(AnclaTheme.primaryText)
+
+          Spacer()
+
           Button("Save") {
             Task {
               await viewModel.renamePairedSticker(stickerNameDraft)
@@ -476,61 +437,176 @@ struct ContentView: View {
               }
             }
           }
-          .fontWeight(.semibold)
+          .font(.ancla(16, weight: .semibold))
+          .foregroundStyle(AnclaTheme.primaryText)
         }
+
+        VStack(alignment: .leading, spacing: 12) {
+          Text("Sticker name")
+            .font(.ancla(11, weight: .medium))
+            .foregroundStyle(AnclaTheme.tertiaryText)
+
+          TextField("", text: $stickerNameDraft)
+            .textInputAutocapitalization(.words)
+            .font(.ancla(28))
+            .foregroundStyle(AnclaTheme.primaryText)
+
+          surfaceDivider
+        }
+
+        Spacer()
       }
+      .padding(.horizontal, 28)
+      .padding(.top, 16)
+      .padding(.bottom, 28)
     }
-    .presentationDetents([.fraction(0.32)])
+    .preferredColorScheme(.dark)
+    .presentationDetents([.medium])
+    .presentationDragIndicator(.hidden)
   }
 
-  private var sessionStateLabel: String {
-    if viewModel.isSideloadLiteBuild {
-      return "Sideload lite"
+  private var currentMode: BlockMode? {
+    viewModel.selectedMode() ?? viewModel.preferredMode()
+  }
+
+  private var currentModeDetail: String {
+    guard let currentMode else {
+      return "Create or select one mode before arming."
     }
 
-    switch viewModel.snapshot.activeSession?.state ?? .idle {
-    case .idle:
-      return "Idle"
+    return viewModel.selectionSummary(for: currentMode)
+  }
+
+  private var stickerDetail: String {
+    guard viewModel.snapshot.pairedTag != nil else {
+      return "No release key is paired to this install yet."
+    }
+
+    return "Only this sticker can release an armed session."
+  }
+
+  private var fingerprintValue: String {
+    guard let uidHash = viewModel.snapshot.pairedTag?.uidHash else {
+      return "Awaiting scan"
+    }
+
+    return tagPreview(uidHash)
+  }
+
+  private var sessionValue: String {
+    switch viewModel.snapshot.activeSession?.state {
     case .armed:
       return "Armed"
-    case .released:
-      return "Released"
     case .mismatchedTag:
       return "Wrong sticker"
-    }
-  }
-
-  private var sessionMessage: String {
-    if viewModel.isSideloadLiteBuild {
-      return "This build is for launch and layout testing on sideloaded devices. Real blocking stays in the Apple-signed build."
-    }
-
-    switch viewModel.snapshot.activeSession?.state ?? .idle {
-    case .idle:
-      return "Grant access, pair one sticker, make one mode."
-    case .armed:
-      return "Apps stay blocked until the paired sticker is scanned."
     case .released:
-      return "The current session is released."
-    case .mismatchedTag:
-      return "Wrong sticker. The block is still armed until the paired sticker is scanned."
+      return "Released"
+    case .idle, nil:
+      return "Idle"
     }
   }
 
-  private var selectedModeName: String {
-    viewModel.selectedMode()?.name ?? viewModel.preferredMode()?.name ?? "None"
+  private var sessionDetail: String {
+    switch viewModel.snapshot.activeSession?.state {
+    case .armed:
+      return "The current mode is blocking and waiting for the paired sticker."
+    case .mismatchedTag:
+      return "A different sticker was scanned. The block is still active."
+    case .released:
+      return "The last armed session was released."
+    case .idle, nil:
+      return "No block is active right now."
+    }
   }
 
-  private var setupProgressLabel: String {
-    let completed = [
-      viewModel.snapshot.isAuthorized,
-      viewModel.snapshot.pairedTag != nil,
-      viewModel.hasAnyMode,
-    ]
-    .filter { $0 }
-    .count
+  private var sessionAccent: Color {
+    switch viewModel.snapshot.activeSession?.state {
+    case .armed, .mismatchedTag:
+      return AnclaTheme.warningText
+    default:
+      return AnclaTheme.primaryText
+    }
+  }
 
-    return "\(completed)/3 READY"
+  private var systemItems: [RuntimeDiagnosticItem] {
+    let ids = ["build", "screen-time", "nfc", "storage"]
+    return viewModel.diagnostics.items.filter { ids.contains($0.id) }
+  }
+
+  private var primaryPillText: String {
+    if viewModel.canReleaseActiveSession {
+      return "paired sticker required"
+    }
+
+    if primaryActionDisabled {
+      return "setup required"
+    }
+
+    return "ready for next step"
+  }
+
+  private var primaryPillColor: Color {
+    if viewModel.canReleaseActiveSession {
+      return AnclaTheme.warningText
+    }
+
+    if primaryActionDisabled {
+      return AnclaTheme.tertiaryText
+    }
+
+    return AnclaTheme.primaryText
+  }
+
+  private var stickerURL: URL? {
+    URL(string: "https://s.click.aliexpress.com/e/_c3De6uih")
+  }
+
+  private var primaryActionTitle: String {
+    switch nextStep {
+    case .authorize:
+      return "Grant Screen Time access"
+    case .pairSticker:
+      return "Pair NFC sticker"
+    case .createMode:
+      return "Create block mode"
+    case .release:
+      return "Scan sticker to release"
+    case .arm:
+      return "Arm selected mode"
+    case .rearm:
+      return "Arm again"
+    }
+  }
+
+  private var primaryActionDisabled: Bool {
+    switch nextStep {
+    case .authorize:
+      return false
+    case .pairSticker:
+      return false
+    case .createMode:
+      return false
+    case .release:
+      return !viewModel.canReleaseActiveSession
+    case .arm, .rearm:
+      return !viewModel.canArmSelectedMode
+    }
+  }
+
+  private func primaryAction() {
+    switch nextStep {
+    case .authorize:
+      Task { await viewModel.requestAuthorization() }
+    case .pairSticker:
+      Task { await viewModel.pairSticker() }
+    case .createMode:
+      viewModel.prepareDraftForNewMode()
+      isModeEditorPresented = true
+    case .release:
+      Task { await viewModel.releaseActiveSession() }
+    case .arm, .rearm:
+      Task { await viewModel.armSelectedMode() }
+    }
   }
 
   private var nextStep: NextStep {
@@ -557,231 +633,22 @@ struct ContentView: View {
     return .arm
   }
 
-  private var nextStepTitle: String {
-    switch nextStep {
-    case .authorize:
-      return "Grant access first"
-    case .pairSticker:
-      return "Pair the sticker"
-    case .createMode:
-      return "Make the block"
-    case .release:
-      return "Use the physical release"
-    case .arm:
-      return "Start the block"
-    case .rearm:
-      return "Arm it again"
-    }
-  }
-
-  private var nextStepMessage: String {
-    switch nextStep {
-    case .authorize:
-      return "Ancla needs Screen Time authorization before it can shield apps or websites."
-    case .pairSticker:
-      return "Use the recommended NTAG213 sticker. Once it is paired, only that sticker can release the block."
-    case .createMode:
-      return "Choose the apps and sites you want to make physically annoying to reopen."
-    case .release:
-      return "The current block stays active until the paired sticker is scanned. Wrong stickers do nothing."
-    case .arm:
-      return "Your setup is ready. Arm the selected mode to start the physical-friction loop."
-    case .rearm:
-      return "The last session is released. Arm the selected mode whenever you want the block back."
-    }
-  }
-
-  private func sectionLabel(_ title: String) -> some View {
-    Text(title)
-      .font(.ancla(11, weight: .medium))
-      .tracking(3)
-      .foregroundStyle(Color(red: 0.43, green: 0.5, blue: 0.58))
-  }
-
-  private func summaryRow(_ title: String, value: String) -> some View {
-    HStack(alignment: .firstTextBaseline) {
-      Text(title)
-        .font(.ancla(14))
-        .foregroundStyle(Color(red: 0.43, green: 0.5, blue: 0.58))
-
-      Spacer()
-
-      Text(value)
-        .font(.ancla(14, weight: .medium))
-        .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
-        .multilineTextAlignment(.trailing)
-    }
-  }
-
-  private func setupRow(_ title: String, value: String, action: @escaping () -> Void) -> some View {
-    Button(action: action) {
-      HStack(alignment: .center, spacing: 10) {
-        Text(title)
-          .font(.ancla(14))
-          .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
-
-        Spacer()
-
-        Text(value)
-          .font(.ancla(13, weight: .medium))
-          .foregroundStyle(Color(red: 0.43, green: 0.5, blue: 0.58))
-
-        Image(systemName: "chevron.right")
-          .font(.system(size: 11, weight: .semibold))
-          .foregroundStyle(Color(red: 0.65, green: 0.7, blue: 0.76))
-      }
-      .padding(.vertical, 6)
-    }
-    .buttonStyle(.plain)
-  }
-
-  private func statusPill(_ title: String) -> some View {
-    Text(title)
-      .font(.ancla(11, weight: .semibold))
-      .foregroundStyle(Color(red: 0.25, green: 0.31, blue: 0.39))
-      .padding(.horizontal, 8)
-      .padding(.vertical, 4)
-      .background(Color(red: 0.94, green: 0.96, blue: 0.99), in: Capsule())
-  }
-
-  private func actionPill(
-    _ title: String,
-    destructive: Bool = false,
-    action: @escaping () -> Void
-  ) -> some View {
-    Button(action: action) {
-      Text(title)
-        .font(.ancla(12, weight: .semibold))
-        .foregroundStyle(
-          destructive
-            ? Color(red: 0.66, green: 0.11, blue: 0.15)
-            : Color(red: 0.06, green: 0.09, blue: 0.16)
-        )
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-          destructive
-            ? Color(red: 1, green: 0.94, blue: 0.95)
-            : Color.white,
-          in: Capsule()
-        )
-    }
-    .buttonStyle(.plain)
-  }
-
-  private func actionRow(
-    _ title: String,
-    emphasized: Bool = false,
-    action: @escaping () -> Void
-  ) -> some View {
-    Button(action: action) {
-      HStack {
-        Text(title)
-        Spacer()
-
-        if viewModel.isBusy {
-          ProgressView()
-            .tint(emphasized ? .white : Color(red: 0.06, green: 0.09, blue: 0.16))
-        }
-      }
-      .font(.ancla(14, weight: .medium))
-      .foregroundStyle(emphasized ? Color.white : Color(red: 0.06, green: 0.09, blue: 0.16))
-      .padding(.horizontal, 14)
-      .frame(height: 48)
-      .background(
-        emphasized ? Color(red: 0.06, green: 0.09, blue: 0.16) : Color.white,
-        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-      )
-      .overlay(
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-          .stroke(
-            emphasized ? Color.clear : Color(red: 0.86, green: 0.89, blue: 0.93),
-            lineWidth: 1
-          )
-      )
-    }
-    .buttonStyle(.plain)
-  }
-
-  @ViewBuilder
-  private var nextStepButton: some View {
-    switch nextStep {
-    case .authorize:
-      actionRow("Grant Screen Time access", emphasized: true) {
-        Task { await viewModel.requestAuthorization() }
-      }
-    case .pairSticker:
-      actionRow("Pair your sticker", emphasized: true) {
-        Task { await viewModel.pairSticker() }
-      }
-    case .createMode:
-      actionRow("Create your first mode", emphasized: true) {
-        viewModel.prepareDraftForNewMode()
-        isModeEditorPresented = true
-      }
-    case .release:
-      actionRow("Scan the paired sticker", emphasized: true) {
-        Task { await viewModel.releaseActiveSession() }
-      }
-    case .arm, .rearm:
-      actionRow("Arm selected mode", emphasized: true) {
-        Task { await viewModel.armSelectedMode() }
-      }
-      .disabled(!viewModel.canArmSelectedMode)
-    }
-  }
-
-  private func buyLinkRow(
-    _ title: String,
-    detail: String,
-    destination: @escaping () -> URL?
-  ) -> some View {
-    Group {
-      if let url = destination() {
-        Link(destination: url) {
-          HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-              Text(title)
-                .font(.ancla(14, weight: .medium))
-                .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
-
-              Text(detail)
-                .font(.ancla(12))
-                .foregroundStyle(Color(red: 0.43, green: 0.5, blue: 0.58))
-            }
-
-            Spacer()
-
-            Image(systemName: "arrow.up.right")
-              .font(.system(size: 12, weight: .semibold))
-              .foregroundStyle(Color(red: 0.45, green: 0.52, blue: 0.61))
-          }
-          .padding(.vertical, 6)
-        }
-      }
-    }
-  }
-
-  private var divider: some View {
-    Rectangle()
-      .fill(Color(red: 0.86, green: 0.89, blue: 0.93))
-      .frame(height: 1)
-  }
-
-  private var deleteAlertBinding: Binding<Bool> {
-    Binding(
-      get: { modePendingDeletion != nil },
-      set: { newValue in
-        if !newValue {
-          modePendingDeletion = nil
-        }
-      }
-    )
-  }
-
   private func tagPreview(_ hash: String) -> String {
-    let prefix = hash.prefix(8)
-    let suffix = hash.suffix(6)
+    let prefix = hash.prefix(4)
+    let suffix = hash.suffix(4)
     return "\(prefix)...\(suffix)"
+  }
+
+  private func toneColor(_ tone: RuntimeDiagnosticTone) -> Color {
+    switch tone {
+    case .ready:
+      return AnclaTheme.primaryText
+    case .attention:
+      return AnclaTheme.warningText
+    case .blocked:
+      return AnclaTheme.errorText
+    case .neutral:
+      return AnclaTheme.secondaryText
+    }
   }
 }

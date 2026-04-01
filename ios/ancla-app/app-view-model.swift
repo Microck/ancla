@@ -8,6 +8,7 @@ final class AppViewModel {
   let buildVariant: AppBuildVariant
 
   var snapshot = AppSnapshot()
+  var diagnostics = RuntimeDiagnostics.empty
   var draftModeID: UUID?
   var draftSelection = FamilyActivitySelection()
   var draftModeName = "Work block"
@@ -22,15 +23,18 @@ final class AppViewModel {
   private let authorizationClient: any AuthorizationClienting
   private let shieldingService: any Shielding
   private let stickerPairingService: any StickerPairing
+  private let runtimeDiagnosticsProbe: any RuntimeDiagnosticsProbing
 
   init(
     buildVariant: AppBuildVariant = .current,
     store: (any AppSnapshotStore)? = nil,
     authorizationClient: (any AuthorizationClienting)? = nil,
     shieldingService: (any Shielding)? = nil,
-    stickerPairingService: (any StickerPairing)? = nil
+    stickerPairingService: (any StickerPairing)? = nil,
+    runtimeDiagnosticsProbe: (any RuntimeDiagnosticsProbing)? = nil
   ) {
     self.buildVariant = buildVariant
+    self.runtimeDiagnosticsProbe = runtimeDiagnosticsProbe ?? LiveRuntimeDiagnosticsProbe()
 
     switch buildVariant {
     case .full:
@@ -57,7 +61,11 @@ final class AppViewModel {
   }
 
   var canSaveDraftMode: Bool {
-    selectionHasTargets(draftSelection)
+    if isSideloadLiteBuild {
+      return true
+    }
+
+    return selectionHasTargets(draftSelection)
   }
 
   var hasAnyMode: Bool {
@@ -79,11 +87,18 @@ final class AppViewModel {
   func load() {
     do {
       snapshot = AnclaCore.repairedSnapshot(try store.load())
-      selectedModeID = preferredMode()?.id
-      prepareDraftForNewMode()
     } catch {
       lastError = error.localizedDescription
     }
+
+    if isSideloadLiteBuild && !snapshot.isAuthorized {
+      snapshot.isAuthorized = true
+      try? persist()
+    }
+
+    selectedModeID = preferredMode()?.id
+    prepareDraftForNewMode()
+    refreshDiagnostics()
   }
 
   func requestAuthorization() async {
@@ -106,7 +121,7 @@ final class AppViewModel {
       if let draftModeID, let index = snapshot.modes.firstIndex(where: { $0.id == draftModeID }) {
         var mode = snapshot.modes[index]
         mode.name = modeName
-        mode.selectionData = try JSONEncoder().encode(draftSelection)
+        mode.selectionData = isSideloadLiteBuild ? Data() : try JSONEncoder().encode(draftSelection)
 
         let shouldBeDefault = draftModeShouldBeDefault || snapshot.modes.count == 1
         if shouldBeDefault {
@@ -122,11 +137,20 @@ final class AppViewModel {
 
         selectedModeID = mode.id
       } else {
-        let mode = try BlockMode(
-          name: modeName,
-          selection: draftSelection,
-          isDefault: snapshot.modes.isEmpty || draftModeShouldBeDefault
-        )
+        let mode: BlockMode
+        if isSideloadLiteBuild {
+          mode = BlockMode(
+            name: modeName,
+            selectionData: Data(),
+            isDefault: snapshot.modes.isEmpty || draftModeShouldBeDefault
+          )
+        } else {
+          mode = try BlockMode(
+            name: modeName,
+            selection: draftSelection,
+            isDefault: snapshot.modes.isEmpty || draftModeShouldBeDefault
+          )
+        }
 
         if mode.isDefault {
           clearDefaultFlag()
@@ -158,6 +182,11 @@ final class AppViewModel {
     draftModeID = mode.id
     draftModeName = mode.name
     draftModeShouldBeDefault = mode.isDefault
+
+    if isSideloadLiteBuild && mode.selectionData.isEmpty {
+      draftSelection = FamilyActivitySelection()
+      return
+    }
 
     do {
       draftSelection = try mode.decodedSelection()
@@ -321,6 +350,10 @@ final class AppViewModel {
   }
 
   func selectionSummary(for mode: BlockMode) -> String {
+    if isSideloadLiteBuild && mode.selectionData.isEmpty {
+      return "Local mode only"
+    }
+
     guard let selection = try? mode.decodedSelection() else {
       return "Selection unavailable"
     }
@@ -334,10 +367,25 @@ final class AppViewModel {
     let totalCount = appCount + categoryCount + domainCount
 
     if totalCount == 0 {
-      return "No targets selected"
+      return isSideloadLiteBuild ? "Local mode only" : "No targets selected"
     }
 
     return "\(appCount) apps, \(categoryCount) categories, \(domainCount) domains"
+  }
+
+  func refreshDiagnostics() {
+    let environment = runtimeDiagnosticsProbe.environment(for: buildVariant)
+
+    if isSideloadLiteBuild {
+      snapshot.isAuthorized = true
+    } else {
+      snapshot.isAuthorized = environment.screenTimeAuthorization.isApproved
+    }
+
+    diagnostics = AnclaCore.runtimeDiagnostics(
+      snapshot: snapshot,
+      environment: environment
+    )
   }
 
   private func persist() throws {
@@ -392,6 +440,7 @@ final class AppViewModel {
     }
 
     isBusy = false
+    refreshDiagnostics()
   }
 }
 

@@ -61,6 +61,8 @@ There is now a separate GitHub Actions workflow for sideload-first testing:
 
 It builds an unsigned `.xcarchive`, packages `Payload/Ancla.app` into an unsigned `.ipa`, and uploads both as workflow artifacts.
 
+The full workflow now also uploads a build report artifact that confirms the embedded shield extension and entitlement source snapshot for the experiment build.
+
 Important limits:
 
 - the `.ipa` is not TestFlight-ready

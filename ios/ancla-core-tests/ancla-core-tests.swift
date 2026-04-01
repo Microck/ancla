@@ -143,4 +143,69 @@ final class AnclaCoreTests: XCTestCase {
     )
     XCTAssertFalse(AnclaCore.canArmSelectedMode(blockingSnapshot))
   }
+
+  func testRuntimeDiagnosticsFlagMissingStorageBeforeAnythingElse() {
+    let diagnostics = AnclaCore.runtimeDiagnostics(
+      snapshot: AppSnapshot(),
+      environment: RuntimeEnvironmentSnapshot(
+        buildLabel: "Full blocker experiment",
+        buildDetail: "Uses Family Controls.",
+        storageLabel: "App Group missing",
+        storageDetail: "Signing is not honoring the app-group entitlement.",
+        storageTone: .blocked,
+        nfcAvailable: true,
+        screenTimeAuthorization: .approved
+      )
+    )
+
+    XCTAssertEqual(diagnostics.headline, "Storage unavailable")
+    XCTAssertEqual(diagnostics.message, "Signing is not honoring the app-group entitlement.")
+    XCTAssertEqual(diagnostics.items.first { $0.id == "storage" }?.tone, .blocked)
+  }
+
+  func testRuntimeDiagnosticsSurfaceBlockingWhenAuthorizationIsMissing() {
+    let diagnostics = AnclaCore.runtimeDiagnostics(
+      snapshot: AppSnapshot(),
+      environment: RuntimeEnvironmentSnapshot(
+        buildLabel: "Full blocker experiment",
+        buildDetail: "Uses Family Controls.",
+        storageLabel: "App Group live",
+        storageDetail: "The shared App Group container is available.",
+        storageTone: .ready,
+        nfcAvailable: true,
+        screenTimeAuthorization: .notDetermined
+      )
+    )
+
+    XCTAssertEqual(diagnostics.headline, "Blocking unavailable")
+    XCTAssertEqual(diagnostics.items.first { $0.id == "screen-time" }?.value, "Not granted")
+  }
+
+  func testRuntimeDiagnosticsBecomeReadyAfterPairingAndModeCreation() {
+    let pairedTag = PairedTag(uidHash: "paired-hash", displayName: "Desk sticker")
+    let mode = BlockMode(name: "Work", selectionData: Data(), isDefault: true)
+    let snapshot = AppSnapshot(
+      isAuthorized: true,
+      pairedTag: pairedTag,
+      modes: [mode],
+      activeSession: nil
+    )
+
+    let diagnostics = AnclaCore.runtimeDiagnostics(
+      snapshot: snapshot,
+      environment: RuntimeEnvironmentSnapshot(
+        buildLabel: "Full blocker experiment",
+        buildDetail: "Uses Family Controls.",
+        storageLabel: "App Group live",
+        storageDetail: "The shared App Group container is available.",
+        storageTone: .ready,
+        nfcAvailable: true,
+        screenTimeAuthorization: .approved
+      )
+    )
+
+    XCTAssertEqual(diagnostics.headline, "Ready to arm")
+    XCTAssertEqual(diagnostics.items.first { $0.id == "sticker" }?.value, "Desk sticker")
+    XCTAssertEqual(diagnostics.items.first { $0.id == "mode" }?.value, "Work")
+  }
 }

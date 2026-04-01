@@ -84,16 +84,52 @@ jobs:
             clean archive
 
       - name: Verify app bundle
+        id: verify
         shell: bash
         run: |
           app_path="${{ steps.paths.outputs.archive }}/Products/Applications/Ancla.app"
+          extension_path="$app_path/PlugIns/AnclaShieldExtension.appex"
+          report_path="$RUNNER_TEMP/ancla-build-report.txt"
+
           if [ ! -d "$app_path" ]; then
             echo "Missing app bundle at $app_path" >&2
             exit 1
           fi
 
-          echo "App bundle contents:"
-          find "$app_path" -maxdepth 2 | sort
+          if [ ! -d "$extension_path" ]; then
+            echo "Missing shield extension at $extension_path" >&2
+            exit 1
+          fi
+
+          app_bundle_id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$app_path/Info.plist")
+          extension_bundle_id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$extension_path/Info.plist")
+
+          {
+            echo "Ancla unsigned build report"
+            echo
+            echo "Build number: $BUILD_NUMBER"
+            echo "App scheme: $APP_SCHEME"
+            echo "Archive path: ${{ steps.paths.outputs.archive }}"
+            echo "App bundle id: $app_bundle_id"
+            echo "Extension bundle id: $extension_bundle_id"
+            echo
+            echo "Expected experiment surface:"
+            echo "- Full blocker experiment app target"
+            echo "- Embedded shield extension present"
+            echo "- NFC entitlement source file checked into repo"
+            echo "- Family Controls entitlement source file checked into repo"
+            echo
+            echo "Main app entitlement source:"
+            cat ios/ancla-app/ancla-app.entitlements
+            echo
+            echo "Shield extension entitlement source:"
+            cat ios/ancla-shield-extension/ancla-shield-extension.entitlements
+            echo
+            echo "App bundle contents:"
+            find "$app_path" -maxdepth 2 | sort
+          } | tee "$report_path"
+
+          echo "report=$report_path" >> "$GITHUB_OUTPUT"
 
       - name: Package unsigned ipa
         id: package
@@ -121,4 +157,11 @@ jobs:
         with:
           name: ancla-unsigned-xcarchive-${{ steps.build-number.outputs.value }}
           path: ${{ steps.paths.outputs.archive }}
+          if-no-files-found: error
+
+      - name: Upload build report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ancla-build-report-${{ steps.build-number.outputs.value }}
+          path: ${{ steps.verify.outputs.report }}
           if-no-files-found: error

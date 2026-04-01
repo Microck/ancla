@@ -22,7 +22,8 @@ let package = Package(
       sources: [
         "ancla-core.swift",
         "ancla-dependencies.swift",
-        "ancla-models.swift"
+        "ancla-models.swift",
+        "ancla-runtime-diagnostics.swift"
       ]
     ),
     .testTarget(
