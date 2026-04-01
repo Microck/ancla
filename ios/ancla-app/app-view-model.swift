@@ -69,7 +69,7 @@ final class AppViewModel {
   }
 
   func requestAuthorization() async {
-    await runTask {
+    await runTask { [self] in
       try await authorizationClient.request()
       snapshot.isAuthorized = true
       try persist()
@@ -77,7 +77,7 @@ final class AppViewModel {
   }
 
   func saveMode() async {
-    await runTask {
+    await runTask { [self] in
       guard canSaveDraftMode else {
         throw ValidationError.noTargetsSelected
       }
@@ -150,7 +150,7 @@ final class AppViewModel {
   }
 
   func pairSticker() async {
-    await runTask {
+    await runTask { [self] in
       let uidHash = try await stickerPairingService.scanSticker()
       let trimmedName = draftTagName.trimmingCharacters(in: .whitespacesAndNewlines)
       snapshot.pairedTag = PairedTag(
@@ -162,7 +162,7 @@ final class AppViewModel {
   }
 
   func armSelectedMode() async {
-    await runTask {
+    await runTask { [self] in
       guard let mode = selectedMode() ?? preferredMode() else {
         throw ValidationError.missingMode
       }
@@ -172,7 +172,7 @@ final class AppViewModel {
   }
 
   func armMode(_ modeID: UUID) async {
-    await runTask {
+    await runTask { [self] in
       guard let mode = snapshot.modes.first(where: { $0.id == modeID }) else {
         throw ValidationError.missingMode
       }
@@ -182,7 +182,7 @@ final class AppViewModel {
   }
 
   func releaseActiveSession() async {
-    await runTask {
+    await runTask { [self] in
       guard
         let activeSession = snapshot.activeSession,
         activeSession.state == .armed || activeSession.state == .mismatchedTag
@@ -211,7 +211,7 @@ final class AppViewModel {
   }
 
   func setDefaultMode(_ modeID: UUID) async {
-    await runTask {
+    await runTask { [self] in
       guard snapshot.modes.contains(where: { $0.id == modeID }) else {
         throw ValidationError.missingMode
       }
@@ -226,7 +226,7 @@ final class AppViewModel {
   }
 
   func deleteMode(_ modeID: UUID) async {
-    await runTask {
+    await runTask { [self] in
       guard let index = snapshot.modes.firstIndex(where: { $0.id == modeID }) else {
         throw ValidationError.missingMode
       }
@@ -251,7 +251,7 @@ final class AppViewModel {
   }
 
   func renamePairedSticker(_ name: String) async {
-    await runTask {
+    await runTask { [self] in
       guard snapshot.pairedTag != nil else {
         throw ValidationError.missingPairedTag
       }
@@ -264,7 +264,7 @@ final class AppViewModel {
   }
 
   func unpairSticker() async {
-    await runTask {
+    await runTask { [self] in
       snapshot.pairedTag = nil
       if snapshot.activeSession != nil {
         shieldingService.clear()
