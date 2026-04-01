@@ -52,3 +52,18 @@ Expected result:
 
 - app + extension build succeeds
 - `AnclaTests` passes
+
+## Sideload Artifact
+
+There is now a separate GitHub Actions workflow for sideload-first testing:
+
+- `.github/workflows/ios-sideload-ipa.yml`
+
+It builds an unsigned `.xcarchive`, packages `Payload/Ancla.app` into an unsigned `.ipa`, and uploads both as workflow artifacts.
+
+Important limits:
+
+- the `.ipa` is not TestFlight-ready
+- it is not signed for direct installation
+- users still need a sideload tool or signing service to install it
+- if `FamilyControls` distribution restrictions block behavior on-device, this workflow does not solve that

@@ -95,6 +95,12 @@ docker run --rm \
 
 the docker swift lane validates the framework-free core logic only. real nfc scanning, family controls authorization, and managed settings enforcement still need a mac + physical iphone.
 
+for a sideload-first ipa artifact, run the `ios-sideload-ipa` github action and download the unsigned `.ipa` artifact it produces.
+
+for the sideload notes, see [`docs/sideloading.md`](docs/sideloading.md).
+
+for a windows-first release path, see [`docs/testflight-github-actions.md`](docs/testflight-github-actions.md).
+
 ---
 
 ## sticker
@@ -126,6 +132,7 @@ ancla/
 this repo can be developed and partially verified from linux, but the real product loop is still native-ios-only:
 
 - build/signing needs xcode on macos
+- the sideload workflow can produce an unsigned `.ipa`, but users still need a sideload tool or signing service to install it
 - family controls entitlement behavior needs apple tooling
 - corenfc needs a real iphone
 - managedsettings shielding needs a real iphone

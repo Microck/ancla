@@ -1,0 +1,119 @@
+name: ios-sideload-ipa
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: Optional numeric CFBundleVersion override. Defaults to the GitHub run number.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-sideload-ipa-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-unsigned-ipa:
+    runs-on: macos-15
+    env:
+      APP_SCHEME: Ancla
+      PROJECT_PATH: ios/Ancla.xcodeproj
+      ARCHIVE_PATH: ${{ runner.temp }}/ancla-unsigned.xcarchive
+      IPA_STAGING_PATH: ${{ runner.temp }}/ancla-ipa
+      DERIVED_DATA_PATH: ${{ runner.temp }}/ancla-derived-data
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve build number
+        id: build-number
+        shell: bash
+        run: |
+          value="${{ inputs.build_number }}"
+          if [ -z "$value" ]; then
+            value="${{ github.run_number }}"
+          fi
+
+          case "$value" in
+            *[!0-9]*)
+              echo "build_number must be numeric, got: $value" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "value=$value" >> "$GITHUB_OUTPUT"
+          echo "BUILD_NUMBER=$value" >> "$GITHUB_ENV"
+
+      - name: Install XcodeGen
+        shell: bash
+        run: brew install xcodegen
+
+      - name: Stamp build number
+        shell: bash
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/ancla-app/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/ancla-shield-extension/Info.plist
+
+      - name: Generate Xcode project
+        shell: bash
+        run: |
+          cd ios
+          xcodegen generate
+
+      - name: Build unsigned archive
+        shell: bash
+        run: |
+          xcodebuild \
+            -project "$PROJECT_PATH" \
+            -scheme "$APP_SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$ARCHIVE_PATH" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            clean archive
+
+      - name: Verify app bundle
+        shell: bash
+        run: |
+          app_path="$ARCHIVE_PATH/Products/Applications/Ancla.app"
+          if [ ! -d "$app_path" ]; then
+            echo "Missing app bundle at $app_path" >&2
+            exit 1
+          fi
+
+          echo "App bundle contents:"
+          find "$app_path" -maxdepth 2 | sort
+
+      - name: Package unsigned ipa
+        id: package
+        shell: bash
+        run: |
+          app_path="$ARCHIVE_PATH/Products/Applications/Ancla.app"
+          payload_path="$IPA_STAGING_PATH/Payload"
+          mkdir -p "$payload_path"
+          cp -R "$app_path" "$payload_path/"
+
+          cd "$IPA_STAGING_PATH"
+          ipa_name="ancla-unsigned-${{ steps.build-number.outputs.value }}.ipa"
+          /usr/bin/zip -qry "$ipa_name" Payload
+          echo "path=$IPA_STAGING_PATH/$ipa_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload unsigned ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ancla-unsigned-ipa-${{ steps.build-number.outputs.value }}
+          path: ${{ steps.package.outputs.path }}
+          if-no-files-found: error
+
+      - name: Upload xcarchive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ancla-unsigned-xcarchive-${{ steps.build-number.outputs.value }}
+          path: ${{ env.ARCHIVE_PATH }}
+          if-no-files-found: error

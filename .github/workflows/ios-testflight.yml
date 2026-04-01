@@ -1,0 +1,176 @@
+name: ios-testflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: Optional numeric CFBundleVersion override. Defaults to the GitHub run number.
+        required: false
+        type: string
+      upload_to_testflight:
+        description: Upload the exported ipa after a successful archive.
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-testflight-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-upload:
+    runs-on: macos-15
+    env:
+      APP_SCHEME: Ancla
+      PROJECT_PATH: ios/Ancla.xcodeproj
+      EXPORT_OPTIONS_TEMPLATE: ios/export-options-app-store.plist
+      ARCHIVE_PATH: ${{ runner.temp }}/Ancla.xcarchive
+      EXPORT_PATH: ${{ runner.temp }}/ancla-export
+      APP_STORE_CONNECT_API_KEY_PATH: ${{ runner.temp }}/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve build number
+        id: build-number
+        shell: bash
+        run: |
+          value="${{ inputs.build_number }}"
+          if [ -z "$value" ]; then
+            value="${{ github.run_number }}"
+          fi
+
+          case "$value" in
+            *[!0-9]*)
+              echo "build_number must be numeric, got: $value" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "value=$value" >> "$GITHUB_OUTPUT"
+          echo "BUILD_NUMBER=$value" >> "$GITHUB_ENV"
+
+      - name: Install XcodeGen
+        shell: bash
+        run: brew install xcodegen
+
+      - name: Write App Store Connect API key
+        shell: bash
+        run: |
+          mkdir -p "$(dirname "$APP_STORE_CONNECT_API_KEY_PATH")"
+          cat > "$APP_STORE_CONNECT_API_KEY_PATH" <<'EOF'
+          ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          EOF
+          chmod 600 "$APP_STORE_CONNECT_API_KEY_PATH"
+
+      - name: Import Apple distribution certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.P12_PASSWORD }}
+
+      - name: Stamp build number
+        shell: bash
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/ancla-app/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/ancla-shield-extension/Info.plist
+
+      - name: Generate Xcode project
+        shell: bash
+        run: |
+          cd ios
+          xcodegen generate
+
+      - name: Prepare export options
+        shell: bash
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cp "$EXPORT_OPTIONS_TEMPLATE" "$RUNNER_TEMP/export-options.plist"
+          /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$RUNNER_TEMP/export-options.plist"
+
+      - name: Archive app
+        shell: bash
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          xcodebuild \
+            -project "$PROJECT_PATH" \
+            -scheme "$APP_SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$ARCHIVE_PATH" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_PATH" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            clean archive
+
+      - name: Export ipa
+        shell: bash
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          mkdir -p "$EXPORT_PATH"
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist "$RUNNER_TEMP/export-options.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_PATH" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+
+      - name: Locate ipa
+        id: ipa
+        shell: bash
+        run: |
+          ipa_path="$(find "$EXPORT_PATH" -maxdepth 1 -name '*.ipa' -print -quit)"
+          if [ -z "$ipa_path" ]; then
+            echo "No ipa found in $EXPORT_PATH" >&2
+            exit 1
+          fi
+
+          echo "path=$ipa_path" >> "$GITHUB_OUTPUT"
+
+      - name: Upload ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ancla-ipa-${{ steps.build-number.outputs.value }}
+          path: ${{ steps.ipa.outputs.path }}
+          if-no-files-found: error
+
+      - name: Validate ipa
+        if: ${{ inputs.upload_to_testflight }}
+        shell: bash
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          xcrun altool \
+            --validate-app \
+            -f "${{ steps.ipa.outputs.path }}" \
+            -t ios \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
+      - name: Upload to TestFlight
+        if: ${{ inputs.upload_to_testflight }}
+        shell: bash
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          xcrun altool \
+            --upload-app \
+            -f "${{ steps.ipa.outputs.path }}" \
+            -t ios \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
