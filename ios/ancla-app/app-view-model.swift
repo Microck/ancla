@@ -5,6 +5,8 @@ import Observation
 @MainActor
 @Observable
 final class AppViewModel {
+  let buildVariant: AppBuildVariant
+
   var snapshot = AppSnapshot()
   var draftModeID: UUID?
   var draftSelection = FamilyActivitySelection()
@@ -22,16 +24,32 @@ final class AppViewModel {
   private let stickerPairingService: any StickerPairing
 
   init(
+    buildVariant: AppBuildVariant = .current,
     store: (any AppSnapshotStore)? = nil,
     authorizationClient: (any AuthorizationClienting)? = nil,
     shieldingService: (any Shielding)? = nil,
     stickerPairingService: (any StickerPairing)? = nil
   ) {
-    self.store = store ?? AppGroupStore()
-    self.authorizationClient = authorizationClient ?? AuthorizationClient()
-    self.shieldingService = shieldingService ?? ShieldingService()
-    self.stickerPairingService = stickerPairingService ?? StickerPairingService()
+    self.buildVariant = buildVariant
+
+    switch buildVariant {
+    case .full:
+      self.store = store ?? AppGroupStore()
+      self.authorizationClient = authorizationClient ?? AuthorizationClient()
+      self.shieldingService = shieldingService ?? ShieldingService()
+      self.stickerPairingService = stickerPairingService ?? StickerPairingService()
+    case .sideloadLite:
+      self.store = store ?? LocalSnapshotStore()
+      self.authorizationClient = authorizationClient ?? LiteAuthorizationClient()
+      self.shieldingService = shieldingService ?? LiteShieldingService()
+      self.stickerPairingService = stickerPairingService ?? LiteStickerPairingService()
+    }
+
     load()
+  }
+
+  var isSideloadLiteBuild: Bool {
+    buildVariant == .sideloadLite
   }
 
   var modesForDisplay: [BlockMode] {
@@ -368,7 +386,6 @@ final class AppViewModel {
       try await operation()
     } catch {
       if case StickerPairingError.userCanceled = error {
-        // Canceling a scan should be silent and non-destructive.
       } else {
         lastError = error.localizedDescription
       }

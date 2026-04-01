@@ -26,13 +26,20 @@ struct ContentView: View {
         ScrollView(showsIndicators: false) {
           VStack(alignment: .leading, spacing: 20) {
             header
-            nextStepSection
-            setupSection
-            sessionSection
-            modesSection
-            stickerSection
-            buySection
-            primaryActions
+
+            if viewModel.isSideloadLiteBuild {
+              liteStatusSection
+              liteWhySection
+              buySection
+            } else {
+              nextStepSection
+              setupSection
+              sessionSection
+              modesSection
+              stickerSection
+              buySection
+              primaryActions
+            }
 
             if let lastError = viewModel.lastError {
               Text(lastError)
@@ -127,6 +134,60 @@ struct ContentView: View {
           RoundedRectangle(cornerRadius: 14, style: .continuous)
             .stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1)
         )
+    }
+  }
+
+  private var liteStatusSection: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack {
+        sectionLabel("SIDELOAD")
+        Spacer()
+        Text("LITE BUILD")
+          .font(.ancla(11, weight: .medium))
+          .tracking(2)
+          .foregroundStyle(Color(red: 0.43, green: 0.5, blue: 0.58))
+      }
+
+      Text("Built to install cleanly")
+        .font(.ancla(22, weight: .semibold))
+        .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+
+      Text("This variant removes the shield extension and Apple-managed blocking entitlements so sideload tools like Feather have a simpler app to sign and launch.")
+        .font(.ancla(14))
+        .foregroundStyle(Color(red: 0.34, green: 0.4, blue: 0.48))
+        .fixedSize(horizontal: false, vertical: true)
+    }
+    .padding(16)
+    .background(Color.white.opacity(0.74), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    .overlay(
+      RoundedRectangle(cornerRadius: 18, style: .continuous)
+        .stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1)
+    )
+  }
+
+  private var liteWhySection: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      sectionLabel("LIMITS")
+
+      Text("What works")
+        .font(.ancla(16, weight: .semibold))
+        .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+
+      Text("A clean launchable shell for testing the branding, layout, and purchase links on a sideloaded device.")
+        .font(.ancla(14))
+        .foregroundStyle(Color(red: 0.34, green: 0.4, blue: 0.48))
+        .fixedSize(horizontal: false, vertical: true)
+
+      divider
+
+      Text("What is disabled")
+        .font(.ancla(16, weight: .semibold))
+        .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+
+      Text("Screen Time authorization, app shielding, and NFC release remain part of the full Apple-signed build only.")
+        .font(.ancla(14))
+        .foregroundStyle(Color(red: 0.34, green: 0.4, blue: 0.48))
+        .fixedSize(horizontal: false, vertical: true)
     }
   }
 
@@ -423,6 +484,10 @@ struct ContentView: View {
   }
 
   private var sessionStateLabel: String {
+    if viewModel.isSideloadLiteBuild {
+      return "Sideload lite"
+    }
+
     switch viewModel.snapshot.activeSession?.state ?? .idle {
     case .idle:
       return "Idle"
@@ -436,6 +501,10 @@ struct ContentView: View {
   }
 
   private var sessionMessage: String {
+    if viewModel.isSideloadLiteBuild {
+      return "This build is for launch and layout testing on sideloaded devices. Real blocking stays in the Apple-signed build."
+    }
+
     switch viewModel.snapshot.activeSession?.state ?? .idle {
     case .idle:
       return "Grant access, pair one sticker, make one mode."

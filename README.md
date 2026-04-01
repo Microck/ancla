@@ -95,7 +95,9 @@ docker run --rm \
 
 the docker swift lane validates the framework-free core logic only. real nfc scanning, family controls authorization, and managed settings enforcement still need a mac + physical iphone.
 
-for a sideload-first ipa artifact, run the `ios-sideload-ipa` github action and download the unsigned `.ipa` artifact it produces.
+for a sideload-first ipa artifact, run the `ios-sideload-lite-ipa` github action first if you want the Feather-friendly shell build that should install and open more reliably.
+
+run `ios-sideload-ipa` only when you specifically want the full app bundle with the shield extension and Apple-managed capabilities intact for inspection or proper Apple-signed testing.
 
 for the sideload notes, see [`docs/sideloading.md`](docs/sideloading.md).
 
