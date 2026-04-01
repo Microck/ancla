@@ -49,8 +49,6 @@ struct LiveRuntimeDiagnosticsProbe: RuntimeDiagnosticsProbing {
       return .denied
     case .approved:
       return .approved
-    case .approvedWithDataAccess:
-      return .approvedWithDataAccess
     @unknown default:
       return .unknown
     }

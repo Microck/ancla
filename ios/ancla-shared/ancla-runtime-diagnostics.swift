@@ -12,12 +12,11 @@ enum ScreenTimeAuthorizationState: String, Codable {
   case notDetermined
   case denied
   case approved
-  case approvedWithDataAccess
   case unknown
 
   var isApproved: Bool {
     switch self {
-    case .approved, .approvedWithDataAccess:
+    case .approved:
       return true
     default:
       return false
@@ -34,8 +33,6 @@ enum ScreenTimeAuthorizationState: String, Codable {
       return "Denied"
     case .approved:
       return "Approved"
-    case .approvedWithDataAccess:
-      return "Approved + data"
     case .unknown:
       return "Unknown"
     }
@@ -51,8 +48,6 @@ enum ScreenTimeAuthorizationState: String, Codable {
       return "Authorization is missing, revoked, or blocked by signing entitlements."
     case .approved:
       return "Screen Time authorization is live for this install."
-    case .approvedWithDataAccess:
-      return "Screen Time authorization is live with non-tokenized data access."
     case .unknown:
       return "The device returned an unrecognized authorization state."
     }
@@ -60,7 +55,7 @@ enum ScreenTimeAuthorizationState: String, Codable {
 
   var tone: RuntimeDiagnosticTone {
     switch self {
-    case .approved, .approvedWithDataAccess:
+    case .approved:
       return .ready
     case .notRequired:
       return .neutral

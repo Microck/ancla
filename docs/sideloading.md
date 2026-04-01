@@ -64,7 +64,7 @@ What you want to see in the app:
 - `Build` = `Full blocker experiment`
 - `NFC` = `Ready`
 - `Storage` = `App Group live`
-- `Screen Time` = ideally `Approved` or `Approved + data`
+- `Screen Time` = `Approved`
 
 What bad looks like:
 

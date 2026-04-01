@@ -105,7 +105,7 @@ What you want:
 - `Build` = `Full blocker experiment`
 - `NFC` = `Ready`
 - `Storage` = `App Group live`
-- `Screen Time` = `Approved` or `Approved + data`
+- `Screen Time` = `Approved`
 
 What failure usually means:
 
