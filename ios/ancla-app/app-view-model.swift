@@ -22,15 +22,15 @@ final class AppViewModel {
   private let stickerPairingService: any StickerPairing
 
   init(
-    store: any AppSnapshotStore = AppGroupStore(),
-    authorizationClient: any AuthorizationClienting = AuthorizationClient(),
-    shieldingService: any Shielding = ShieldingService(),
-    stickerPairingService: any StickerPairing = StickerPairingService()
+    store: (any AppSnapshotStore)? = nil,
+    authorizationClient: (any AuthorizationClienting)? = nil,
+    shieldingService: (any Shielding)? = nil,
+    stickerPairingService: (any StickerPairing)? = nil
   ) {
-    self.store = store
-    self.authorizationClient = authorizationClient
-    self.shieldingService = shieldingService
-    self.stickerPairingService = stickerPairingService
+    self.store = store ?? AppGroupStore()
+    self.authorizationClient = authorizationClient ?? AuthorizationClient()
+    self.shieldingService = shieldingService ?? ShieldingService()
+    self.stickerPairingService = stickerPairingService ?? StickerPairingService()
     load()
   }
 
