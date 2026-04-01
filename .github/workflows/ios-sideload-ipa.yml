@@ -21,9 +21,6 @@ jobs:
     env:
       APP_SCHEME: Ancla
       PROJECT_PATH: ios/Ancla.xcodeproj
-      ARCHIVE_PATH: ${{ runner.temp }}/ancla-unsigned.xcarchive
-      IPA_STAGING_PATH: ${{ runner.temp }}/ancla-ipa
-      DERIVED_DATA_PATH: ${{ runner.temp }}/ancla-derived-data
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,6 +43,14 @@ jobs:
 
           echo "value=$value" >> "$GITHUB_OUTPUT"
           echo "BUILD_NUMBER=$value" >> "$GITHUB_ENV"
+
+      - name: Prepare build paths
+        id: paths
+        shell: bash
+        run: |
+          echo "archive=$RUNNER_TEMP/ancla-unsigned.xcarchive" >> "$GITHUB_OUTPUT"
+          echo "ipa_staging=$RUNNER_TEMP/ancla-ipa" >> "$GITHUB_OUTPUT"
+          echo "derived_data=$RUNNER_TEMP/ancla-derived-data" >> "$GITHUB_OUTPUT"
 
       - name: Install XcodeGen
         shell: bash
@@ -71,8 +76,8 @@ jobs:
             -scheme "$APP_SCHEME" \
             -configuration Release \
             -destination "generic/platform=iOS" \
-            -archivePath "$ARCHIVE_PATH" \
-            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -archivePath "${{ steps.paths.outputs.archive }}" \
+            -derivedDataPath "${{ steps.paths.outputs.derived_data }}" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
@@ -81,7 +86,7 @@ jobs:
       - name: Verify app bundle
         shell: bash
         run: |
-          app_path="$ARCHIVE_PATH/Products/Applications/Ancla.app"
+          app_path="${{ steps.paths.outputs.archive }}/Products/Applications/Ancla.app"
           if [ ! -d "$app_path" ]; then
             echo "Missing app bundle at $app_path" >&2
             exit 1
@@ -94,15 +99,15 @@ jobs:
         id: package
         shell: bash
         run: |
-          app_path="$ARCHIVE_PATH/Products/Applications/Ancla.app"
-          payload_path="$IPA_STAGING_PATH/Payload"
+          app_path="${{ steps.paths.outputs.archive }}/Products/Applications/Ancla.app"
+          payload_path="${{ steps.paths.outputs.ipa_staging }}/Payload"
           mkdir -p "$payload_path"
           cp -R "$app_path" "$payload_path/"
 
-          cd "$IPA_STAGING_PATH"
+          cd "${{ steps.paths.outputs.ipa_staging }}"
           ipa_name="ancla-unsigned-${{ steps.build-number.outputs.value }}.ipa"
           /usr/bin/zip -qry "$ipa_name" Payload
-          echo "path=$IPA_STAGING_PATH/$ipa_name" >> "$GITHUB_OUTPUT"
+          echo "path=${{ steps.paths.outputs.ipa_staging }}/$ipa_name" >> "$GITHUB_OUTPUT"
 
       - name: Upload unsigned ipa artifact
         uses: actions/upload-artifact@v4
@@ -115,5 +120,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ancla-unsigned-xcarchive-${{ steps.build-number.outputs.value }}
-          path: ${{ env.ARCHIVE_PATH }}
+          path: ${{ steps.paths.outputs.archive }}
           if-no-files-found: error

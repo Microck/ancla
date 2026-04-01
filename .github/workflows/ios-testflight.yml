@@ -27,9 +27,6 @@ jobs:
       APP_SCHEME: Ancla
       PROJECT_PATH: ios/Ancla.xcodeproj
       EXPORT_OPTIONS_TEMPLATE: ios/export-options-app-store.plist
-      ARCHIVE_PATH: ${{ runner.temp }}/Ancla.xcarchive
-      EXPORT_PATH: ${{ runner.temp }}/ancla-export
-      APP_STORE_CONNECT_API_KEY_PATH: ${{ runner.temp }}/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,6 +50,15 @@ jobs:
           echo "value=$value" >> "$GITHUB_OUTPUT"
           echo "BUILD_NUMBER=$value" >> "$GITHUB_ENV"
 
+      - name: Prepare build paths
+        id: paths
+        shell: bash
+        run: |
+          echo "archive=$RUNNER_TEMP/Ancla.xcarchive" >> "$GITHUB_OUTPUT"
+          echo "export=$RUNNER_TEMP/ancla-export" >> "$GITHUB_OUTPUT"
+          echo "api_key=$RUNNER_TEMP/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8" >> "$GITHUB_OUTPUT"
+          echo "export_options=$RUNNER_TEMP/export-options.plist" >> "$GITHUB_OUTPUT"
+
       - name: Install XcodeGen
         shell: bash
         run: brew install xcodegen
@@ -60,11 +66,11 @@ jobs:
       - name: Write App Store Connect API key
         shell: bash
         run: |
-          mkdir -p "$(dirname "$APP_STORE_CONNECT_API_KEY_PATH")"
-          cat > "$APP_STORE_CONNECT_API_KEY_PATH" <<'EOF'
+          mkdir -p "$(dirname '${{ steps.paths.outputs.api_key }}')"
+          cat > "${{ steps.paths.outputs.api_key }}" <<'KEYEOF'
           ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
-          EOF
-          chmod 600 "$APP_STORE_CONNECT_API_KEY_PATH"
+          KEYEOF
+          chmod 600 "${{ steps.paths.outputs.api_key }}"
 
       - name: Import Apple distribution certificate
         uses: apple-actions/import-codesign-certs@v3
@@ -89,8 +95,8 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          cp "$EXPORT_OPTIONS_TEMPLATE" "$RUNNER_TEMP/export-options.plist"
-          /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$RUNNER_TEMP/export-options.plist"
+          cp "$EXPORT_OPTIONS_TEMPLATE" "${{ steps.paths.outputs.export_options }}"
+          /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "${{ steps.paths.outputs.export_options }}"
 
       - name: Archive app
         shell: bash
@@ -104,10 +110,10 @@ jobs:
             -scheme "$APP_SCHEME" \
             -configuration Release \
             -destination "generic/platform=iOS" \
-            -archivePath "$ARCHIVE_PATH" \
+            -archivePath "${{ steps.paths.outputs.archive }}" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             -allowProvisioningUpdates \
-            -authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_PATH" \
+            -authenticationKeyPath "${{ steps.paths.outputs.api_key }}" \
             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             clean archive
@@ -118,13 +124,13 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
-          mkdir -p "$EXPORT_PATH"
+          mkdir -p "${{ steps.paths.outputs.export }}"
           xcodebuild -exportArchive \
-            -archivePath "$ARCHIVE_PATH" \
-            -exportPath "$EXPORT_PATH" \
-            -exportOptionsPlist "$RUNNER_TEMP/export-options.plist" \
+            -archivePath "${{ steps.paths.outputs.archive }}" \
+            -exportPath "${{ steps.paths.outputs.export }}" \
+            -exportOptionsPlist "${{ steps.paths.outputs.export_options }}" \
             -allowProvisioningUpdates \
-            -authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_PATH" \
+            -authenticationKeyPath "${{ steps.paths.outputs.api_key }}" \
             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
 
@@ -132,9 +138,9 @@ jobs:
         id: ipa
         shell: bash
         run: |
-          ipa_path="$(find "$EXPORT_PATH" -maxdepth 1 -name '*.ipa' -print -quit)"
+          ipa_path="$(find '${{ steps.paths.outputs.export }}' -maxdepth 1 -name '*.ipa' -print -quit)"
           if [ -z "$ipa_path" ]; then
-            echo "No ipa found in $EXPORT_PATH" >&2
+            echo "No ipa found in ${{ steps.paths.outputs.export }}" >&2
             exit 1
           fi
 
