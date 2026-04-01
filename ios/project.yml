@@ -40,6 +40,8 @@ targets:
       - path: ancla-lite
     resources:
       - path: fonts
+    entitlements:
+      path: ancla-lite/ancla-lite.entitlements
     info:
       path: ancla-app/Info.plist
     settings:
@@ -47,6 +49,29 @@ targets:
         PRODUCT_NAME: AnclaLite
         PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla.lite
         INFOPLIST_KEY_CFBundleDisplayName: Ancla Lite
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) SIDELOAD_LITE"
+  AnclaSideload:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ancla-app
+      - path: ancla-shared
+      - path: ancla-lite
+    resources:
+      - path: fonts
+    entitlements:
+      path: ancla-lite/ancla-lite.entitlements
+    info:
+      path: ancla-app/Info.plist
+    settings:
+      base:
+        PRODUCT_NAME: AnclaSideload
+        PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla.sideload
+        INFOPLIST_KEY_CFBundleDisplayName: Ancla
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic

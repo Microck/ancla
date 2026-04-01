@@ -28,8 +28,8 @@ struct LiveRuntimeDiagnosticsProbe: RuntimeDiagnosticsProbing {
 
     case .sideloadLite:
       return RuntimeEnvironmentSnapshot(
-        buildLabel: "Sideload lite",
-        buildDetail: "Keeps real NFC scanning but skips Apple-managed blocking.",
+        buildLabel: "Sideload-safe build",
+        buildDetail: "Optimized to install cleanly under sideload signing while keeping real NFC sticker scans.",
         storageLabel: "Local store",
         storageDetail: "State stays in the app sandbox instead of an App Group container.",
         storageTone: .neutral,

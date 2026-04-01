@@ -95,9 +95,9 @@ docker run --rm \
 
 the docker swift lane validates the framework-free core logic only. real nfc scanning, family controls authorization, and managed settings enforcement still need a mac + physical iphone.
 
-for the real experiment, run the `ios-sideload-ipa` github action. it produces the full app bundle, embedded shield extension, unsigned `.ipa`, unsigned `.xcarchive`, and a build report you can compare against the in-app diagnostics after Feather signing.
+run `ios-sideload-ipa` if you want the sideload-safe iphone build that should actually install and open under Feather while keeping the real NFC sticker flow.
 
-run `ios-sideload-lite-ipa` only as the fallback if the full signed build refuses to install or launch and you need an NFC-only sanity check.
+run `ios-sideload-lite-ipa` only if you specifically want the older secondary fallback target.
 
 for the sideload notes, see [`docs/sideloading.md`](docs/sideloading.md).
 

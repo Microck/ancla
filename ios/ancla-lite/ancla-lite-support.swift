@@ -66,28 +66,22 @@ struct LocalSnapshotStore: AppSnapshotStore {
 @MainActor
 final class LiteAuthorizationClient: AuthorizationClienting {
   func request() async throws {
-    throw SideloadLiteError.unavailable(
-      "Sideload-lite cannot request Screen Time access. Install the full Apple-signed build for real blocking."
-    )
+    // Sideload-lite skips Apple-managed Screen Time authorization.
   }
 }
 
 @MainActor
 final class LiteShieldingService: Shielding {
-  func apply(mode _: BlockMode) throws {
-    throw SideloadLiteError.unavailable(
-      "Sideload-lite cannot arm blocking. Install the full Apple-signed build for real blocking."
-    )
-  }
+  func apply(mode _: BlockMode) throws {}
 
   func clear() {}
 }
 
 @MainActor
 final class LiteStickerPairingService: StickerPairing {
+  private let scanner = StickerPairingService()
+
   func scanSticker() async throws -> String {
-    throw SideloadLiteError.unavailable(
-      "Sideload-lite cannot scan NFC stickers. Install the full Apple-signed build for real pairing."
-    )
+    try await scanner.scanSticker()
   }
 }

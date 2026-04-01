@@ -1,14 +1,13 @@
 # Full Sideload Experiment
 
-This is the exact operator path for the real `Ancla` experiment:
+This is the exact operator path for the installable sideload `Ancla` experiment:
 
-- full app target
-- shield extension included
+- sideload-safe app target
 - real `CoreNFC`
-- real `FamilyControls` request path
-- real App Group shared storage path
+- local mode/session state
+- no embedded blocker extension
 
-It does **not** guarantee that your sideload signer will preserve the privileged entitlements. That is why the app now exposes runtime diagnostics on first launch.
+It is intentionally tuned to install and open under Feather. The true blocker build with the embedded extension and privileged entitlements still belongs to Apple-managed distribution paths.
 
 ## 1. Push the current branch
 
@@ -102,19 +101,17 @@ Open the app and read the diagnostics surface before trying to trust the block f
 
 What you want:
 
-- `Build` = `Full blocker experiment`
+- `Build` = `Sideload-safe build`
 - `NFC` = `Ready`
-- `Storage` = `App Group live`
-- `Screen Time` = `Approved`
+- `Storage` = `Local store`
+- `Screen Time` = `Not required`
 
 What failure usually means:
 
-- `Storage` = `App Group missing`
-  - the signer/profile did not preserve the App Group entitlement
-- `Screen Time` = `Not granted`
-  - authorization was never granted yet, or the request cannot succeed on this signed install
-- `Screen Time` = `Denied`
-  - the entitlement path is not actually usable on this install
+- generic icon
+  - the signed install is still invalid
+- immediate exit on open
+  - the signed install is still invalid
 - `NFC` = `Unavailable`
   - this phone cannot do the sticker scan path
 
@@ -131,10 +128,12 @@ Once diagnostics look good:
 
 ## 8. Decision rule after testing
 
-If `Storage` and `Screen Time` both come up healthy and the arm/release flow works, the full sideload experiment is viable.
+If the app opens cleanly and NFC pairing/release works, the sideload path is good enough for the physical sticker experiment.
 
-If NFC works but App Group or Screen Time do not, the sideload path is still not good enough for the real blocker and you are back in one of these lanes:
+If the app still installs with a generic icon or exits immediately, the signed install is still invalid and the next problem is Feather/certificate/profile behavior, not app UI code.
+
+If you need the true blocker build later, you are back in one of these lanes:
 
 - proper Apple-distributed build
 - alternate signer/profile setup that truly preserves the needed entitlements
-- lite build for NFC-only validation
+- this sideload-safe build for NFC-only validation

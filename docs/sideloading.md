@@ -9,15 +9,15 @@ Workflows:
 
 ## Which one to use
 
-Use `ios-sideload-ipa` for the real experiment. That is the full app bundle with:
+Use `ios-sideload-ipa` for the installable sideload build. It now builds a sideload-safe target with:
 
-- the shield extension
-- `FamilyControls`
-- `ManagedSettings`
-- App Group-backed shared state
+- the real app UI
 - real `CoreNFC` scanning
+- local mode/session state
+- no embedded shield extension
+- no privileged Screen Time blocker entitlement requirement
 
-Use `ios-sideload-lite-ipa` only if the full build refuses to install or open after signing and you need the reduced fallback for NFC-only testing.
+Use `ios-sideload-lite-ipa` only if you specifically want the older `Ancla Lite` target as a secondary fallback.
 
 ## What the full workflow does
 
@@ -26,7 +26,7 @@ Use `ios-sideload-lite-ipa` only if the full build refuses to install or open af
 3. generates the Xcode project from `ios/project.yml`
 4. builds an unsigned `.xcarchive` with code signing disabled
 5. packages `Payload/Ancla.app` into an unsigned `.ipa`
-6. writes a build report that confirms the main app bundle, embedded shield extension, and checked-in entitlement sources
+6. writes a build report that confirms the sideload-safe target and checked-in entitlement source
 7. uploads the `.ipa`, `.xcarchive`, and build report as artifacts
 
 ## What the sideload-lite workflow changes
@@ -61,17 +61,15 @@ After the action finishes:
 
 What you want to see in the app:
 
-- `Build` = `Full blocker experiment`
+- `Build` = `Sideload-safe build`
 - `NFC` = `Ready`
-- `Storage` = `App Group live`
-- `Screen Time` = `Approved`
+- `Storage` = `Local store`
+- `Screen Time` = `Not required`
 
 What bad looks like:
 
-- `Storage` = `App Group missing`
-  - the signer/profile is not honoring the App Group entitlement, so shared blocker state is broken
-- `Screen Time` = `Denied` or `Not granted`
-  - the signer/profile is not actually giving you usable Family Controls authorization
+- generic app icon after install
+- app exits immediately on launch
 - `NFC` = `Unavailable`
   - this phone cannot run the sticker flow
 
@@ -81,7 +79,7 @@ The lite build is not the full blocker product loop.
 
 It keeps real sticker pairing and release scans, plus local mode and session state. It does not perform real app blocking.
 
-The full build still depends on Apple entitlement and signing rules for:
+The true blocker build still depends on Apple entitlement and signing rules for:
 
 - `FamilyControls`
 - `ManagedSettings`
@@ -92,4 +90,4 @@ The full build still depends on Apple entitlement and signing rules for:
 
 The archive is useful if the `.ipa` needs to be repackaged differently later or if you want to inspect the built app bundle and embedded extension layout.
 
-The build report is the fast sanity check. It tells you whether the GitHub runner actually produced the full app layout for the experiment before you even open Feather.
+The build report is the fast sanity check. It tells you whether the GitHub runner actually produced the sideload-safe app layout before you even open Feather.

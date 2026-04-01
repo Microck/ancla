@@ -371,7 +371,7 @@ struct ContentView: View {
   }
 
   private var sideloadFootnote: some View {
-    Text("This build keeps NFC pairing and sticker release. System-level Screen Time shielding remains exclusive to the full Apple-authorized build.")
+    Text("This build is tuned to install cleanly under sideload signing. NFC pairing stays real. System-level Screen Time shielding still requires Apple-managed distribution.")
       .font(.ancla(12))
       .foregroundStyle(AnclaTheme.tertiaryText)
       .frame(maxWidth: 320, alignment: .leading)

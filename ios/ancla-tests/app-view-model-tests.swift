@@ -228,6 +228,35 @@ final class AppViewModelTests: XCTestCase {
     XCTAssertEqual(viewModel.selectedModeID, firstMode.id)
   }
 
+  func testSideloadLiteCanPairSaveArmAndReleaseLocally() async {
+    let store = InMemorySnapshotStore()
+    let stickerService = FakeStickerPairingService(nextHashes: ["lite-hash", "lite-hash"])
+    let viewModel = AppViewModel(
+      buildVariant: .sideloadLite,
+      store: store,
+      stickerPairingService: stickerService
+    )
+
+    XCTAssertTrue(viewModel.snapshot.isAuthorized)
+
+    viewModel.draftTagName = "Desk anchor"
+    await viewModel.pairSticker()
+    XCTAssertEqual(viewModel.snapshot.pairedTag?.displayName, "Desk anchor")
+    XCTAssertNotNil(viewModel.snapshot.pairedTag?.uidHash)
+
+    viewModel.draftModeName = "Phone break"
+    await viewModel.saveMode()
+    XCTAssertNil(viewModel.lastError)
+    XCTAssertEqual(viewModel.snapshot.modes.count, 1)
+    XCTAssertEqual(viewModel.selectionSummary(for: viewModel.snapshot.modes[0]), "Local mode only")
+
+    await viewModel.armSelectedMode()
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .armed)
+
+    await viewModel.releaseActiveSession()
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .released)
+  }
+
   func testSaveModeRejectsEmptySelection() async {
     let viewModel = AppViewModel(
       store: InMemorySnapshotStore(),
