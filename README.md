@@ -71,7 +71,7 @@ Wrong tags do not release the session. The block stays active until the paired a
 ### web
 
 ```bash
-cd /home/ubuntu/workspace/ancla/site
+cd site
 pnpm install
 pnpm dev
 ```
@@ -79,13 +79,12 @@ pnpm dev
 ### local verification
 
 ```bash
-cd /home/ubuntu/workspace/ancla/site
+cd site
 pnpm lint
 pnpm build
 ```
 
 ```bash
-cd /home/ubuntu/workspace/ancla
 docker run --rm \
   -v "$PWD/ios:/workspace" \
   -w /workspace \
