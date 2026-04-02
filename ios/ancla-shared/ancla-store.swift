@@ -1,5 +1,7 @@
 import Foundation
 
+#if !SIDELOAD_LITE
+
 enum AppGroupStoreError: Error {
   case missingContainer
 }
@@ -47,3 +49,4 @@ struct AppGroupStore: AppSnapshotStore {
     return directory.appendingPathComponent(AppGroupConfiguration.snapshotFilename)
   }
 }
+#endif

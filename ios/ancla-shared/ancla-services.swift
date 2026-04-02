@@ -1,8 +1,11 @@
 import CoreNFC
 import CryptoKit
-import FamilyControls
 import Foundation
+
+#if !SIDELOAD_LITE
+import FamilyControls
 import ManagedSettings
+#endif
 
 enum StickerPairingError: LocalizedError {
   case readerUnavailable
@@ -24,17 +27,18 @@ enum StickerPairingError: LocalizedError {
   }
 }
 
-@MainActor
-final class AuthorizationClient: AuthorizationClienting {
-  func request() async throws {
-    try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
-  }
-}
-
 struct TagFingerprint {
   static func hash(_ identifier: Data) -> String {
     let digest = SHA256.hash(data: identifier)
     return digest.map { String(format: "%02x", $0) }.joined()
+  }
+}
+
+#if !SIDELOAD_LITE
+@MainActor
+final class AuthorizationClient: AuthorizationClienting {
+  func request() async throws {
+    try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
   }
 }
 
@@ -62,6 +66,7 @@ final class ShieldingService: Shielding {
     store.clearAllSettings()
   }
 }
+#endif
 
 @MainActor
 final class StickerPairingService: NSObject, StickerPairing, @preconcurrency NFCTagReaderSessionDelegate {

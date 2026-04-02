@@ -1,5 +1,16 @@
-import FamilyControls
 import Foundation
+
+#if !SIDELOAD_LITE
+import FamilyControls
+#endif
+
+#if SIDELOAD_LITE
+struct FamilyActivitySelection: Codable, Equatable {
+  var applicationTokens: Set<String> = []
+  var categoryTokens: Set<String> = []
+  var webDomainTokens: Set<String> = []
+}
+#endif
 
 extension BlockMode {
   init(

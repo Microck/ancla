@@ -1,6 +1,9 @@
 import CoreNFC
-import FamilyControls
 import Foundation
+
+#if !SIDELOAD_LITE
+import FamilyControls
+#endif
 
 protocol RuntimeDiagnosticsProbing {
   func environment(for buildVariant: AppBuildVariant) -> RuntimeEnvironmentSnapshot
@@ -10,6 +13,17 @@ struct LiveRuntimeDiagnosticsProbe: RuntimeDiagnosticsProbing {
   func environment(for buildVariant: AppBuildVariant) -> RuntimeEnvironmentSnapshot {
     switch buildVariant {
     case .full:
+#if SIDELOAD_LITE
+      return RuntimeEnvironmentSnapshot(
+        buildLabel: "Full blocker unavailable",
+        buildDetail: "This sideload build strips Apple-managed Screen Time frameworks from the app binary.",
+        storageLabel: "Unavailable",
+        storageDetail: "Install the App Store or TestFlight build for full Screen Time shielding.",
+        storageTone: .blocked,
+        nfcAvailable: NFCTagReaderSession.readingAvailable,
+        screenTimeAuthorization: .notRequired
+      )
+#else
       let containerURL = FileManager.default.containerURL(
         forSecurityApplicationGroupIdentifier: AppGroupConfiguration.identifier
       )
@@ -25,6 +39,7 @@ struct LiveRuntimeDiagnosticsProbe: RuntimeDiagnosticsProbing {
         nfcAvailable: NFCTagReaderSession.readingAvailable,
         screenTimeAuthorization: authorizationState(for: AuthorizationCenter.shared.authorizationStatus)
       )
+#endif
 
     case .sideloadLite:
       return RuntimeEnvironmentSnapshot(
@@ -39,6 +54,7 @@ struct LiveRuntimeDiagnosticsProbe: RuntimeDiagnosticsProbing {
     }
   }
 
+#if !SIDELOAD_LITE
   private func authorizationState(
     for status: AuthorizationStatus
   ) -> ScreenTimeAuthorizationState {
@@ -53,4 +69,5 @@ struct LiveRuntimeDiagnosticsProbe: RuntimeDiagnosticsProbing {
       return .unknown
     }
   }
+#endif
 }

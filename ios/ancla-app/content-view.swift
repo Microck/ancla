@@ -1,4 +1,6 @@
+#if !SIDELOAD_LITE
 import FamilyControls
+#endif
 import SwiftUI
 
 private enum NextStep {
@@ -66,7 +68,7 @@ struct ContentView: View {
         renameStickerSheet
           .presentationBackground(.clear)
       }
-      .familyActivityPicker(
+      .anclaFamilyActivityPicker(
         isPresented: $viewModel.isPickerPresented,
         selection: $viewModel.draftSelection
       )
@@ -650,5 +652,22 @@ struct ContentView: View {
     case .neutral:
       return AnclaTheme.secondaryText
     }
+  }
+}
+
+private extension View {
+  @ViewBuilder
+  func anclaFamilyActivityPicker(
+    isPresented: Binding<Bool>,
+    selection: Binding<FamilyActivitySelection>
+  ) -> some View {
+#if SIDELOAD_LITE
+    self
+#else
+    familyActivityPicker(
+      isPresented: isPresented,
+      selection: selection
+    )
+#endif
   }
 }

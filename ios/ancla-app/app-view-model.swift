@@ -1,4 +1,6 @@
+#if !SIDELOAD_LITE
 import FamilyControls
+#endif
 import Foundation
 import Observation
 
@@ -38,10 +40,17 @@ final class AppViewModel {
 
     switch buildVariant {
     case .full:
+#if SIDELOAD_LITE
+      self.store = store ?? LocalSnapshotStore()
+      self.authorizationClient = authorizationClient ?? LiteAuthorizationClient()
+      self.shieldingService = shieldingService ?? LiteShieldingService()
+      self.stickerPairingService = stickerPairingService ?? LiteStickerPairingService()
+#else
       self.store = store ?? AppGroupStore()
       self.authorizationClient = authorizationClient ?? AuthorizationClient()
       self.shieldingService = shieldingService ?? ShieldingService()
       self.stickerPairingService = stickerPairingService ?? StickerPairingService()
+#endif
     case .sideloadLite:
       self.store = store ?? LocalSnapshotStore()
       self.authorizationClient = authorizationClient ?? LiteAuthorizationClient()
