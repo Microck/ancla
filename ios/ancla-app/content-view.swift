@@ -640,7 +640,9 @@ struct ContentView: View {
 
   private var systemItems: [RuntimeDiagnosticItem] {
     let ids = ["build", "screen-time", "nfc", "storage"]
-    return viewModel.diagnostics.items.filter { ids.contains($0.id) }
+    var items = viewModel.diagnostics.items.filter { ids.contains($0.id) }
+    items.append(AnclaFontProbe.diagnosticItem)
+    return items
   }
 
   private var anchorTagURL: URL? {
