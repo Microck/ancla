@@ -19,11 +19,14 @@ targets:
       - path: fonts
     entitlements:
       path: ancla-app/ancla-app.entitlements
-    info:
-      path: ancla-app/Info.plist
     settings:
       base:
+        # Use the checked-in plist verbatim. XcodeGen's generated plist drops
+        # runtime keys this app needs, including fonts, launch screen, and NFC usage.
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ancla-app/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla
+        TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_KEY_CFBundleDisplayName: Ancla
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -42,12 +45,13 @@ targets:
       - path: fonts
     entitlements:
       path: ancla-lite/ancla-lite.entitlements
-    info:
-      path: ancla-app/Info.plist
     settings:
       base:
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ancla-app/Info.plist
         PRODUCT_NAME: AnclaLite
         PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla.lite
+        TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_KEY_CFBundleDisplayName: Ancla Lite
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -65,12 +69,13 @@ targets:
       - path: fonts
     entitlements:
       path: ancla-lite/ancla-lite.entitlements
-    info:
-      path: ancla-app/Info.plist
     settings:
       base:
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ancla-app/Info.plist
         PRODUCT_NAME: AnclaSideload
         PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla.sideload
+        TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_KEY_CFBundleDisplayName: Ancla
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -86,10 +91,10 @@ targets:
       - path: ancla-lite
     entitlements:
       path: ancla-shield-extension/ancla-shield-extension.entitlements
-    info:
-      path: ancla-shield-extension/Info.plist
     settings:
       base:
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ancla-shield-extension/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla.shield
         CODE_SIGN_STYLE: Automatic
   AnclaTests:
