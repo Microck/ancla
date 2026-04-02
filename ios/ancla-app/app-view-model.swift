@@ -106,6 +106,10 @@ final class AppViewModel {
     !snapshot.modes.isEmpty
   }
 
+  var isNFCAvailable: Bool {
+    diagnostics.items.first(where: { $0.id == "nfc" })?.value == "Ready"
+  }
+
   var activeSessionIsBlocking: Bool {
     AnclaCore.activeSessionIsBlocking(snapshot)
   }

@@ -5,6 +5,7 @@ import SwiftUI
 
 private enum NextStep {
   case authorize
+  case unavailable
   case pairAnchor
   case createMode
   case release
@@ -14,6 +15,9 @@ private enum NextStep {
 
 struct ContentView: View {
   @Bindable var viewModel: AppViewModel
+
+  // Keep the final rows reachable above the fixed bottom action bar.
+  private let bottomActionBarClearance: CGFloat = 132
 
   @State private var isModeEditorPresented = false
   @State private var isRenamingAnchor = false
@@ -34,7 +38,7 @@ struct ContentView: View {
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.horizontal, 24)
           .padding(.top, 24)
-          .padding(.bottom, 24)
+          .padding(.bottom, bottomActionBarClearance)
         }
       }
       .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -754,6 +758,8 @@ struct ContentView: View {
     switch nextStep {
     case .authorize:
       return "Enable App Controls"
+    case .unavailable:
+      return "NFC Unavailable"
     case .pairAnchor:
       return "Pair Anchor"
     case .createMode:
@@ -771,6 +777,8 @@ struct ContentView: View {
     switch nextStep {
     case .authorize:
       return .authorize
+    case .unavailable:
+      return .refresh
     case .pairAnchor:
       return .pairAnchor
     case .createMode:
@@ -786,6 +794,8 @@ struct ContentView: View {
     switch nextStep {
     case .authorize:
       return false
+    case .unavailable:
+      return true
     case .pairAnchor:
       return false
     case .createMode:
@@ -801,6 +811,8 @@ struct ContentView: View {
     switch nextStep {
     case .authorize:
       Task { await viewModel.requestAuthorization() }
+    case .unavailable:
+      break
     case .pairAnchor:
       Task { await viewModel.pairSticker() }
     case .createMode:
@@ -816,6 +828,14 @@ struct ContentView: View {
   private var nextStep: NextStep {
     if !viewModel.snapshot.isAuthorized {
       return .authorize
+    }
+
+    if !viewModel.isNFCAvailable {
+      if !viewModel.hasAnyMode {
+        return .createMode
+      }
+
+      return .unavailable
     }
 
     if viewModel.snapshot.pairedTag == nil {
