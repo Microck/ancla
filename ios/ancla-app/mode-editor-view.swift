@@ -64,10 +64,10 @@ struct ModeEditorView: View {
               .padding(.top, 12)
 
             if viewModel.isSideloadLiteBuild {
-              sectionLabel("INTENT")
+              sectionLabel("RELEASE")
                 .padding(.top, 60)
 
-              Text("Aggressive notification suppression. High-priority hardware ritualism enabled.")
+              Text("This mode uses the paired anchor and keeps its session state on this iPhone.")
                 .font(.ancla(16))
                 .foregroundStyle(AnclaTheme.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)

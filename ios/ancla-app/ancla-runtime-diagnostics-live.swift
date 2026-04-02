@@ -15,10 +15,10 @@ struct LiveRuntimeDiagnosticsProbe: RuntimeDiagnosticsProbing {
     case .full:
 #if SIDELOAD_LITE
       return RuntimeEnvironmentSnapshot(
-        buildLabel: "Full blocker unavailable",
-        buildDetail: "This sideload build strips Apple-managed Screen Time frameworks from the app binary.",
+        buildLabel: "Extended controls unavailable",
+        buildDetail: "This release does not include the Apple-managed frameworks required for system-level blocking.",
         storageLabel: "Unavailable",
-        storageDetail: "Install the App Store or TestFlight build for full Screen Time shielding.",
+        storageDetail: "Install a distribution build with App Controls support to enable shared blocking state.",
         storageTone: .blocked,
         nfcAvailable: NFCTagReaderSession.readingAvailable,
         screenTimeAuthorization: .notRequired
@@ -29,8 +29,8 @@ struct LiveRuntimeDiagnosticsProbe: RuntimeDiagnosticsProbing {
       )
 
       return RuntimeEnvironmentSnapshot(
-        buildLabel: "Full blocker experiment",
-        buildDetail: "Uses Family Controls, NFC, shared App Group storage, and the shield extension.",
+        buildLabel: "Extended controls active",
+        buildDetail: "Uses App Controls, NFC, shared App Group storage, and the shield extension.",
         storageLabel: containerURL == nil ? "App Group missing" : "App Group live",
         storageDetail: containerURL == nil
           ? "The shared container \(AppGroupConfiguration.identifier) is unavailable. Signing is not honoring the app-group entitlement."
@@ -43,10 +43,10 @@ struct LiveRuntimeDiagnosticsProbe: RuntimeDiagnosticsProbing {
 
     case .sideloadLite:
       return RuntimeEnvironmentSnapshot(
-        buildLabel: "Sideload-safe build",
-        buildDetail: "Optimized to install cleanly under sideload signing while keeping real NFC sticker scans.",
-        storageLabel: "Local store",
-        storageDetail: "State stays in the app sandbox instead of an App Group container.",
+        buildLabel: "On-device release",
+        buildDetail: "Configured for NFC pairing and local session state on this iPhone.",
+        storageLabel: "On-device",
+        storageDetail: "Session state is stored in the app instead of a shared extension container.",
         storageTone: .neutral,
         nfcAvailable: NFCTagReaderSession.readingAvailable,
         screenTimeAuthorization: .notRequired

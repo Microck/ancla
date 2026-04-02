@@ -5,7 +5,7 @@ import SwiftUI
 
 private enum NextStep {
   case authorize
-  case pairSticker
+  case pairAnchor
   case createMode
   case release
   case arm
@@ -16,45 +16,36 @@ struct ContentView: View {
   @Bindable var viewModel: AppViewModel
 
   @State private var isModeEditorPresented = false
-  @State private var isRenamingSticker = false
-  @State private var stickerNameDraft = ""
+  @State private var isRenamingAnchor = false
+  @State private var anchorNameDraft = ""
 
   var body: some View {
     NavigationStack {
-      GeometryReader { proxy in
-        ZStack(alignment: .bottom) {
-          AnclaTheme.background
-            .ignoresSafeArea()
+      ZStack {
+        AnclaTheme.background
+          .ignoresSafeArea()
 
-          ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 28) {
-              header
-              headlineSection
-              sessionSurface
+        ScrollView(showsIndicators: false) {
+          VStack(alignment: .leading, spacing: 24) {
+            header
+            headlineSection
+            sessionSurface
+            modeSurface
+            anchorSurface
+            systemSurface
 
-              if viewModel.modesForDisplay.count > 1 {
-                modeSelector
-              }
-
-              actionsRow
-              systemSurface
-
-              if let lastError = viewModel.lastError, !lastError.isEmpty {
-                errorSection(lastError)
-              }
-
-              if viewModel.isSideloadLiteBuild {
-                sideloadFootnote
-              }
+            if let lastError = viewModel.lastError, !lastError.isEmpty {
+              errorSection(lastError)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
-            .padding(.bottom, 132)
           }
-
-          bottomActionBar(bottomInset: max(proxy.safeAreaInsets.bottom, 18))
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.horizontal, 24)
+          .padding(.top, 24)
+          .padding(.bottom, 24)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+      }
+      .safeAreaInset(edge: .bottom, spacing: 0) {
+        bottomActionBar
       }
       .toolbar(.hidden, for: .navigationBar)
       .preferredColorScheme(.dark)
@@ -66,8 +57,8 @@ struct ContentView: View {
         )
         .presentationBackground(.clear)
       }
-      .sheet(isPresented: $isRenamingSticker) {
-        renameStickerSheet
+      .sheet(isPresented: $isRenamingAnchor) {
+        renameAnchorSheet
           .presentationBackground(.clear)
       }
       .anclaFamilyActivityPicker(
@@ -77,9 +68,9 @@ struct ContentView: View {
       .task {
         viewModel.refreshDiagnostics()
       }
-      .onChange(of: isRenamingSticker) { _, isOpen in
+      .onChange(of: isRenamingAnchor) { _, isOpen in
         if isOpen {
-          stickerNameDraft = viewModel.snapshot.pairedTag?.displayName ?? ""
+          anchorNameDraft = viewModel.snapshot.pairedTag?.displayName ?? ""
         }
       }
     }
@@ -88,7 +79,7 @@ struct ContentView: View {
   private var header: some View {
     HStack(alignment: .center, spacing: 12) {
       HStack(spacing: 10) {
-        AnclaMark(color: AnclaTheme.primaryText, size: 18)
+        AnclaMark(color: AnclaTheme.primaryText, size: 20)
 
         Text("Ancla")
           .font(.ancla(18, weight: .semibold))
@@ -124,43 +115,23 @@ struct ContentView: View {
   }
 
   private var headlineSection: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: 10) {
       Text(viewModel.diagnostics.headline)
-        .font(.ancla(42, weight: .medium))
+        .font(.ancla(40, weight: .medium))
         .foregroundStyle(AnclaTheme.primaryText)
 
       Text(viewModel.diagnostics.message)
         .font(.ancla(15))
         .foregroundStyle(AnclaTheme.secondaryText)
-        .frame(maxWidth: 320, alignment: .leading)
-
-      HStack(spacing: 8) {
-        Capsule()
-          .fill(primaryPillColor)
-          .frame(width: 7, height: 7)
-
-        Text(primaryPillText)
-          .font(.ancla(12, weight: .medium))
-          .foregroundStyle(AnclaTheme.secondaryText)
-      }
-      .padding(.horizontal, 12)
-      .padding(.vertical, 8)
-      .background(
-        Capsule(style: .continuous)
-          .fill(AnclaTheme.panelRaised)
-          .overlay(
-            Capsule(style: .continuous)
-              .stroke(AnclaTheme.panelStroke.opacity(0.8), lineWidth: 1)
-          )
-      )
+        .frame(maxWidth: 340, alignment: .leading)
     }
   }
 
   private var sessionSurface: some View {
-    surface(title: "Current setup") {
+    surface(title: "Overview") {
       VStack(spacing: 16) {
         surfaceRow(
-          label: "Selected mode",
+          label: "Current mode",
           value: currentMode?.name ?? "None",
           detail: currentModeDetail
         )
@@ -168,18 +139,18 @@ struct ContentView: View {
         surfaceDivider
 
         surfaceRow(
-          label: "Sticker",
-          value: viewModel.snapshot.pairedTag?.displayName ?? "Unpaired",
-          detail: stickerDetail
+          label: "Anchor",
+          value: viewModel.snapshot.pairedTag?.displayName ?? "Not paired",
+          detail: anchorDetail
         )
 
         if viewModel.snapshot.pairedTag != nil {
           surfaceDivider
 
           surfaceRow(
-            label: "Fingerprint",
+            label: "Anchor ID",
             value: fingerprintValue,
-            detail: "Short preview of the paired NFC tag fingerprint.",
+            detail: "Short preview of the paired anchor fingerprint.",
             monospaced: true
           )
         }
@@ -196,83 +167,101 @@ struct ContentView: View {
     }
   }
 
-  private var modeSelector: some View {
-    ScrollView(.horizontal, showsIndicators: false) {
-      HStack(spacing: 10) {
-        ForEach(viewModel.modesForDisplay) { mode in
-          Button {
-            viewModel.selectMode(mode.id)
-          } label: {
-            Text(mode.name)
-              .font(.ancla(13, weight: .medium))
-              .foregroundStyle(mode.id == currentMode?.id ? AnclaTheme.ctaText : AnclaTheme.secondaryText)
-              .padding(.horizontal, 14)
-              .padding(.vertical, 10)
-              .background(
-                Capsule(style: .continuous)
-                  .fill(mode.id == currentMode?.id ? AnclaTheme.ctaFill : AnclaTheme.panelRaised)
-              )
+  private var modeSurface: some View {
+    surface(title: "Modes") {
+      VStack(spacing: 12) {
+        if viewModel.modesForDisplay.isEmpty {
+          informativeRow(
+            title: "No modes saved",
+            detail: "Create the first mode you want ready before starting a session.",
+            accentColor: AnclaTheme.primaryText,
+            highlight: false,
+            trailingSymbol: "plus"
+          )
+        } else {
+          ForEach(viewModel.modesForDisplay) { mode in
+            Button {
+              viewModel.selectMode(mode.id)
+            } label: {
+              modeRow(mode)
+            }
+            .buttonStyle(.plain)
           }
-          .buttonStyle(.plain)
+        }
+
+        Menu {
+          if let currentMode {
+            Button("Edit selected mode") {
+              viewModel.prepareDraftForEditingMode(currentMode.id)
+              isModeEditorPresented = true
+            }
+          }
+
+          Button("Create mode") {
+            viewModel.prepareDraftForNewMode()
+            isModeEditorPresented = true
+          }
+        } label: {
+          interactiveRow(
+            title: "Manage modes",
+            detail: "Create a new mode or update the selected one."
+          )
         }
       }
     }
   }
 
-  private var actionsRow: some View {
-    HStack(spacing: 10) {
-      Menu {
-        if !viewModel.modesForDisplay.isEmpty {
-          ForEach(viewModel.modesForDisplay) { mode in
-            Button(mode.name) {
-              viewModel.selectMode(mode.id)
+  private var anchorSurface: some View {
+    surface(title: "Anchor") {
+      VStack(spacing: 12) {
+        if let pairedTag = viewModel.snapshot.pairedTag {
+          informativeRow(
+            title: pairedTag.displayName,
+            detail: "This anchor is currently paired to release active sessions on this iPhone.",
+            accentColor: AnclaTheme.primaryText,
+            highlight: true,
+            trailingText: "Paired"
+          )
+
+          Menu {
+            Button("Rename anchor") {
+              isRenamingAnchor = true
             }
-          }
 
-          Button("Edit current mode") {
-            if let mode = currentMode {
-              viewModel.prepareDraftForEditingMode(mode.id)
-              isModeEditorPresented = true
+            Button("Pair replacement anchor") {
+              Task { await viewModel.pairSticker() }
             }
-          }
-        }
 
-        Button("New mode") {
-          viewModel.prepareDraftForNewMode()
-          isModeEditorPresented = true
-        }
-      } label: {
-        utilityCapsule("Modes")
-      }
-
-      if viewModel.snapshot.pairedTag != nil {
-        Menu {
-          Button("Rename sticker") {
-            isRenamingSticker = true
+            Button("Remove anchor", role: .destructive) {
+              Task { await viewModel.unpairSticker() }
+            }
+          } label: {
+            interactiveRow(
+              title: "Manage anchor",
+              detail: "Rename, replace, or remove the paired anchor."
+            )
           }
+        } else if let anchorTagURL {
+          informativeRow(
+            title: "No anchor paired",
+            detail: "Pair one NFC anchor to set the physical release key for this iPhone.",
+            accentColor: AnclaTheme.primaryText,
+            highlight: false
+          )
 
-          Button("Scan again") {
-            Task { await viewModel.pairSticker() }
+          Link(destination: anchorTagURL) {
+            interactiveRow(
+              title: "Compatible NFC tags",
+              detail: "Purchase a compatible NFC adhesive tag for pairing."
+            )
           }
-
-          Button("Unpair", role: .destructive) {
-            Task { await viewModel.unpairSticker() }
-          }
-        } label: {
-          utilityCapsule("Sticker")
-        }
-      } else if let stickerURL {
-        Link(destination: stickerURL) {
-          utilityCapsule("Buy NFC sticker")
         }
       }
-
-      Spacer(minLength: 0)
     }
   }
 
   private var systemSurface: some View {
-    surface(title: "System checks") {
+    surface(title: "Device status") {
       VStack(spacing: 16) {
         ForEach(systemItems.indices, id: \.self) { index in
           let item = systemItems[index]
@@ -345,26 +334,130 @@ struct ContentView: View {
     }
   }
 
+  private func informativeRow(
+    title: String,
+    detail: String,
+    accentColor: Color,
+    highlight: Bool,
+    trailingText: String? = nil,
+    trailingSymbol: String? = nil
+  ) -> some View {
+    HStack(alignment: .center, spacing: 14) {
+      VStack(alignment: .leading, spacing: 6) {
+        Text(title)
+          .font(.ancla(15, weight: .medium))
+          .foregroundStyle(accentColor)
+
+        Text(detail)
+          .font(.ancla(12))
+          .foregroundStyle(AnclaTheme.secondaryText)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+
+      Spacer(minLength: 0)
+
+      if let trailingText {
+        Text(trailingText)
+          .font(.ancla(12, weight: .medium))
+          .foregroundStyle(highlight ? AnclaTheme.successText : AnclaTheme.secondaryText)
+      }
+
+      if let trailingSymbol {
+        Image(systemName: trailingSymbol)
+          .font(.system(size: 14, weight: .semibold))
+          .foregroundStyle(AnclaTheme.secondaryText)
+      }
+    }
+    .padding(16)
+    .background(
+      RoundedRectangle(cornerRadius: 18, style: .continuous)
+        .fill(highlight ? AnclaTheme.panelRaised : AnclaTheme.panelInteractive)
+        .overlay(
+          RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .stroke(
+              highlight ? AnclaTheme.accentStroke.opacity(0.55) : AnclaTheme.panelStroke.opacity(0.75),
+              lineWidth: 1
+            )
+        )
+    )
+  }
+
+  private func interactiveRow(title: String, detail: String) -> some View {
+    HStack(alignment: .center, spacing: 14) {
+      VStack(alignment: .leading, spacing: 6) {
+        Text(title)
+          .font(.ancla(15, weight: .medium))
+          .foregroundStyle(AnclaTheme.primaryText)
+
+        Text(detail)
+          .font(.ancla(12))
+          .foregroundStyle(AnclaTheme.secondaryText)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+
+      Spacer(minLength: 0)
+
+      Image(systemName: "chevron.right")
+        .font(.system(size: 12, weight: .semibold))
+        .foregroundStyle(AnclaTheme.tertiaryText)
+    }
+    .padding(16)
+    .background(
+      RoundedRectangle(cornerRadius: 18, style: .continuous)
+        .fill(AnclaTheme.panelInteractive)
+        .overlay(
+          RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+        )
+    )
+  }
+
+  private func modeRow(_ mode: BlockMode) -> some View {
+    let isSelected = mode.id == currentMode?.id
+    let isArmed = viewModel.isModeArmed(mode.id)
+
+    return HStack(alignment: .center, spacing: 14) {
+      VStack(alignment: .leading, spacing: 6) {
+        Text(mode.name)
+          .font(.ancla(15, weight: .medium))
+          .foregroundStyle(AnclaTheme.primaryText)
+
+        Text(viewModel.selectionSummary(for: mode))
+          .font(.ancla(12))
+          .foregroundStyle(AnclaTheme.secondaryText)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+
+      Spacer(minLength: 0)
+
+      if isArmed {
+        Text("Active")
+          .font(.ancla(12, weight: .medium))
+          .foregroundStyle(AnclaTheme.warningText)
+      }
+
+      Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+        .font(.system(size: 16, weight: .semibold))
+        .foregroundStyle(isSelected ? AnclaTheme.accentFill : AnclaTheme.tertiaryText)
+    }
+    .padding(16)
+    .background(
+      RoundedRectangle(cornerRadius: 18, style: .continuous)
+        .fill(isSelected ? AnclaTheme.panelRaised : AnclaTheme.panelInteractive)
+        .overlay(
+          RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .stroke(
+              isSelected ? AnclaTheme.accentStroke.opacity(0.55) : AnclaTheme.panelStroke.opacity(0.75),
+              lineWidth: 1
+            )
+        )
+    )
+  }
+
   private var surfaceDivider: some View {
     Rectangle()
       .fill(AnclaTheme.panelStroke.opacity(0.55))
       .frame(height: 1)
-  }
-
-  private func utilityCapsule(_ title: String) -> some View {
-    Text(title)
-      .font(.ancla(12, weight: .medium))
-      .foregroundStyle(AnclaTheme.secondaryText)
-      .padding(.horizontal, 14)
-      .padding(.vertical, 10)
-      .background(
-        Capsule(style: .continuous)
-          .fill(AnclaTheme.panelRaised)
-          .overlay(
-            Capsule(style: .continuous)
-              .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
-          )
-      )
   }
 
   private func errorSection(_ message: String) -> some View {
@@ -372,28 +465,23 @@ struct ContentView: View {
       .font(.ancla(13, weight: .medium))
       .foregroundStyle(AnclaTheme.errorText)
       .frame(maxWidth: .infinity, alignment: .leading)
-  }
-
-  private var sideloadFootnote: some View {
-    Text("This build is tuned to install cleanly under sideload signing. NFC pairing stays real. System-level Screen Time shielding still requires Apple-managed distribution.")
-      .font(.ancla(12))
-      .foregroundStyle(AnclaTheme.tertiaryText)
-      .frame(maxWidth: 320, alignment: .leading)
-  }
-
-  private func bottomActionBar(bottomInset: CGFloat) -> some View {
-    ZStack {
-      LinearGradient(
-        colors: [
-          AnclaTheme.background.opacity(0),
-          AnclaTheme.background.opacity(0.92),
-          AnclaTheme.background,
-        ],
-        startPoint: .top,
-        endPoint: .bottom
+      .padding(16)
+      .background(
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+          .fill(AnclaTheme.panelInteractive)
+          .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+              .stroke(AnclaTheme.errorText.opacity(0.28), lineWidth: 1)
+          )
       )
-      .frame(height: 120 + bottomInset)
-      .allowsHitTesting(false)
+  }
+
+  private var bottomActionBar: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text("Action")
+        .font(.ancla(11, weight: .medium))
+        .foregroundStyle(AnclaTheme.tertiaryText)
+        .tracking(1.2)
 
       Button(action: primaryAction) {
         Text(primaryActionTitle)
@@ -409,14 +497,20 @@ struct ContentView: View {
       .buttonStyle(.plain)
       .disabled(primaryActionDisabled || viewModel.isBusy)
       .opacity(primaryActionDisabled || viewModel.isBusy ? 0.6 : 1)
-      .padding(.horizontal, 24)
-      .padding(.top, 24)
-      .padding(.bottom, bottomInset)
     }
     .frame(maxWidth: .infinity)
+    .padding(.horizontal, 24)
+    .padding(.top, 12)
+    .padding(.bottom, 16)
+    .background(AnclaTheme.background)
+    .overlay(alignment: .top) {
+      Rectangle()
+        .fill(AnclaTheme.panelStroke.opacity(0.4))
+        .frame(height: 1)
+    }
   }
 
-  private var renameStickerSheet: some View {
+  private var renameAnchorSheet: some View {
     ZStack {
       AnclaTheme.background
         .ignoresSafeArea()
@@ -430,14 +524,14 @@ struct ContentView: View {
 
         HStack {
           Button("Cancel") {
-            isRenamingSticker = false
+            isRenamingAnchor = false
           }
           .font(.ancla(16))
           .foregroundStyle(AnclaTheme.secondaryText)
 
           Spacer()
 
-          Text("Rename sticker")
+          Text("Rename anchor")
             .font(.ancla(18, weight: .bold))
             .foregroundStyle(AnclaTheme.primaryText)
 
@@ -445,9 +539,9 @@ struct ContentView: View {
 
           Button("Save") {
             Task {
-              await viewModel.renamePairedSticker(stickerNameDraft)
+              await viewModel.renamePairedSticker(anchorNameDraft)
               if viewModel.lastError == nil {
-                isRenamingSticker = false
+                isRenamingAnchor = false
               }
             }
           }
@@ -456,11 +550,11 @@ struct ContentView: View {
         }
 
         VStack(alignment: .leading, spacing: 12) {
-          Text("Sticker name")
+          Text("Anchor name")
             .font(.ancla(11, weight: .medium))
             .foregroundStyle(AnclaTheme.tertiaryText)
 
-          TextField("", text: $stickerNameDraft)
+          TextField("", text: $anchorNameDraft)
             .textInputAutocapitalization(.words)
             .font(.ancla(28))
             .foregroundStyle(AnclaTheme.primaryText)
@@ -485,23 +579,23 @@ struct ContentView: View {
 
   private var currentModeDetail: String {
     guard let currentMode else {
-      return "Create or select one mode before arming."
+      return "Create or choose a mode before starting a session."
     }
 
     return viewModel.selectionSummary(for: currentMode)
   }
 
-  private var stickerDetail: String {
+  private var anchorDetail: String {
     guard viewModel.snapshot.pairedTag != nil else {
-      return "No release key is paired to this install yet."
+      return "No anchor is paired to this iPhone yet."
     }
 
-    return "Only this sticker can release an armed session."
+    return "Only the paired anchor can release an active session."
   }
 
   private var fingerprintValue: String {
     guard let uidHash = viewModel.snapshot.pairedTag?.uidHash else {
-      return "Awaiting scan"
+      return "Awaiting pair"
     }
 
     return tagPreview(uidHash)
@@ -510,9 +604,9 @@ struct ContentView: View {
   private var sessionValue: String {
     switch viewModel.snapshot.activeSession?.state {
     case .armed:
-      return "Armed"
+      return "Active"
     case .mismatchedTag:
-      return "Wrong sticker"
+      return "Wrong anchor"
     case .released:
       return "Released"
     case .idle, nil:
@@ -523,13 +617,13 @@ struct ContentView: View {
   private var sessionDetail: String {
     switch viewModel.snapshot.activeSession?.state {
     case .armed:
-      return "The current mode is blocking and waiting for the paired sticker."
+      return "The current session remains active until the paired anchor is scanned."
     case .mismatchedTag:
-      return "A different sticker was scanned. The block is still active."
+      return "A different anchor was scanned. The session remains active."
     case .released:
-      return "The last armed session was released."
+      return "The most recent session was released successfully."
     case .idle, nil:
-      return "No block is active right now."
+      return "No active session is running right now."
     }
   }
 
@@ -537,6 +631,8 @@ struct ContentView: View {
     switch viewModel.snapshot.activeSession?.state {
     case .armed, .mismatchedTag:
       return AnclaTheme.warningText
+    case .released:
+      return AnclaTheme.successText
     default:
       return AnclaTheme.primaryText
     }
@@ -547,48 +643,24 @@ struct ContentView: View {
     return viewModel.diagnostics.items.filter { ids.contains($0.id) }
   }
 
-  private var primaryPillText: String {
-    if viewModel.canReleaseActiveSession {
-      return "paired sticker required"
-    }
-
-    if primaryActionDisabled {
-      return "setup required"
-    }
-
-    return "ready for next step"
-  }
-
-  private var primaryPillColor: Color {
-    if viewModel.canReleaseActiveSession {
-      return AnclaTheme.warningText
-    }
-
-    if primaryActionDisabled {
-      return AnclaTheme.tertiaryText
-    }
-
-    return AnclaTheme.primaryText
-  }
-
-  private var stickerURL: URL? {
+  private var anchorTagURL: URL? {
     URL(string: "https://s.click.aliexpress.com/e/_c3De6uih")
   }
 
   private var primaryActionTitle: String {
     switch nextStep {
     case .authorize:
-      return "Grant Screen Time access"
-    case .pairSticker:
-      return "Pair NFC sticker"
+      return "Enable App Controls"
+    case .pairAnchor:
+      return "Pair Anchor"
     case .createMode:
-      return "Create block mode"
+      return "Create Mode"
     case .release:
-      return "Scan sticker to release"
+      return "Release Session"
     case .arm:
-      return "Arm selected mode"
+      return "Start Session"
     case .rearm:
-      return "Arm again"
+      return "Start New Session"
     }
   }
 
@@ -596,7 +668,7 @@ struct ContentView: View {
     switch nextStep {
     case .authorize:
       return false
-    case .pairSticker:
+    case .pairAnchor:
       return false
     case .createMode:
       return false
@@ -611,7 +683,7 @@ struct ContentView: View {
     switch nextStep {
     case .authorize:
       Task { await viewModel.requestAuthorization() }
-    case .pairSticker:
+    case .pairAnchor:
       Task { await viewModel.pairSticker() }
     case .createMode:
       viewModel.prepareDraftForNewMode()
@@ -629,7 +701,7 @@ struct ContentView: View {
     }
 
     if viewModel.snapshot.pairedTag == nil {
-      return .pairSticker
+      return .pairAnchor
     }
 
     if !viewModel.hasAnyMode {

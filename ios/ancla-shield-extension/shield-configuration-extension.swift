@@ -30,7 +30,7 @@ final class ShieldConfigurationExtension: ShieldConfigurationDataSource {
   private func makeConfiguration(title: String) -> ShieldConfiguration {
     let snapshot = (try? store.load()) ?? AppSnapshot()
     let activeModeName = activeModeName(in: snapshot) ?? "Focus mode"
-    let stickerName = snapshot.pairedTag?.displayName ?? "paired sticker"
+    let anchorName = snapshot.pairedTag?.displayName ?? "paired anchor"
 
     return ShieldConfiguration(
       backgroundBlurStyle: .systemMaterialLight,
@@ -38,7 +38,7 @@ final class ShieldConfigurationExtension: ShieldConfigurationDataSource {
       icon: UIImage(systemName: "anchor"),
       title: ShieldConfiguration.Label(text: title, color: .label),
       subtitle: ShieldConfiguration.Label(
-        text: "Mode \(activeModeName) is armed. Open Ancla and scan \(stickerName) to continue.",
+        text: "Mode \(activeModeName) is active. Open Ancla and scan \(anchorName) to continue.",
         color: .secondaryLabel
       ),
       primaryButtonLabel: ShieldConfiguration.Label(text: "Open Ancla", color: .white),

@@ -16,13 +16,13 @@ enum StickerPairingError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .readerUnavailable:
-      return "NFC is unavailable on this device."
+      return "NFC is unavailable on this iPhone."
     case .scanFailed:
-      return "No readable sticker was detected."
+      return "No readable anchor tag was detected."
     case .unsupportedTag:
-      return "This sticker type is not supported."
+      return "This anchor tag type is not supported."
     case .userCanceled:
-      return "Sticker scan canceled."
+      return "Anchor scan canceled."
     }
   }
 }
@@ -91,7 +91,7 @@ final class StickerPairingService: NSObject, StickerPairing, @preconcurrency NFC
         return
       }
 
-      readerSession.alertMessage = "Hold your iPhone near the paired sticker."
+      readerSession.alertMessage = "Hold your iPhone near the paired anchor."
       readerSession.begin()
       self.session = readerSession
     }
@@ -165,7 +165,7 @@ final class StickerPairingService: NSObject, StickerPairing, @preconcurrency NFC
   }
 
   private func finish(with error: Error) {
-    session?.invalidate(errorMessage: "Unable to read this sticker.")
+    session?.invalidate(errorMessage: "Unable to read this anchor.")
     session = nil
 
     guard let continuation else {

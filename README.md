@@ -3,7 +3,7 @@
 
   <h1>ancla</h1>
 
-  <p><strong>iphone app blocking with a paired nfc anchor</strong></p>
+  <p><strong>iPhone app blocking with a paired NFC anchor</strong></p>
 
   <p>
     <img src="https://img.shields.io/badge/platform-ios%2017%2B-0f172a.svg?style=flat-square" alt="ios" />
@@ -13,60 +13,60 @@
   </p>
 </div>
 
-ancla is an iphone-first blocker that uses apple screen time controls plus one paired nfc sticker to make distracting apps physically annoying to reopen. instead of putting the override on the same glass surface as the temptation, it moves the release path into the room around you.
+Ancla is an iPhone-first blocker that uses Apple App Controls plus one paired NFC anchor to make distracting apps physically inconvenient to reopen. Instead of keeping the override on the same glass surface as the temptation, it moves the release path into the room around you.
 
 ---
 
-## why
+## Why
 
-most blockers fail because the escape hatch is still one tap away. ancla changes the shape of the loop:
+Most blockers fail because the escape hatch is still one tap away. Ancla changes the shape of the loop:
 
 - pick the apps and sites you want blocked
-- pair one physical sticker
+- pair one physical anchor
 - arm a mode
-- walk to the sticker if you really want the apps back
+- walk to the anchor if you really want the apps back
 
-it is meant to create friction, not clever automation theater.
+It is meant to create friction, not clever automation.
 
 ---
 
-## how it works
+## How It Works
 
 ```text
 user picks apps + domains
         │
         ▼
-familycontrols selection is saved as a block mode
+App Controls selection is saved as a block mode
         │
         ▼
 managedsettings shields the selected targets
         │
         ▼
-user scans one nfc sticker with corenfc
+user scans one NFC anchor with Core NFC
         │
         ▼
-ancla hashes the sticker identifier and stores that local fingerprint
+Ancla hashes the tag identifier and stores that local fingerprint
         │
         ▼
 release is allowed only when a future scan matches the paired fingerprint
 ```
 
-wrong stickers do not release the session. the block stays armed until the paired sticker is scanned.
+Wrong tags do not release the session. The block stays active until the paired anchor is scanned.
 
 ---
 
-## features
+## Features
 
-1. single-screen native flow for authorize, pair, create mode, arm, and release
-2. multiple block modes with default-mode support
-3. paired sticker rename, replace, and unpair flows
-4. wrong-sticker handling that keeps the session blocked and allows immediate retry
-5. shield extension subtitle that reflects the active mode and sticker name
-6. no backend in the current path - pairing and comparison stay on-device
+1. Single-screen native flow for authorize, pair, create mode, arm, and release.
+2. Multiple block modes with default-mode support.
+3. Paired anchor rename, replace, and unpair flows.
+4. Wrong-tag handling that keeps the session active and allows immediate retry.
+5. Shield extension subtitle that reflects the active mode and anchor name.
+6. No backend in the current path - pairing and comparison stay on-device.
 
 ---
 
-## quickstart
+## Quickstart
 
 ### web
 
@@ -93,32 +93,32 @@ docker run --rm \
   swift test
 ```
 
-the docker swift lane validates the framework-free core logic only. real nfc scanning, family controls authorization, and managed settings enforcement still need a mac + physical iphone.
+The Docker Swift lane validates the framework-free core logic only. Real NFC scanning, App Controls authorization, and Managed Settings enforcement still need a Mac and a physical iPhone.
 
-run `ios-sideload-ipa` if you want the sideload-safe iphone build that should actually install and open under Feather while keeping the real NFC sticker flow.
+Run `ios-sideload-ipa` if you want the installable iPhone build that is intended for direct IPA distribution while keeping the real NFC anchor flow.
 
-run `ios-sideload-lite-ipa` only if you specifically want the older secondary fallback target.
+Run `ios-sideload-lite-ipa` only if you specifically want the older secondary fallback target.
 
-for the sideload notes, see [`docs/sideloading.md`](docs/sideloading.md).
+For installation notes, see [`docs/sideloading.md`](docs/sideloading.md).
 
-for a windows-first release path, see [`docs/testflight-github-actions.md`](docs/testflight-github-actions.md).
+For a Windows-first release path, see [`docs/testflight-github-actions.md`](docs/testflight-github-actions.md).
 
 ---
 
-## sticker
+## Recommended Tag
 
-if you want the default answer, buy:
+If you want the default answer, buy:
 
 - `NTAG213`
 - standard adhesive
 - `38 mm` if the listing offers it
 - `https://s.click.aliexpress.com/e/_c3De6uih`
 
-only buy on-metal tags if the sticker will live on metal.
+Only buy on-metal tags if the anchor will live on metal.
 
 ---
 
-## repo layout
+## Repo Layout
 
 ```text
 ancla/
@@ -129,14 +129,14 @@ ancla/
 
 ---
 
-## current constraint
+## Current Constraint
 
-this repo can be developed and partially verified from linux, but the real product loop is still native-ios-only:
+This repo can be developed and partially verified from Linux, but the real product loop is still native iOS:
 
 - build/signing needs xcode on macos
-- the sideload workflow can produce an unsigned `.ipa`, but users still need a sideload tool or signing service to install it
-- family controls entitlement behavior needs apple tooling
-- corenfc needs a real iphone
-- managedsettings shielding needs a real iphone
+- the IPA workflow can produce an unsigned `.ipa`, but users still need a signing or installation path
+- App Controls entitlement behavior needs Apple tooling
+- Core NFC needs a real iPhone
+- Managed Settings shielding needs a real iPhone
 
-that is not a documentation gap. it is the product boundary.
+That is not a documentation gap. It is the product boundary.

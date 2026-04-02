@@ -3,8 +3,10 @@
 ## Canonical source
 
 - `ancla-app-icon.png`
+- `ancla-anchor.svg`
 
-This is the current selected raster app icon source for Ancla.
+The PNG is the canonical app icon source.
+The SVG is the canonical in-app anchor mark source.
 
 ## Source
 
@@ -14,6 +16,7 @@ This is the current selected raster app icon source for Ancla.
 ## Derived outputs
 
 - `ios/ancla-app/assets.xcassets/AppIcon.appiconset/` contains iPhone + marketing icon exports derived from the canonical source.
+- `ios/ancla-app/assets.xcassets/brand-mark.imageset/brand-mark.png` is derived from the SVG and should keep a transparent background for templated in-app rendering.
 - `site/app/favicon.ico` is derived from the same canonical source for local web branding consistency.
 
 ## Notes

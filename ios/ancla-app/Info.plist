@@ -21,7 +21,7 @@
   <key>LSRequiresIPhoneOS</key>
   <true/>
   <key>NFCReaderUsageDescription</key>
-  <string>Pair or unlock your Ancla sticker.</string>
+  <string>Pair or release your Ancla anchor.</string>
   <key>UIAppFonts</key>
   <array>
     <string>google-sans-flex-400.ttf</string>

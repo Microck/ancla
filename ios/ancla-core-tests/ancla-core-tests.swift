@@ -177,7 +177,7 @@ final class AnclaCoreTests: XCTestCase {
       )
     )
 
-    XCTAssertEqual(diagnostics.headline, "Blocking unavailable")
+    XCTAssertEqual(diagnostics.headline, "Controls unavailable")
     XCTAssertEqual(diagnostics.items.first { $0.id == "screen-time" }?.value, "Not granted")
   }
 
@@ -204,7 +204,7 @@ final class AnclaCoreTests: XCTestCase {
       )
     )
 
-    XCTAssertEqual(diagnostics.headline, "Ready to arm")
+    XCTAssertEqual(diagnostics.headline, "Ready to start")
     XCTAssertEqual(diagnostics.items.first { $0.id == "sticker" }?.value, "Desk sticker")
     XCTAssertEqual(diagnostics.items.first { $0.id == "mode" }?.value, "Work")
   }

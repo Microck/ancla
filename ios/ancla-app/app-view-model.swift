@@ -15,7 +15,7 @@ final class AppViewModel {
   var draftSelection = FamilyActivitySelection()
   var draftModeName = "Work block"
   var draftModeShouldBeDefault = false
-  var draftTagName = "Desk sticker"
+  var draftTagName = "Desk anchor"
   var selectedModeID: UUID?
   var isPickerPresented = false
   var isBusy = false
@@ -211,7 +211,7 @@ final class AppViewModel {
       let trimmedName = draftTagName.trimmingCharacters(in: .whitespacesAndNewlines)
       snapshot.pairedTag = PairedTag(
         uidHash: uidHash,
-        displayName: trimmedName.isEmpty ? "Desk sticker" : trimmedName
+        displayName: trimmedName.isEmpty ? "Desk anchor" : trimmedName
       )
       try persist()
     }
@@ -313,8 +313,8 @@ final class AppViewModel {
       }
 
       let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-      snapshot.pairedTag?.displayName = trimmedName.isEmpty ? "Desk sticker" : trimmedName
-      draftTagName = snapshot.pairedTag?.displayName ?? "Desk sticker"
+      snapshot.pairedTag?.displayName = trimmedName.isEmpty ? "Desk anchor" : trimmedName
+      draftTagName = snapshot.pairedTag?.displayName ?? "Desk anchor"
       try persist()
     }
   }
@@ -360,7 +360,7 @@ final class AppViewModel {
 
   func selectionSummary(for mode: BlockMode) -> String {
     if isSideloadLiteBuild && mode.selectionData.isEmpty {
-      return "Local mode only"
+      return "On-device mode"
     }
 
     guard let selection = try? mode.decodedSelection() else {
@@ -376,7 +376,7 @@ final class AppViewModel {
     let totalCount = appCount + categoryCount + domainCount
 
     if totalCount == 0 {
-      return isSideloadLiteBuild ? "Local mode only" : "No targets selected"
+      return isSideloadLiteBuild ? "On-device mode" : "No targets selected"
     }
 
     return "\(appCount) apps, \(categoryCount) categories, \(domainCount) domains"
@@ -464,17 +464,17 @@ enum ValidationError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .missingAuthorization:
-      return "Grant Screen Time access before arming a mode."
+      return "Enable App Controls before starting a session."
     case .missingPairedTag:
-      return "Pair a sticker before arming a mode."
+      return "Pair an anchor before starting a session."
     case .missingMode:
-      return "Create a block mode before arming Ancla."
+      return "Create a mode before starting a session."
     case .noTargetsSelected:
       return "Choose at least one app, category, or domain."
     case .mismatchedTag:
-      return "That sticker is not the paired anchor."
+      return "That anchor does not match the paired release key."
     case .sessionNotArmed:
-      return "Arm a mode before trying to release."
+      return "Start a session before attempting release."
     }
   }
 }

@@ -26,7 +26,7 @@ enum ScreenTimeAuthorizationState: String, Codable {
   var title: String {
     switch self {
     case .notRequired:
-      return "Not required"
+      return "Inactive"
     case .notDetermined:
       return "Not granted"
     case .denied:
@@ -41,13 +41,13 @@ enum ScreenTimeAuthorizationState: String, Codable {
   var detail: String {
     switch self {
     case .notRequired:
-      return "This build skips Apple-managed Screen Time blocking."
+      return "System-level App Controls are not active in this release."
     case .notDetermined:
-      return "Ask for Screen Time access from the main action button."
+      return "Enable App Controls from the primary action to continue."
     case .denied:
-      return "Authorization is missing, revoked, or blocked by signing entitlements."
+      return "Authorization is unavailable, revoked, or blocked by entitlements."
     case .approved:
-      return "Screen Time authorization is live for this install."
+      return "App Controls authorization is active for this iPhone."
     case .unknown:
       return "The device returned an unrecognized authorization state."
     }
@@ -92,7 +92,7 @@ struct RuntimeDiagnostics: Equatable {
 
   static let empty = RuntimeDiagnostics(
     headline: "Checking device",
-    message: "Refreshing runtime capabilities.",
+    message: "Refreshing device capabilities.",
     items: []
   )
 }
@@ -112,7 +112,7 @@ extension AnclaCore {
       ),
       RuntimeDiagnosticItem(
         id: "screen-time",
-        title: "Screen Time",
+        title: "App Controls",
         value: environment.screenTimeAuthorization.title,
         detail: environment.screenTimeAuthorization.detail,
         tone: environment.screenTimeAuthorization.tone
@@ -122,8 +122,8 @@ extension AnclaCore {
         title: "NFC",
         value: environment.nfcAvailable ? "Ready" : "Unavailable",
         detail: environment.nfcAvailable
-          ? "This iPhone can scan the paired sticker."
-          : "This device cannot start NFC sticker scans.",
+          ? "This iPhone can read the paired anchor."
+          : "This iPhone cannot start NFC anchor scans.",
         tone: environment.nfcAvailable ? .ready : .blocked
       ),
       RuntimeDiagnosticItem(
@@ -135,11 +135,11 @@ extension AnclaCore {
       ),
       RuntimeDiagnosticItem(
         id: "sticker",
-        title: "Sticker",
-        value: snapshot.pairedTag?.displayName ?? "Unpaired",
+        title: "Anchor",
+        value: snapshot.pairedTag?.displayName ?? "Not paired",
         detail: snapshot.pairedTag == nil
-          ? "Scan the exact NFC sticker that should unlock the session."
-          : "The paired sticker is the only release key for this install.",
+          ? "Pair the NFC anchor that should release sessions on this iPhone."
+          : "The paired anchor is the only release key for this iPhone.",
         tone: snapshot.pairedTag == nil ? .attention : .ready
       ),
       RuntimeDiagnosticItem(
@@ -147,7 +147,7 @@ extension AnclaCore {
         title: "Mode",
         value: preferredMode(in: snapshot)?.name ?? "None",
         detail: snapshot.modes.isEmpty
-          ? "Create one mode with apps, categories, or domains before arming."
+          ? "Create a mode before starting a session."
           : "\(snapshot.modes.count) saved mode" + (snapshot.modes.count == 1 ? "" : "s") + ".",
         tone: snapshot.modes.isEmpty ? .attention : .ready
       ),
@@ -182,22 +182,22 @@ extension AnclaCore {
     if environment.screenTimeAuthorization != .notRequired,
        !environment.screenTimeAuthorization.isApproved
     {
-      return "Blocking unavailable"
+      return "Controls unavailable"
     }
 
     if snapshot.pairedTag == nil {
-      return "Pair a sticker"
+      return "Pair an anchor"
     }
 
     if snapshot.modes.isEmpty {
-      return "Create a mode"
+      return "Create your first mode"
     }
 
     if canReleaseActiveSession(snapshot) {
-      return "Session armed"
+      return "Session active"
     }
 
-    return "Ready to arm"
+    return "Ready to start"
   }
 
   private static func primaryMessage(
@@ -209,7 +209,7 @@ extension AnclaCore {
     }
 
     if !environment.nfcAvailable {
-      return "This device cannot scan the NFC sticker, so pair and release will not work here."
+      return "This iPhone cannot scan NFC anchors, so pairing and release are unavailable on this device."
     }
 
     if environment.screenTimeAuthorization != .notRequired,
@@ -219,18 +219,18 @@ extension AnclaCore {
     }
 
     if snapshot.pairedTag == nil {
-      return "Scan one NFC sticker to bind the physical release key to this phone."
+      return "Pair one NFC anchor to set the physical release key for this iPhone."
     }
 
     if snapshot.modes.isEmpty {
-      return "Choose which apps, categories, or domains should be blocked before arming."
+      return "Create the mode you want ready before starting a session."
     }
 
     if canReleaseActiveSession(snapshot) {
-      return "Only the paired sticker can release the current block."
+      return "Only the paired anchor can release the current session."
     }
 
-    return "The current setup can arm the selected mode right now."
+    return "The selected mode is ready to start."
   }
 
   private static func sessionTitle(_ state: AnchorSessionState?) -> String {
@@ -238,7 +238,7 @@ extension AnclaCore {
     case .armed:
       return "Armed"
     case .mismatchedTag:
-      return "Wrong sticker"
+      return "Wrong anchor"
     case .released:
       return "Released"
     case .idle, nil:
@@ -249,13 +249,13 @@ extension AnclaCore {
   private static func sessionDetail(_ state: AnchorSessionState?) -> String {
     switch state {
     case .armed:
-      return "The device is blocking and waiting for the paired sticker."
+      return "A session is active and waiting for the paired anchor."
     case .mismatchedTag:
-      return "A different sticker was scanned. The block stays active."
+      return "A different anchor was scanned. The session remains active."
     case .released:
-      return "The most recent armed session was released."
+      return "The most recent session was released."
     case .idle, nil:
-      return "No session is blocking right now."
+      return "No session is active right now."
     }
   }
 
