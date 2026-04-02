@@ -9,7 +9,7 @@
     <img src="https://img.shields.io/badge/platform-ios%2017%2B-0f172a.svg?style=flat-square" alt="ios" />
     <img src="https://img.shields.io/badge/ui-swiftui-0f172a.svg?style=flat-square" alt="swiftui" />
     <img src="https://img.shields.io/badge/site-next.js%2016-0f172a.svg?style=flat-square" alt="next.js" />
-    <img src="https://img.shields.io/badge/model-local--first-0f172a.svg?style=flat-square" alt="local first" />
+    <img src="https://img.shields.io/badge/storage-on--device-0f172a.svg?style=flat-square" alt="on-device" />
   </p>
 </div>
 
@@ -62,30 +62,26 @@ wrong stickers do not release the session. the block stays armed until the paire
 3. paired sticker rename, replace, and unpair flows
 4. wrong-sticker handling that keeps the session blocked and allows immediate retry
 5. shield extension subtitle that reflects the active mode and sticker name
-6. no backend in the current path - pairing and comparison stay on-device
+6. no backend in the current path — pairing and comparison stay on-device
+7. sideload-safe build variant for testing nfc flow without apple-managed distribution
 
 ---
 
 ## quickstart
 
-### web
+### web (marketing site)
 
 ```bash
-cd /home/ubuntu/workspace/ancla/site
+cd site
 pnpm install
 pnpm dev
 ```
 
-### local verification
+### linux: core logic tests
+
+validates the framework-free shared logic without `FamilyControls`, `ManagedSettings`, or `CoreNFC`:
 
 ```bash
-cd /home/ubuntu/workspace/ancla/site
-pnpm lint
-pnpm build
-```
-
-```bash
-cd /home/ubuntu/workspace/ancla
 docker run --rm \
   -v "$PWD/ios:/workspace" \
   -w /workspace \
@@ -93,26 +89,37 @@ docker run --rm \
   swift test
 ```
 
-the docker swift lane validates the framework-free core logic only. real nfc scanning, family controls authorization, and managed settings enforcement still need a mac + physical iphone.
+### mac: full build
 
-run `ios-sideload-ipa` if you want the sideload-safe iphone build that should actually install and open under Feather while keeping the real NFC sticker flow.
+requires xcode and [xcodegen](https://github.com/yonaskolb/XcodeGen):
 
-run `ios-sideload-lite-ipa` only if you specifically want the older secondary fallback target.
+```bash
+cd ios
+xcodegen generate
+xcodebuild -project Ancla.xcodeproj -scheme Ancla \
+  -destination 'platform=iOS Simulator,name=iPhone 16' build
+```
+
+### ios test flight (windows-friendly)
+
+build from github actions without a local mac. see [`docs/testflight-github-actions.md`](docs/testflight-github-actions.md) for the full setup.
+
+### sideload ipa
+
+two github actions workflows produce unsigned `.ipa` artifacts:
+
+- `ios-sideload-ipa` — sideload-safe build with real `CoreNFC`, no shield extension
+- `ios-sideload-lite-ipa` — older `AnclaLite` fallback target
 
 for the sideload notes, see [`docs/sideloading.md`](docs/sideloading.md).
-
-for a windows-first release path, see [`docs/testflight-github-actions.md`](docs/testflight-github-actions.md).
 
 ---
 
 ## sticker
 
-if you want the default answer, buy:
+if you want the default answer, buy **`NTAG213`** stickers, standard adhesive, `38 mm` if the listing offers it.
 
-- `NTAG213`
-- standard adhesive
-- `38 mm` if the listing offers it
-- `https://s.click.aliexpress.com/e/_c3De6uih`
+for full buying guidance and marketplace picks, see [`docs/sticker-buying-guide.md`](docs/sticker-buying-guide.md).
 
 only buy on-metal tags if the sticker will live on metal.
 
@@ -124,8 +131,23 @@ only buy on-metal tags if the sticker will live on metal.
 ancla/
 ├── ios/      native iphone app, shield extension, shared core, tests
 ├── site/     next.js marketing site
-└── brand/    logo, palette, naming, shared visual direction
+├── brand/    logo, palette, naming, shared visual direction
+└── docs/     guides and reference documentation
 ```
+
+---
+
+## documentation
+
+| Document | Description |
+| --- | --- |
+| [`docs/implementation-guide.md`](docs/implementation-guide.md) | product behavior, nfc flow, architecture |
+| [`docs/local-testing.md`](docs/local-testing.md) | what can be tested on linux vs mac vs iphone |
+| [`docs/sideloading.md`](docs/sideloading.md) | unsigned ipa workflows and post-download steps |
+| [`docs/testflight-github-actions.md`](docs/testflight-github-actions.md) | windows-first testflight release path |
+| [`docs/sticker-buying-guide.md`](docs/sticker-buying-guide.md) | nfc sticker specs and marketplace links |
+| [`docs/release-checklist.md`](docs/release-checklist.md) | pre-release verification checklist |
+| [`ios/README.md`](ios/README.md) | ios-specific build, test, and sideload details |
 
 ---
 
@@ -140,3 +162,9 @@ this repo can be developed and partially verified from linux, but the real produ
 - managedsettings shielding needs a real iphone
 
 that is not a documentation gap. it is the product boundary.
+
+---
+
+## license
+
+no license file exists in this repository. all rights are reserved by default.
