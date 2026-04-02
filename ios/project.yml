@@ -131,6 +131,8 @@ targets:
       - path: ancla-shield-extension
       - path: ancla-shared
       - path: ancla-lite
+    resources:
+      - path: ancla-app/assets.xcassets/brand-mark.imageset/brand-mark.png
     entitlements:
       path: ancla-shield-extension/ancla-shield-extension.entitlements
     settings:

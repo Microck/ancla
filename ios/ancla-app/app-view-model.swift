@@ -4,6 +4,29 @@ import FamilyControls
 import Foundation
 import Observation
 
+enum AppActionID: Equatable {
+  case refresh
+  case authorize
+  case pairAnchor
+  case replaceAnchor
+  case armSession
+  case releaseSession
+  case renameAnchor
+  case removeAnchor
+  case saveMode
+}
+
+enum ActionFeedbackTone {
+  case neutral
+  case success
+  case error
+}
+
+struct ActionFeedback: Equatable {
+  let message: String
+  let tone: ActionFeedbackTone
+}
+
 @MainActor
 @Observable
 final class AppViewModel {
@@ -19,7 +42,9 @@ final class AppViewModel {
   var selectedModeID: UUID?
   var isPickerPresented = false
   var isBusy = false
+  var activeAction: AppActionID?
   var lastError: String?
+  var feedback: ActionFeedback?
 
   private let store: any AppSnapshotStore
   private let authorizationClient: any AuthorizationClienting
@@ -98,6 +123,7 @@ final class AppViewModel {
       snapshot = AnclaCore.repairedSnapshot(try store.load())
     } catch {
       lastError = error.localizedDescription
+      feedback = ActionFeedback(message: error.localizedDescription, tone: .error)
     }
 
     if isSideloadLiteBuild && !snapshot.isAuthorized {
@@ -111,7 +137,7 @@ final class AppViewModel {
   }
 
   func requestAuthorization() async {
-    await runTask { [self] in
+    await runTask(action: .authorize, successMessage: "App Controls enabled.") { [self] in
       try await authorizationClient.request()
       snapshot.isAuthorized = true
       try persist()
@@ -119,7 +145,7 @@ final class AppViewModel {
   }
 
   func saveMode() async {
-    await runTask { [self] in
+    await runTask(action: .saveMode) { [self] in
       guard canSaveDraftMode else {
         throw ValidationError.noTargetsSelected
       }
@@ -170,6 +196,11 @@ final class AppViewModel {
 
       prepareDraftForNewMode()
       try persist()
+
+      feedback = ActionFeedback(
+        message: "\"\(modeName)\" saved.",
+        tone: .success
+      )
     }
   }
 
@@ -202,43 +233,65 @@ final class AppViewModel {
     } catch {
       draftSelection = FamilyActivitySelection()
       lastError = "Could not load this mode's saved target selection."
+      feedback = ActionFeedback(
+        message: "Could not load this mode's saved target selection.",
+        tone: .error
+      )
     }
   }
 
   func pairSticker() async {
-    await runTask { [self] in
+    await runTask(action: .pairAnchor) { [self] in
       let uidHash = try await stickerPairingService.scanSticker()
       let trimmedName = draftTagName.trimmingCharacters(in: .whitespacesAndNewlines)
+      let displayName = trimmedName.isEmpty ? "Desk anchor" : trimmedName
       snapshot.pairedTag = PairedTag(
         uidHash: uidHash,
-        displayName: trimmedName.isEmpty ? "Desk anchor" : trimmedName
+        displayName: displayName
       )
       try persist()
+      feedback = ActionFeedback(message: "\(displayName) paired.", tone: .success)
+    }
+  }
+
+  func replaceSticker() async {
+    await runTask(action: .replaceAnchor) { [self] in
+      let uidHash = try await stickerPairingService.scanSticker()
+      let trimmedName = draftTagName.trimmingCharacters(in: .whitespacesAndNewlines)
+      let displayName = trimmedName.isEmpty ? "Desk anchor" : trimmedName
+      snapshot.pairedTag = PairedTag(
+        uidHash: uidHash,
+        displayName: displayName
+      )
+      try persist()
+      feedback = ActionFeedback(message: "\(displayName) paired as the new anchor.", tone: .success)
     }
   }
 
   func armSelectedMode() async {
-    await runTask { [self] in
+    await runTask(action: .armSession) { [self] in
       guard let mode = selectedMode() ?? preferredMode() else {
         throw ValidationError.missingMode
       }
 
       try arm(mode: mode)
+      feedback = ActionFeedback(message: "\"\(mode.name)\" is active.", tone: .success)
     }
   }
 
   func armMode(_ modeID: UUID) async {
-    await runTask { [self] in
+    await runTask(action: .armSession) { [self] in
       guard let mode = snapshot.modes.first(where: { $0.id == modeID }) else {
         throw ValidationError.missingMode
       }
       selectedModeID = mode.id
       try arm(mode: mode)
+      feedback = ActionFeedback(message: "\"\(mode.name)\" is active.", tone: .success)
     }
   }
 
   func releaseActiveSession() async {
-    await runTask { [self] in
+    await runTask(action: .releaseSession, successMessage: "Session released.") { [self] in
       guard
         let activeSession = snapshot.activeSession,
         activeSession.state == .armed || activeSession.state == .mismatchedTag
@@ -267,7 +320,7 @@ final class AppViewModel {
   }
 
   func setDefaultMode(_ modeID: UUID) async {
-    await runTask { [self] in
+    await runTask(action: .saveMode) { [self] in
       guard snapshot.modes.contains(where: { $0.id == modeID }) else {
         throw ValidationError.missingMode
       }
@@ -278,11 +331,14 @@ final class AppViewModel {
       }
       selectedModeID = modeID
       try persist()
+      if let mode = snapshot.modes.first(where: { $0.id == modeID }) {
+        feedback = ActionFeedback(message: "\"\(mode.name)\" is now primary.", tone: .success)
+      }
     }
   }
 
   func deleteMode(_ modeID: UUID) async {
-    await runTask { [self] in
+    await runTask(action: .saveMode) { [self] in
       guard let index = snapshot.modes.firstIndex(where: { $0.id == modeID }) else {
         throw ValidationError.missingMode
       }
@@ -303,24 +359,27 @@ final class AppViewModel {
       selectedModeID = preferredMode()?.id
       ensureDefaultMode()
       try persist()
+      feedback = ActionFeedback(message: "\"\(deletedMode.name)\" removed.", tone: .success)
     }
   }
 
   func renamePairedSticker(_ name: String) async {
-    await runTask { [self] in
+    await runTask(action: .renameAnchor) { [self] in
       guard snapshot.pairedTag != nil else {
         throw ValidationError.missingPairedTag
       }
 
       let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-      snapshot.pairedTag?.displayName = trimmedName.isEmpty ? "Desk anchor" : trimmedName
+      let displayName = trimmedName.isEmpty ? "Desk anchor" : trimmedName
+      snapshot.pairedTag?.displayName = displayName
       draftTagName = snapshot.pairedTag?.displayName ?? "Desk anchor"
       try persist()
+      feedback = ActionFeedback(message: "Anchor renamed to \(displayName).", tone: .success)
     }
   }
 
   func unpairSticker() async {
-    await runTask { [self] in
+    await runTask(action: .removeAnchor, successMessage: "Anchor removed.") { [self] in
       snapshot.pairedTag = nil
       if snapshot.activeSession != nil {
         shieldingService.clear()
@@ -332,6 +391,9 @@ final class AppViewModel {
 
   func selectMode(_ modeID: UUID) {
     selectedModeID = modeID
+    if let mode = snapshot.modes.first(where: { $0.id == modeID }) {
+      feedback = ActionFeedback(message: "\"\(mode.name)\" selected.", tone: .neutral)
+    }
   }
 
   func selectedMode() -> BlockMode? {
@@ -397,6 +459,15 @@ final class AppViewModel {
     )
   }
 
+  func refreshFromHeader() {
+    refreshDiagnostics()
+    feedback = ActionFeedback(message: "Status refreshed.", tone: .neutral)
+  }
+
+  func isActionInProgress(_ action: AppActionID) -> Bool {
+    isBusy && activeAction == action
+  }
+
   private func persist() throws {
     try store.save(snapshot)
   }
@@ -435,20 +506,32 @@ final class AppViewModel {
       || !selection.webDomainTokens.isEmpty
   }
 
-  private func runTask(_ operation: @escaping () async throws -> Void) async {
+  private func runTask(
+    action: AppActionID,
+    successMessage: String? = nil,
+    _ operation: @escaping () async throws -> Void
+  ) async {
     isBusy = true
+    activeAction = action
     lastError = nil
+    feedback = nil
 
     do {
       try await operation()
+      if let successMessage {
+        feedback = ActionFeedback(message: successMessage, tone: .success)
+      }
     } catch {
       if case StickerPairingError.userCanceled = error {
+        feedback = ActionFeedback(message: "Anchor scan canceled.", tone: .neutral)
       } else {
         lastError = error.localizedDescription
+        feedback = ActionFeedback(message: error.localizedDescription, tone: .error)
       }
     }
 
     isBusy = false
+    activeAction = nil
     refreshDiagnostics()
   }
 }

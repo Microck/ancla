@@ -29,14 +29,7 @@ struct ContentView: View {
           VStack(alignment: .leading, spacing: 24) {
             header
             headlineSection
-            sessionSurface
-            modeSurface
-            anchorSurface
-            systemSurface
-
-            if let lastError = viewModel.lastError, !lastError.isEmpty {
-              errorSection(lastError)
-            }
+            controlSurface
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.horizontal, 24)
@@ -89,7 +82,7 @@ struct ContentView: View {
       Spacer()
 
       Button {
-        viewModel.refreshDiagnostics()
+        viewModel.refreshFromHeader()
       } label: {
         HStack(spacing: 8) {
           Image(systemName: "arrow.clockwise")
@@ -111,6 +104,24 @@ struct ContentView: View {
         )
       }
       .buttonStyle(.plain)
+
+      if let repoURL {
+        Link(destination: repoURL) {
+          Image(systemName: "chevron.left.forwardslash.chevron.right")
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(AnclaTheme.secondaryText)
+            .frame(width: 36, height: 36)
+            .background(
+              Circle()
+                .fill(AnclaTheme.panelRaised)
+                .overlay(
+                  Circle()
+                    .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                )
+            )
+        }
+        .accessibilityLabel("Open GitHub repository")
+      }
     }
   }
 
@@ -127,159 +138,184 @@ struct ContentView: View {
     }
   }
 
-  private var sessionSurface: some View {
-    surface(title: "Overview") {
-      VStack(spacing: 16) {
-        surfaceRow(
-          label: "Current mode",
-          value: currentMode?.name ?? "None",
-          detail: currentModeDetail
-        )
-
-        surfaceDivider
-
-        surfaceRow(
-          label: "Anchor",
-          value: viewModel.snapshot.pairedTag?.displayName ?? "Not paired",
-          detail: anchorDetail
-        )
-
-        if viewModel.snapshot.pairedTag != nil {
-          surfaceDivider
-
-          surfaceRow(
-            label: "Anchor ID",
-            value: fingerprintValue,
-            detail: "Short preview of the paired anchor fingerprint.",
-            monospaced: true
-          )
+  private var controlSurface: some View {
+    surface(title: "Control") {
+      VStack(alignment: .leading, spacing: 20) {
+        if let feedback = viewModel.feedback {
+          feedbackRow(feedback)
         }
 
-        surfaceDivider
+        sectionBlock(
+          title: "Overview",
+          content: {
+            VStack(spacing: 16) {
+              surfaceRow(
+                label: "Current mode",
+                value: currentMode?.name ?? "None",
+                detail: currentModeDetail
+              )
 
-        surfaceRow(
-          label: "Session",
-          value: sessionValue,
-          detail: sessionDetail,
-          accentColor: sessionAccent
-        )
-      }
-    }
-  }
-
-  private var modeSurface: some View {
-    surface(title: "Modes") {
-      VStack(spacing: 12) {
-        if viewModel.modesForDisplay.isEmpty {
-          informativeRow(
-            title: "No modes saved",
-            detail: "Create the first mode you want ready before starting a session.",
-            accentColor: AnclaTheme.primaryText,
-            highlight: false,
-            trailingSymbol: "plus"
-          )
-        } else {
-          ForEach(viewModel.modesForDisplay) { mode in
-            Button {
-              viewModel.selectMode(mode.id)
-            } label: {
-              modeRow(mode)
-            }
-            .buttonStyle(.plain)
-          }
-        }
-
-        Menu {
-          if let currentMode {
-            Button("Edit selected mode") {
-              viewModel.prepareDraftForEditingMode(currentMode.id)
-              isModeEditorPresented = true
-            }
-          }
-
-          Button("Create mode") {
-            viewModel.prepareDraftForNewMode()
-            isModeEditorPresented = true
-          }
-        } label: {
-          interactiveRow(
-            title: "Manage modes",
-            detail: "Create a new mode or update the selected one."
-          )
-        }
-      }
-    }
-  }
-
-  private var anchorSurface: some View {
-    surface(title: "Anchor") {
-      VStack(spacing: 12) {
-        if let pairedTag = viewModel.snapshot.pairedTag {
-          informativeRow(
-            title: pairedTag.displayName,
-            detail: "This anchor is currently paired to release active sessions on this iPhone.",
-            accentColor: AnclaTheme.primaryText,
-            highlight: true,
-            trailingText: "Paired"
-          )
-
-          Menu {
-            Button("Rename anchor") {
-              isRenamingAnchor = true
-            }
-
-            Button("Pair replacement anchor") {
-              Task { await viewModel.pairSticker() }
-            }
-
-            Button("Remove anchor", role: .destructive) {
-              Task { await viewModel.unpairSticker() }
-            }
-          } label: {
-            interactiveRow(
-              title: "Manage anchor",
-              detail: "Rename, replace, or remove the paired anchor."
-            )
-          }
-        } else if let anchorTagURL {
-          informativeRow(
-            title: "No anchor paired",
-            detail: "Pair one NFC anchor to set the physical release key for this iPhone.",
-            accentColor: AnclaTheme.primaryText,
-            highlight: false
-          )
-
-          Link(destination: anchorTagURL) {
-            interactiveRow(
-              title: "Compatible NFC tags",
-              detail: "Purchase a compatible NFC adhesive tag for pairing."
-            )
-          }
-        }
-      }
-    }
-  }
-
-  private var systemSurface: some View {
-    surface(title: "Device status") {
-      VStack(spacing: 16) {
-        ForEach(systemItems.indices, id: \.self) { index in
-          let item = systemItems[index]
-
-          VStack(spacing: 0) {
-            surfaceRow(
-              label: item.title,
-              value: item.value,
-              detail: item.detail,
-              accentColor: toneColor(item.tone)
-            )
-
-            if index < systemItems.count - 1 {
               surfaceDivider
-                .padding(.top, 16)
+
+              surfaceRow(
+                label: "Anchor",
+                value: viewModel.snapshot.pairedTag?.displayName ?? "Not paired",
+                detail: anchorDetail
+              )
+
+              if viewModel.snapshot.pairedTag != nil {
+                surfaceDivider
+
+                surfaceRow(
+                  label: "Anchor ID",
+                  value: fingerprintValue,
+                  detail: "Short preview of the paired anchor fingerprint.",
+                  monospaced: true
+                )
+              }
+
+              surfaceDivider
+
+              surfaceRow(
+                label: "Session",
+                value: sessionValue,
+                detail: sessionDetail,
+                accentColor: sessionAccent
+              )
             }
           }
-        }
+        )
+
+        surfaceDivider
+
+        sectionBlock(
+          title: "Modes",
+          content: {
+            VStack(spacing: 12) {
+              if viewModel.modesForDisplay.isEmpty {
+                informativeRow(
+                  title: "No modes saved",
+                  detail: "Create the first mode you want ready before starting a session.",
+                  accentColor: AnclaTheme.primaryText,
+                  highlight: false,
+                  trailingSymbol: "plus"
+                )
+              } else {
+                ForEach(viewModel.modesForDisplay) { mode in
+                  Button {
+                    viewModel.selectMode(mode.id)
+                  } label: {
+                    modeRow(mode)
+                  }
+                  .buttonStyle(.plain)
+                  .disabled(viewModel.isBusy)
+                }
+              }
+
+              if let currentMode {
+                Button {
+                  viewModel.prepareDraftForEditingMode(currentMode.id)
+                  isModeEditorPresented = true
+                } label: {
+                  actionRow(
+                    icon: "square.and.pencil",
+                    title: "Edit selected mode",
+                    detail: "Update the mode that will start next.",
+                    isLoading: false
+                  )
+                }
+                .buttonStyle(AnclaPressableButtonStyle())
+                .disabled(viewModel.isBusy)
+              }
+
+              Button {
+                viewModel.prepareDraftForNewMode()
+                isModeEditorPresented = true
+              } label: {
+                actionRow(
+                  icon: "plus",
+                  title: "Create mode",
+                  detail: "Add another saved mode for a different blocking setup.",
+                  isLoading: false
+                )
+              }
+              .buttonStyle(AnclaPressableButtonStyle())
+              .disabled(viewModel.isBusy)
+            }
+          }
+        )
+
+        surfaceDivider
+
+        sectionBlock(
+          title: "Anchor",
+          content: {
+            VStack(spacing: 12) {
+              if let pairedTag = viewModel.snapshot.pairedTag {
+                informativeRow(
+                  title: pairedTag.displayName,
+                  detail: "This anchor is currently paired to release active sessions on this iPhone.",
+                  accentColor: AnclaTheme.primaryText,
+                  highlight: true,
+                  trailingText: "Paired"
+                )
+
+                Button {
+                  isRenamingAnchor = true
+                } label: {
+                  actionRow(
+                    icon: "pencil.line",
+                    title: "Rename anchor",
+                    detail: "Update the visible label for the paired anchor.",
+                    isLoading: false
+                  )
+                }
+                .buttonStyle(AnclaPressableButtonStyle())
+                .disabled(viewModel.isBusy)
+
+                Button {
+                  Task { await viewModel.replaceSticker() }
+                } label: {
+                  actionRow(
+                    icon: "arrow.triangle.2.circlepath",
+                    title: "Pair replacement anchor",
+                    detail: "Scan a different NFC anchor and make it the new release key.",
+                    isLoading: viewModel.isActionInProgress(.replaceAnchor)
+                  )
+                }
+                .buttonStyle(AnclaPressableButtonStyle())
+                .disabled(viewModel.isBusy)
+
+                Button {
+                  Task { await viewModel.unpairSticker() }
+                } label: {
+                  actionRow(
+                    icon: "trash",
+                    title: "Remove anchor",
+                    detail: "Clear the current paired anchor from this iPhone.",
+                    isLoading: viewModel.isActionInProgress(.removeAnchor),
+                    isDestructive: true
+                  )
+                }
+                .buttonStyle(
+                  AnclaPressableButtonStyle(
+                    background: AnclaTheme.panelInteractive,
+                    pressedBackground: AnclaTheme.panelRaised,
+                    stroke: AnclaTheme.errorText.opacity(0.32)
+                  )
+                )
+                .disabled(viewModel.isBusy)
+              } else {
+                informativeRow(
+                  title: "No anchor paired",
+                  detail: "Pair one NFC anchor to set the physical release key for this iPhone.",
+                  accentColor: AnclaTheme.primaryText,
+                  highlight: false
+                )
+              }
+            }
+          }
+        )
       }
     }
   }
@@ -382,12 +418,34 @@ struct ContentView: View {
     )
   }
 
-  private func interactiveRow(title: String, detail: String) -> some View {
+  private func actionRow(
+    icon: String,
+    title: String,
+    detail: String,
+    isLoading: Bool,
+    isDestructive: Bool = false
+  ) -> some View {
     HStack(alignment: .center, spacing: 14) {
+      ZStack {
+        Circle()
+          .fill((isDestructive ? AnclaTheme.errorText : AnclaTheme.accentFill).opacity(0.14))
+          .frame(width: 34, height: 34)
+
+        if isLoading {
+          ProgressView()
+            .tint(isDestructive ? AnclaTheme.errorText : AnclaTheme.primaryText)
+            .scaleEffect(0.8)
+        } else {
+          Image(systemName: icon)
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(isDestructive ? AnclaTheme.errorText : AnclaTheme.primaryText)
+        }
+      }
+
       VStack(alignment: .leading, spacing: 6) {
         Text(title)
           .font(.ancla(15, weight: .medium))
-          .foregroundStyle(AnclaTheme.primaryText)
+          .foregroundStyle(isDestructive ? AnclaTheme.errorText : AnclaTheme.primaryText)
 
         Text(detail)
           .font(.ancla(12))
@@ -402,14 +460,6 @@ struct ContentView: View {
         .foregroundStyle(AnclaTheme.tertiaryText)
     }
     .padding(16)
-    .background(
-      RoundedRectangle(cornerRadius: 18, style: .continuous)
-        .fill(AnclaTheme.panelInteractive)
-        .overlay(
-          RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
-        )
-    )
   }
 
   private func modeRow(_ mode: BlockMode) -> some View {
@@ -460,20 +510,41 @@ struct ContentView: View {
       .frame(height: 1)
   }
 
-  private func errorSection(_ message: String) -> some View {
-    Text(message)
-      .font(.ancla(13, weight: .medium))
-      .foregroundStyle(AnclaTheme.errorText)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(16)
-      .background(
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
-          .fill(AnclaTheme.panelInteractive)
-          .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-              .stroke(AnclaTheme.errorText.opacity(0.28), lineWidth: 1)
-          )
-      )
+  private func feedbackRow(_ feedback: ActionFeedback) -> some View {
+    let color: Color
+    switch feedback.tone {
+    case .neutral:
+      color = AnclaTheme.secondaryText
+    case .success:
+      color = AnclaTheme.successText
+    case .error:
+      color = AnclaTheme.errorText
+    }
+
+    return HStack(spacing: 10) {
+      Circle()
+        .fill(color.opacity(0.16))
+        .frame(width: 24, height: 24)
+        .overlay {
+          Image(systemName: feedbackIcon(feedback.tone))
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(color)
+        }
+
+      Text(feedback.message)
+        .font(.ancla(13, weight: .medium))
+        .foregroundStyle(color)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .padding(14)
+    .background(
+      RoundedRectangle(cornerRadius: 16, style: .continuous)
+        .fill(AnclaTheme.panelInteractive)
+        .overlay(
+          RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(color.opacity(0.22), lineWidth: 1)
+        )
+    )
   }
 
   private var bottomActionBar: some View {
@@ -484,15 +555,22 @@ struct ContentView: View {
         .tracking(1.2)
 
       Button(action: primaryAction) {
-        Text(primaryActionTitle)
-          .font(.ancla(15, weight: .semibold))
-          .foregroundStyle(AnclaTheme.ctaText)
-          .frame(maxWidth: .infinity)
-          .frame(height: 56)
-          .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-              .fill(AnclaTheme.ctaFill)
-          )
+        HStack(spacing: 10) {
+          if viewModel.isActionInProgress(primaryActionID) {
+            ProgressView()
+              .tint(AnclaTheme.ctaText)
+          }
+
+          Text(primaryActionTitle)
+            .font(.ancla(15, weight: .semibold))
+        }
+        .foregroundStyle(AnclaTheme.ctaText)
+        .frame(maxWidth: .infinity)
+        .frame(height: 56)
+        .background(
+          RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(AnclaTheme.ctaFill)
+        )
       }
       .buttonStyle(.plain)
       .disabled(primaryActionDisabled || viewModel.isBusy)
@@ -526,8 +604,18 @@ struct ContentView: View {
           Button("Cancel") {
             isRenamingAnchor = false
           }
-          .font(.ancla(16))
+          .font(.ancla(14, weight: .medium))
           .foregroundStyle(AnclaTheme.secondaryText)
+          .padding(.horizontal, 14)
+          .frame(height: 38)
+          .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+              .fill(AnclaTheme.panelInteractive)
+              .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                  .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+              )
+          )
 
           Spacer()
 
@@ -545,8 +633,22 @@ struct ContentView: View {
               }
             }
           }
-          .font(.ancla(16, weight: .semibold))
-          .foregroundStyle(AnclaTheme.primaryText)
+          .font(.ancla(14, weight: .semibold))
+          .foregroundStyle(AnclaTheme.ctaText)
+          .padding(.horizontal, 14)
+          .frame(height: 38)
+          .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+              .fill(AnclaTheme.ctaFill)
+          )
+          .overlay {
+            if viewModel.isActionInProgress(.renameAnchor) {
+              ProgressView()
+                .tint(AnclaTheme.ctaText)
+            }
+          }
+          .disabled(viewModel.isBusy)
+          .opacity(viewModel.isBusy ? 0.7 : 1)
         }
 
         VStack(alignment: .leading, spacing: 12) {
@@ -560,6 +662,12 @@ struct ContentView: View {
             .foregroundStyle(AnclaTheme.primaryText)
 
           surfaceDivider
+        }
+
+        if let lastError = viewModel.lastError {
+          Text(lastError)
+            .font(.ancla(12, weight: .medium))
+            .foregroundStyle(AnclaTheme.errorText)
         }
 
         Spacer()
@@ -638,15 +746,8 @@ struct ContentView: View {
     }
   }
 
-  private var systemItems: [RuntimeDiagnosticItem] {
-    let ids = ["build", "screen-time", "nfc", "storage"]
-    var items = viewModel.diagnostics.items.filter { ids.contains($0.id) }
-    items.append(AnclaFontProbe.diagnosticItem)
-    return items
-  }
-
-  private var anchorTagURL: URL? {
-    URL(string: "https://s.click.aliexpress.com/e/_c3De6uih")
+  private var repoURL: URL? {
+    URL(string: "https://github.com/Microck/ancla")
   }
 
   private var primaryActionTitle: String {
@@ -663,6 +764,21 @@ struct ContentView: View {
       return "Start Session"
     case .rearm:
       return "Start New Session"
+    }
+  }
+
+  private var primaryActionID: AppActionID {
+    switch nextStep {
+    case .authorize:
+      return .authorize
+    case .pairAnchor:
+      return .pairAnchor
+    case .createMode:
+      return .saveMode
+    case .release:
+      return .releaseSession
+    case .arm, .rearm:
+      return .armSession
     }
   }
 
@@ -727,16 +843,28 @@ struct ContentView: View {
     return "\(prefix)...\(suffix)"
   }
 
-  private func toneColor(_ tone: RuntimeDiagnosticTone) -> Color {
+  private func sectionBlock<Content: View>(
+    title: String,
+    @ViewBuilder content: () -> Content
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text(title)
+        .font(.ancla(11, weight: .medium))
+        .foregroundStyle(AnclaTheme.tertiaryText)
+        .tracking(1.1)
+
+      content()
+    }
+  }
+
+  private func feedbackIcon(_ tone: ActionFeedbackTone) -> String {
     switch tone {
-    case .ready:
-      return AnclaTheme.primaryText
-    case .attention:
-      return AnclaTheme.warningText
-    case .blocked:
-      return AnclaTheme.errorText
     case .neutral:
-      return AnclaTheme.secondaryText
+      return "info"
+    case .success:
+      return "checkmark"
+    case .error:
+      return "exclamationmark"
     }
   }
 }

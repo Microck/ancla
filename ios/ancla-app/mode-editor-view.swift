@@ -22,8 +22,18 @@ struct ModeEditorView: View {
           Button("Cancel") {
             dismiss()
           }
-          .font(.ancla(16))
+          .font(.ancla(14, weight: .medium))
           .foregroundStyle(AnclaTheme.secondaryText)
+          .padding(.horizontal, 14)
+          .frame(height: 38)
+          .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+              .fill(AnclaTheme.panelInteractive)
+              .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                  .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+              )
+          )
 
           Spacer()
 
@@ -41,8 +51,20 @@ struct ModeEditorView: View {
               }
             }
           }
-          .font(.ancla(16, weight: .semibold))
-          .foregroundStyle(AnclaTheme.primaryText)
+          .font(.ancla(14, weight: .semibold))
+          .foregroundStyle(AnclaTheme.ctaText)
+          .padding(.horizontal, 14)
+          .frame(height: 38)
+          .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+              .fill(AnclaTheme.ctaFill)
+          )
+          .overlay {
+            if viewModel.isActionInProgress(.saveMode) {
+              ProgressView()
+                .tint(AnclaTheme.ctaText)
+            }
+          }
           .disabled(viewModel.isBusy || !viewModel.canSaveDraftMode)
           .opacity(viewModel.isBusy || !viewModel.canSaveDraftMode ? 0.55 : 1)
         }
@@ -80,6 +102,10 @@ struct ModeEditorView: View {
                 onChooseSelection()
               } label: {
                 HStack {
+                  Image(systemName: "square.grid.2x2")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AnclaTheme.primaryText)
+
                   Text("Choose apps and sites")
                     .font(.ancla(16))
                     .foregroundStyle(AnclaTheme.primaryText)
@@ -90,8 +116,10 @@ struct ModeEditorView: View {
                     .font(.ancla(12, weight: .medium))
                     .foregroundStyle(AnclaTheme.secondaryText)
                 }
+                .padding(.horizontal, 16)
+                .frame(height: 54)
               }
-              .buttonStyle(.plain)
+              .buttonStyle(AnclaPressableButtonStyle())
               .padding(.top, 26)
 
               if !viewModel.canSaveDraftMode {
@@ -122,7 +150,29 @@ struct ModeEditorView: View {
                 .labelsHidden()
                 .tint(AnclaTheme.ctaFill)
             }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 68)
+            .background(
+              RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(AnclaTheme.panelInteractive)
+                .overlay(
+                  RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                )
+            )
             .padding(.top, 64)
+
+            if let lastError = viewModel.lastError {
+              Text(lastError)
+                .font(.ancla(12, weight: .medium))
+                .foregroundStyle(AnclaTheme.errorText)
+                .padding(.top, 18)
+            } else if let feedback = viewModel.feedback, feedback.tone == .success {
+              Text(feedback.message)
+                .font(.ancla(12, weight: .medium))
+                .foregroundStyle(AnclaTheme.successText)
+                .padding(.top, 18)
+            }
 
             HStack(spacing: 14) {
               Rectangle()

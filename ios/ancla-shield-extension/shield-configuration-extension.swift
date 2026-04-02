@@ -33,17 +33,26 @@ final class ShieldConfigurationExtension: ShieldConfigurationDataSource {
     let anchorName = snapshot.pairedTag?.displayName ?? "paired anchor"
 
     return ShieldConfiguration(
-      backgroundBlurStyle: .systemMaterialLight,
-      backgroundColor: UIColor(red: 0.988, green: 0.988, blue: 0.992, alpha: 1),
-      icon: UIImage(systemName: "anchor"),
-      title: ShieldConfiguration.Label(text: title, color: .label),
+      backgroundBlurStyle: .systemThinMaterialDark,
+      backgroundColor: UIColor(red: 0.047, green: 0.055, blue: 0.066, alpha: 1),
+      icon: UIImage(named: "brand-mark"),
+      title: ShieldConfiguration.Label(
+        text: title,
+        color: UIColor(red: 0.878, green: 0.902, blue: 0.945, alpha: 1)
+      ),
       subtitle: ShieldConfiguration.Label(
         text: "Mode \(activeModeName) is active. Open Ancla and scan \(anchorName) to continue.",
-        color: .secondaryLabel
+        color: UIColor(red: 0.592, green: 0.620, blue: 0.659, alpha: 1)
       ),
-      primaryButtonLabel: ShieldConfiguration.Label(text: "Open Ancla", color: .white),
-      primaryButtonBackgroundColor: UIColor(red: 0.06, green: 0.09, blue: 0.16, alpha: 1),
-      secondaryButtonLabel: ShieldConfiguration.Label(text: "Later", color: .label)
+      primaryButtonLabel: ShieldConfiguration.Label(
+        text: "Open Ancla",
+        color: UIColor(red: 0.20, green: 0.22, blue: 0.24, alpha: 1)
+      ),
+      primaryButtonBackgroundColor: UIColor(red: 0.82, green: 0.84, blue: 0.86, alpha: 1),
+      secondaryButtonLabel: ShieldConfiguration.Label(
+        text: "Later",
+        color: UIColor(red: 0.878, green: 0.902, blue: 0.945, alpha: 1)
+      )
     )
   }
 
