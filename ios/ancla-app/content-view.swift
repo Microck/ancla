@@ -21,41 +21,43 @@ struct ContentView: View {
 
   var body: some View {
     NavigationStack {
-      ZStack {
-        AnclaTheme.background
-          .ignoresSafeArea()
+      GeometryReader { proxy in
+        ZStack(alignment: .bottom) {
+          AnclaTheme.background
+            .ignoresSafeArea()
 
-        ScrollView(showsIndicators: false) {
-          VStack(alignment: .leading, spacing: 28) {
-            header
-            headlineSection
-            sessionSurface
+          ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 28) {
+              header
+              headlineSection
+              sessionSurface
 
-            if viewModel.modesForDisplay.count > 1 {
-              modeSelector
+              if viewModel.modesForDisplay.count > 1 {
+                modeSelector
+              }
+
+              actionsRow
+              systemSurface
+
+              if let lastError = viewModel.lastError, !lastError.isEmpty {
+                errorSection(lastError)
+              }
+
+              if viewModel.isSideloadLiteBuild {
+                sideloadFootnote
+              }
             }
-
-            actionsRow
-            systemSurface
-
-            if let lastError = viewModel.lastError, !lastError.isEmpty {
-              errorSection(lastError)
-            }
-
-            if viewModel.isSideloadLiteBuild {
-              sideloadFootnote
-            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, 132)
           }
-          .padding(.horizontal, 24)
-          .padding(.top, 24)
-          .padding(.bottom, 132)
+
+          bottomActionBar(bottomInset: max(proxy.safeAreaInsets.bottom, 18))
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       }
       .toolbar(.hidden, for: .navigationBar)
       .preferredColorScheme(.dark)
-      .safeAreaInset(edge: .bottom) {
-        bottomActionBar
-      }
       .sheet(isPresented: $isModeEditorPresented) {
         ModeEditorView(
           viewModel: viewModel,
@@ -379,10 +381,19 @@ struct ContentView: View {
       .frame(maxWidth: 320, alignment: .leading)
   }
 
-  private var bottomActionBar: some View {
+  private func bottomActionBar(bottomInset: CGFloat) -> some View {
     ZStack {
-      AnclaTheme.background.opacity(0.98)
-        .ignoresSafeArea(edges: .bottom)
+      LinearGradient(
+        colors: [
+          AnclaTheme.background.opacity(0),
+          AnclaTheme.background.opacity(0.92),
+          AnclaTheme.background,
+        ],
+        startPoint: .top,
+        endPoint: .bottom
+      )
+      .frame(height: 120 + bottomInset)
+      .allowsHitTesting(false)
 
       Button(action: primaryAction) {
         Text(primaryActionTitle)
@@ -399,9 +410,10 @@ struct ContentView: View {
       .disabled(primaryActionDisabled || viewModel.isBusy)
       .opacity(primaryActionDisabled || viewModel.isBusy ? 0.6 : 1)
       .padding(.horizontal, 24)
-      .padding(.top, 10)
-      .padding(.bottom, 18)
+      .padding(.top, 24)
+      .padding(.bottom, bottomInset)
     }
+    .frame(maxWidth: .infinity)
   }
 
   private var renameStickerSheet: some View {
