@@ -795,7 +795,7 @@ struct ContentView: View {
       return "No anchor is paired to this iPhone yet."
     }
 
-    return "Only the paired anchor can release an active session."
+    return "The paired anchor is required to start and release sessions on this iPhone."
   }
 
   private var fingerprintValue: String {
@@ -860,9 +860,9 @@ struct ContentView: View {
     case .release:
       return "Release Session"
     case .arm:
-      return "Start Session"
+      return "Tap to Start Session"
     case .rearm:
-      return "Start New Session"
+      return "Tap to Start New Session"
     }
   }
 

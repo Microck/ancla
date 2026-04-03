@@ -74,11 +74,12 @@ final class AppViewModelTests: XCTestCase {
       )
     )
     let shielding = FakeShieldingService()
+    let stickerService = FakeStickerPairingService(nextHashes: ["wrong-hash", "hash"])
     let viewModel = AppViewModel(
       store: store,
       authorizationClient: FakeAuthorizationClient(),
       shieldingService: shielding,
-      stickerPairingService: FakeStickerPairingService()
+      stickerPairingService: stickerService
     )
 
     await viewModel.armSelectedMode()
@@ -89,6 +90,10 @@ final class AppViewModelTests: XCTestCase {
     XCTAssertEqual(viewModel.lastError, ValidationError.missingPairedTag.errorDescription)
 
     viewModel.snapshot.pairedTag = PairedTag(uidHash: "hash", displayName: "Desk sticker")
+    await viewModel.armSelectedMode()
+    XCTAssertEqual(viewModel.lastError, ValidationError.mismatchedTagOnArm.errorDescription)
+    XCTAssertTrue(shielding.appliedModeIDs.isEmpty)
+
     await viewModel.armSelectedMode()
     XCTAssertNil(viewModel.lastError)
     XCTAssertEqual(shielding.appliedModeIDs, [mode.id])
@@ -338,7 +343,7 @@ final class AppViewModelTests: XCTestCase {
 
   func testSideloadLiteCanPairSaveArmAndReleaseLocally() async {
     let store = InMemorySnapshotStore()
-    let stickerService = FakeStickerPairingService(nextHashes: ["lite-hash", "lite-hash"])
+    let stickerService = FakeStickerPairingService(nextHashes: ["lite-hash", "lite-hash", "lite-hash"])
     let viewModel = AppViewModel(
       buildVariant: .sideloadLite,
       store: store,
