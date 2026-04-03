@@ -48,4 +48,43 @@ enum AnclaCore {
       && !snapshot.modes.isEmpty
       && !activeSessionIsBlocking(snapshot)
   }
+
+  static func recentHistory(
+    in snapshot: AppSnapshot,
+    limit: Int = 10
+  ) -> [SessionHistoryEntry] {
+    let entries = snapshot.sessionHistory.sorted { lhs, rhs in
+      lhs.releasedAt > rhs.releasedAt
+    }
+
+    guard limit < entries.count else {
+      return entries
+    }
+
+    return Array(entries.prefix(limit))
+  }
+
+  static func recordHistory(
+    in snapshot: AppSnapshot,
+    session: AnchorSession,
+    mode: BlockMode,
+    pairedTag: PairedTag,
+    releaseMethod: SessionReleaseMethod,
+    releasedAt: Date
+  ) -> AppSnapshot {
+    var updated = snapshot
+    updated.sessionHistory.append(
+      SessionHistoryEntry(
+        sessionID: session.id,
+        pairedTagId: pairedTag.id,
+        pairedTagName: pairedTag.displayName,
+        modeId: mode.id,
+        modeName: mode.name,
+        armedAt: session.armedAt,
+        releasedAt: releasedAt,
+        releaseMethod: releaseMethod
+      )
+    )
+    return updated
+  }
 }

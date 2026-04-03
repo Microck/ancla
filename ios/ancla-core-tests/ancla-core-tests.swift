@@ -144,6 +144,60 @@ final class AnclaCoreTests: XCTestCase {
     XCTAssertFalse(AnclaCore.canArmSelectedMode(blockingSnapshot))
   }
 
+  func testRecordHistoryAppendsEntryAndRecentHistorySortsLatestFirst() {
+    let pairedTag = PairedTag(uidHash: "paired-hash", displayName: "Desk sticker")
+    let mode = BlockMode(name: "Work", selectionData: Data(), isDefault: true)
+    let firstRelease = Date(timeIntervalSince1970: 1_710_000_000)
+    let secondRelease = firstRelease.addingTimeInterval(600)
+
+    let firstSession = AnchorSession(
+      pairedTagId: pairedTag.id,
+      modeId: mode.id,
+      state: .released,
+      armedAt: firstRelease.addingTimeInterval(-1_800),
+      releasedAt: firstRelease
+    )
+    let secondSession = AnchorSession(
+      pairedTagId: pairedTag.id,
+      modeId: mode.id,
+      state: .released,
+      armedAt: secondRelease.addingTimeInterval(-900),
+      releasedAt: secondRelease
+    )
+
+    var snapshot = AppSnapshot(
+      isAuthorized: true,
+      pairedTag: pairedTag,
+      modes: [mode],
+      activeSession: secondSession
+    )
+
+    snapshot = AnclaCore.recordHistory(
+      in: snapshot,
+      session: firstSession,
+      mode: mode,
+      pairedTag: pairedTag,
+      releaseMethod: .anchor,
+      releasedAt: firstRelease
+    )
+    snapshot = AnclaCore.recordHistory(
+      in: snapshot,
+      session: secondSession,
+      mode: mode,
+      pairedTag: pairedTag,
+      releaseMethod: .anchor,
+      releasedAt: secondRelease
+    )
+
+    let recent = AnclaCore.recentHistory(in: snapshot)
+
+    XCTAssertEqual(recent.count, 2)
+    XCTAssertEqual(recent.map(\.releasedAt), [secondRelease, firstRelease])
+    XCTAssertEqual(recent[0].modeName, "Work")
+    XCTAssertEqual(recent[0].pairedTagName, "Desk sticker")
+    XCTAssertEqual(recent[0].releaseMethod, .anchor)
+  }
+
   func testRuntimeDiagnosticsFlagMissingStorageBeforeAnythingElse() {
     let diagnostics = AnclaCore.runtimeDiagnostics(
       snapshot: AppSnapshot(),
