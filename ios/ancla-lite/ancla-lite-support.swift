@@ -102,6 +102,6 @@ final class LiteStickerPairingService: StickerPairing {
       return simulatedHashes.removeFirst()
     }
 
-    try await scanner.scanSticker()
+    return try await scanner.scanSticker()
   }
 }
