@@ -89,6 +89,7 @@ final class AnclaCoreTests: XCTestCase {
     )
     XCTAssertTrue(AnclaCore.activeSessionIsBlocking(armedSnapshot))
     XCTAssertTrue(AnclaCore.canReleaseActiveSession(armedSnapshot))
+    XCTAssertTrue(AnclaCore.canUseEmergencyUnbrick(armedSnapshot))
 
     let mismatchedSnapshot = AppSnapshot(
       isAuthorized: true,
@@ -102,6 +103,7 @@ final class AnclaCoreTests: XCTestCase {
     )
     XCTAssertTrue(AnclaCore.activeSessionIsBlocking(mismatchedSnapshot))
     XCTAssertTrue(AnclaCore.canReleaseActiveSession(mismatchedSnapshot))
+    XCTAssertTrue(AnclaCore.canUseEmergencyUnbrick(mismatchedSnapshot))
 
     let releasedSnapshot = AppSnapshot(
       isAuthorized: true,
@@ -115,6 +117,20 @@ final class AnclaCoreTests: XCTestCase {
     )
     XCTAssertFalse(AnclaCore.activeSessionIsBlocking(releasedSnapshot))
     XCTAssertFalse(AnclaCore.canReleaseActiveSession(releasedSnapshot))
+    XCTAssertFalse(AnclaCore.canUseEmergencyUnbrick(releasedSnapshot))
+
+    let exhaustedSnapshot = AppSnapshot(
+      isAuthorized: true,
+      pairedTag: pairedTag,
+      modes: [mode],
+      activeSession: AnchorSession(
+        pairedTagId: pairedTag.id,
+        modeId: mode.id,
+        state: .armed
+      ),
+      emergencyUnbricksRemaining: 0
+    )
+    XCTAssertFalse(AnclaCore.canUseEmergencyUnbrick(exhaustedSnapshot))
   }
 
   func testCanArmSelectedModeRequiresAuthorizationPairingModeAndNoBlockingSession() {

@@ -42,6 +42,10 @@ enum AnclaCore {
     activeSessionIsBlocking(snapshot)
   }
 
+  static func canUseEmergencyUnbrick(_ snapshot: AppSnapshot) -> Bool {
+    activeSessionIsBlocking(snapshot) && snapshot.emergencyUnbricksRemaining > 0
+  }
+
   static func canArmSelectedMode(_ snapshot: AppSnapshot) -> Bool {
     snapshot.isAuthorized
       && snapshot.pairedTag != nil

@@ -11,6 +11,7 @@ enum AppActionID: Equatable {
   case replaceAnchor
   case armSession
   case releaseSession
+  case emergencyUnbrick
   case renameAnchor
   case removeAnchor
   case saveMode
@@ -120,6 +121,10 @@ final class AppViewModel {
 
   var canReleaseActiveSession: Bool {
     AnclaCore.canReleaseActiveSession(snapshot)
+  }
+
+  var canUseEmergencyUnbrick: Bool {
+    AnclaCore.canUseEmergencyUnbrick(snapshot)
   }
 
   var canArmSelectedMode: Bool {
@@ -321,25 +326,45 @@ final class AppViewModel {
         throw ValidationError.missingMode
       }
 
-      let releasedAt = Date.now
-      shieldingService.clear()
-      let releasedSession = AnchorSession(
-        id: activeSession.id,
-        pairedTagId: activeSession.pairedTagId,
-        modeId: activeSession.modeId,
-        state: .released,
-        armedAt: activeSession.armedAt,
-        releasedAt: releasedAt
-      )
-      snapshot.activeSession = releasedSession
-      snapshot = AnclaCore.recordHistory(
-        in: snapshot,
-        session: releasedSession,
+      try completeRelease(
+        activeSession: activeSession,
         mode: mode,
         pairedTag: pairedTag,
-        releaseMethod: .anchor,
-        releasedAt: releasedAt
+        releaseMethod: .anchor
       )
+    }
+  }
+
+  func useEmergencyUnbrick() async {
+    await runTask(
+      action: .emergencyUnbrick,
+      successMessage: "Emergency unbrick used. Session released."
+    ) { [self] in
+      guard
+        let activeSession = snapshot.activeSession,
+        activeSession.state == .armed || activeSession.state == .mismatchedTag
+      else {
+        throw ValidationError.sessionNotArmed
+      }
+
+      guard snapshot.emergencyUnbricksRemaining > 0 else {
+        throw ValidationError.noEmergencyUnbricksRemaining
+      }
+
+      guard
+        let pairedTag = snapshot.pairedTag,
+        let mode = snapshot.modes.first(where: { $0.id == activeSession.modeId })
+      else {
+        throw ValidationError.missingMode
+      }
+
+      try completeRelease(
+        activeSession: activeSession,
+        mode: mode,
+        pairedTag: pairedTag,
+        releaseMethod: .emergencyUnbrick
+      )
+      snapshot.emergencyUnbricksRemaining -= 1
       try persist()
     }
   }
@@ -517,6 +542,34 @@ final class AppViewModel {
     try persist()
   }
 
+  private func completeRelease(
+    activeSession: AnchorSession,
+    mode: BlockMode,
+    pairedTag: PairedTag,
+    releaseMethod: SessionReleaseMethod
+  ) throws {
+    let releasedAt = Date.now
+    shieldingService.clear()
+    let releasedSession = AnchorSession(
+      id: activeSession.id,
+      pairedTagId: activeSession.pairedTagId,
+      modeId: activeSession.modeId,
+      state: .released,
+      armedAt: activeSession.armedAt,
+      releasedAt: releasedAt
+    )
+    snapshot.activeSession = releasedSession
+    snapshot = AnclaCore.recordHistory(
+      in: snapshot,
+      session: releasedSession,
+      mode: mode,
+      pairedTag: pairedTag,
+      releaseMethod: releaseMethod,
+      releasedAt: releasedAt
+    )
+    try persist()
+  }
+
   private func clearDefaultFlag() {
     for index in snapshot.modes.indices {
       snapshot.modes[index].isDefault = false
@@ -586,6 +639,7 @@ enum ValidationError: LocalizedError {
   case missingPairedTag
   case missingMode
   case noTargetsSelected
+  case noEmergencyUnbricksRemaining
   case mismatchedTag
   case sessionNotArmed
 
@@ -599,6 +653,8 @@ enum ValidationError: LocalizedError {
       return "Create a mode before starting a session."
     case .noTargetsSelected:
       return "Choose at least one app, category, or domain."
+    case .noEmergencyUnbricksRemaining:
+      return "No emergency unbricks remain on this iPhone."
     case .mismatchedTag:
       return "That anchor does not match the paired release key."
     case .sessionNotArmed:

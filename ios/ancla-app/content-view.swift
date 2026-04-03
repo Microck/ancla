@@ -199,7 +199,7 @@ struct ContentView: View {
               if viewModel.recentSessionHistory.isEmpty {
                 informativeRow(
                   title: "No sessions recorded",
-                  detail: "Completed sessions will appear here after you release them with the paired anchor.",
+                  detail: "Completed sessions will appear here after you release them with the paired anchor or an emergency unbrick.",
                   accentColor: AnclaTheme.primaryText,
                   highlight: false,
                   trailingSymbol: "clock.arrow.circlepath"
@@ -208,6 +208,46 @@ struct ContentView: View {
                 ForEach(viewModel.recentSessionHistory) { entry in
                   historyRow(entry)
                 }
+              }
+            }
+          }
+        )
+
+        surfaceDivider
+
+        sectionBlock(
+          title: "Emergency unbricks",
+          content: {
+            VStack(spacing: 12) {
+              informativeRow(
+                title: emergencyUnbrickTitle,
+                detail: emergencyUnbrickDetail,
+                accentColor: emergencyUnbrickAccent,
+                highlight: viewModel.snapshot.emergencyUnbricksRemaining > 0,
+                trailingText: emergencyUnbrickBadge
+              )
+
+              if viewModel.canUseEmergencyUnbrick || viewModel.snapshot.emergencyUnbricksRemaining == 0 {
+                Button {
+                  Task { await viewModel.useEmergencyUnbrick() }
+                } label: {
+                  actionRow(
+                    icon: "bolt.horizontal.circle",
+                    title: "Use emergency unbrick",
+                    detail: "Release the current session without scanning the paired anchor.",
+                    isLoading: viewModel.isActionInProgress(.emergencyUnbrick),
+                    isDestructive: true
+                  )
+                }
+                .buttonStyle(
+                  AnclaPressableButtonStyle(
+                    background: AnclaTheme.panelInteractive,
+                    pressedBackground: AnclaTheme.panelRaised,
+                    stroke: AnclaTheme.errorText.opacity(0.32)
+                  )
+                )
+                .disabled(viewModel.isBusy || !viewModel.canUseEmergencyUnbrick)
+                .opacity(viewModel.canUseEmergencyUnbrick ? 1 : 0.65)
               }
             }
           }
@@ -782,9 +822,9 @@ struct ContentView: View {
   private var sessionDetail: String {
     switch viewModel.snapshot.activeSession?.state {
     case .armed:
-      return "The current session remains active until the paired anchor is scanned."
+      return sessionWaitingDetail
     case .mismatchedTag:
-      return "A different anchor was scanned. The session remains active."
+      return "A different anchor was scanned. The session remains active. \(emergencyCountSentence)"
     case .released:
       return "The most recent session was released successfully."
     case .idle, nil:
@@ -962,14 +1002,55 @@ struct ContentView: View {
   }
 
   private func historySubtitle(for entry: SessionHistoryEntry) -> String {
-    "\(historyMethodLabel(for: entry.releaseMethod)) via \(entry.pairedTagName) • \(entry.releasedAt.formatted(date: .abbreviated, time: .shortened))"
+    "\(historyContextLabel(for: entry)) • \(entry.releasedAt.formatted(date: .abbreviated, time: .shortened))"
   }
 
-  private func historyMethodLabel(for method: SessionReleaseMethod) -> String {
-    switch method {
+  private func historyContextLabel(for entry: SessionHistoryEntry) -> String {
+    switch entry.releaseMethod {
     case .anchor:
-      return "Released"
+      return "Released via \(entry.pairedTagName)"
+    case .emergencyUnbrick:
+      return "Emergency unbrick for \(entry.pairedTagName)"
     }
+  }
+
+  private var emergencyUnbrickTitle: String {
+    let count = viewModel.snapshot.emergencyUnbricksRemaining
+    return count == 1 ? "1 failsafe left" : "\(count) failsafes left"
+  }
+
+  private var emergencyUnbrickBadge: String {
+    let count = viewModel.snapshot.emergencyUnbricksRemaining
+    return count == 0 ? "Empty" : "\(count) left"
+  }
+
+  private var emergencyUnbrickDetail: String {
+    if viewModel.snapshot.emergencyUnbricksRemaining == 0 {
+      return "All emergency unbricks have been spent. Active sessions now require the paired anchor."
+    }
+
+    if viewModel.canUseEmergencyUnbrick {
+      return "Use one if you need to end the current session without your paired anchor. This permanently consumes one failsafe on this iPhone."
+    }
+
+    return "Keep these in reserve for moments when you cannot reach the paired anchor."
+  }
+
+  private var emergencyUnbrickAccent: Color {
+    viewModel.snapshot.emergencyUnbricksRemaining == 0 ? AnclaTheme.errorText : AnclaTheme.primaryText
+  }
+
+  private var emergencyCountSentence: String {
+    let count = viewModel.snapshot.emergencyUnbricksRemaining
+    if count == 1 {
+      return "1 emergency unbrick remains."
+    }
+
+    return "\(count) emergency unbricks remain."
+  }
+
+  private var sessionWaitingDetail: String {
+    "The current session remains active until the paired anchor is scanned. \(emergencyCountSentence)"
   }
 }
 
