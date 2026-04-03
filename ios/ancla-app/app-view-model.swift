@@ -38,6 +38,7 @@ final class AppViewModel {
   var draftSelection = FamilyActivitySelection()
   var draftModeName = "Work block"
   var draftModeShouldBeDefault = false
+  var draftModeIsStrict = false
   var draftTagName = "Desk anchor"
   var selectedModeID: UUID?
   var isPickerPresented = false
@@ -159,6 +160,10 @@ final class AppViewModel {
     AnclaCore.canArmSelectedMode(snapshot)
   }
 
+  var currentModeIsStrict: Bool {
+    (selectedMode() ?? preferredMode())?.isStrict == true
+  }
+
   func load() {
     do {
       snapshot = AnclaCore.repairedSnapshot(try store.load())
@@ -204,6 +209,7 @@ final class AppViewModel {
           clearDefaultFlag()
         }
         mode.isDefault = shouldBeDefault
+        mode.isStrict = draftModeIsStrict
         snapshot.modes[index] = mode
         ensureDefaultMode()
 
@@ -218,13 +224,15 @@ final class AppViewModel {
           mode = BlockMode(
             name: modeName,
             selectionData: Data(),
-            isDefault: snapshot.modes.isEmpty || draftModeShouldBeDefault
+            isDefault: snapshot.modes.isEmpty || draftModeShouldBeDefault,
+            isStrict: draftModeIsStrict
           )
         } else {
           mode = try BlockMode(
             name: modeName,
             selection: draftSelection,
-            isDefault: snapshot.modes.isEmpty || draftModeShouldBeDefault
+            isDefault: snapshot.modes.isEmpty || draftModeShouldBeDefault,
+            isStrict: draftModeIsStrict
           )
         }
 
@@ -251,6 +259,7 @@ final class AppViewModel {
     draftModeName = "Work block"
     draftSelection = FamilyActivitySelection()
     draftModeShouldBeDefault = snapshot.modes.isEmpty
+    draftModeIsStrict = false
   }
 
   func prepareDraftForEditingMode(_ modeID: UUID) {
@@ -263,6 +272,7 @@ final class AppViewModel {
     draftModeID = mode.id
     draftModeName = mode.name
     draftModeShouldBeDefault = mode.isDefault
+    draftModeIsStrict = mode.isStrict
 
     if isSideloadLiteBuild && mode.selectionData.isEmpty {
       draftSelection = FamilyActivitySelection()

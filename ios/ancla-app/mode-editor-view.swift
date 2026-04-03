@@ -6,6 +6,7 @@ struct ModeEditorView: View {
   let onChooseSelection: () -> Void
 
   @Environment(\.dismiss) private var dismiss
+  @State private var isShortcutGuidesPresented = false
 
   var body: some View {
     ZStack(alignment: .top) {
@@ -89,7 +90,7 @@ struct ModeEditorView: View {
               sectionLabel("RELEASE")
                 .padding(.top, 60)
 
-              Text("This mode uses the paired anchor and keeps its session state on this iPhone.")
+              Text("This mode uses the paired anchor and keeps its session state on this iPhone. Turn on strict mode if you want the harder-to-bypass version of this ritual.")
                 .font(.ancla(16))
                 .foregroundStyle(AnclaTheme.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -132,6 +133,9 @@ struct ModeEditorView: View {
 
             divider
               .padding(.top, 24)
+
+            strictModePanel
+              .padding(.top, 40)
 
             HStack(alignment: .center) {
               VStack(alignment: .leading, spacing: 6) {
@@ -196,6 +200,10 @@ struct ModeEditorView: View {
     .preferredColorScheme(.dark)
     .presentationDetents([.medium, .large])
     .presentationDragIndicator(.hidden)
+    .sheet(isPresented: $isShortcutGuidesPresented) {
+      ShortcutGuidesSheet()
+        .presentationBackground(.clear)
+    }
   }
 
   private func sectionLabel(_ title: String) -> some View {
@@ -209,5 +217,71 @@ struct ModeEditorView: View {
     Rectangle()
       .fill(AnclaTheme.panelStroke.opacity(0.6))
       .frame(height: 1)
+  }
+
+  private var strictModePanel: some View {
+    VStack(alignment: .leading, spacing: 14) {
+      sectionLabel("STRICT MODE")
+
+      VStack(alignment: .leading, spacing: 14) {
+        HStack(alignment: .center) {
+          VStack(alignment: .leading, spacing: 6) {
+            Text("Use stricter mode copy")
+              .font(.ancla(16))
+              .foregroundStyle(AnclaTheme.primaryText)
+
+            Text("Highlight the stricter version of this mode and surface the Apple app shortcut guides that close easy loopholes.")
+              .font(.ancla(12))
+              .foregroundStyle(AnclaTheme.tertiaryText)
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
+
+          Spacer()
+
+          Toggle("", isOn: $viewModel.draftModeIsStrict)
+            .labelsHidden()
+            .tint(AnclaTheme.ctaFill)
+        }
+
+        if viewModel.draftModeIsStrict {
+          Text("Native Apple apps still need Shortcuts automations because iOS does not let Ancla hard-block every built-in app directly.")
+            .font(.ancla(13))
+            .foregroundStyle(AnclaTheme.secondaryText)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+          Button {
+            isShortcutGuidesPresented = true
+          } label: {
+            HStack {
+              Image(systemName: "bolt.horizontal.circle")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AnclaTheme.primaryText)
+
+              Text("Review Apple app shortcut guides")
+                .font(.ancla(15, weight: .medium))
+                .foregroundStyle(AnclaTheme.primaryText)
+
+              Spacer()
+
+              Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(AnclaTheme.tertiaryText)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 52)
+          }
+          .buttonStyle(AnclaPressableButtonStyle())
+        }
+      }
+      .padding(16)
+      .background(
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+          .fill(AnclaTheme.panelInteractive)
+          .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+              .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+          )
+      )
+    }
   }
 }

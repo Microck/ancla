@@ -26,6 +26,23 @@ final class AppViewModelTests: XCTestCase {
     XCTAssertTrue(viewModel.snapshot.modes[1].isDefault)
   }
 
+  func testSaveModePersistsStrictFlagForSideloadMode() async throws {
+    let viewModel = AppViewModel(
+      buildVariant: .sideloadLite,
+      store: InMemorySnapshotStore(),
+      stickerPairingService: FakeStickerPairingService()
+    )
+
+    viewModel.draftModeName = "Locked down"
+    viewModel.draftModeIsStrict = true
+    await viewModel.saveMode()
+
+    let savedMode = try XCTUnwrap(viewModel.snapshot.modes.first)
+    XCTAssertTrue(savedMode.isStrict)
+    XCTAssertTrue(viewModel.currentModeIsStrict)
+    XCTAssertFalse(viewModel.draftModeIsStrict)
+  }
+
   func testDeleteModeClearsArmedSessionAndReassignsDefault() async throws {
     let selection = FamilyActivitySelection()
     let firstMode = try BlockMode(name: "Focus", selection: selection, isDefault: true)
@@ -200,6 +217,39 @@ final class AppViewModelTests: XCTestCase {
     XCTAssertFalse(updatedFirstMode.isDefault)
 
     XCTAssertEqual(shielding.appliedModeIDs, [secondMode.id])
+  }
+
+  func testPrepareDraftForEditingModeLoadsAndUpdatesStrictFlag() async throws {
+    let strictMode = BlockMode(
+      name: "Locked down",
+      selectionData: Data(),
+      isDefault: true,
+      isStrict: true
+    )
+    let store = InMemorySnapshotStore(
+      snapshot: AppSnapshot(
+        isAuthorized: true,
+        pairedTag: nil,
+        modes: [strictMode],
+        activeSession: nil
+      )
+    )
+    let viewModel = AppViewModel(
+      buildVariant: .sideloadLite,
+      store: store,
+      stickerPairingService: FakeStickerPairingService()
+    )
+
+    viewModel.prepareDraftForEditingMode(strictMode.id)
+    XCTAssertTrue(viewModel.draftModeIsStrict)
+    XCTAssertTrue(viewModel.currentModeIsStrict)
+
+    viewModel.draftModeIsStrict = false
+    await viewModel.saveMode()
+
+    let updatedMode = try XCTUnwrap(viewModel.snapshot.modes.first)
+    XCTAssertFalse(updatedMode.isStrict)
+    XCTAssertFalse(viewModel.currentModeIsStrict)
   }
 
   func testWrongStickerKeepsSessionArmedAndAllowsRetry() async throws {
