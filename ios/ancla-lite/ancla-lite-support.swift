@@ -112,5 +112,5 @@ final class LiteStickerPairingService: StickerPairing {
 
 @MainActor
 final class NoopScheduleNotificationService: ScheduleNotifying {
-  func refresh(for snapshot _: AppSnapshot, now _: Date) async {}
+  func refresh(for _: AppSnapshot, now _: Date) async {}
 }

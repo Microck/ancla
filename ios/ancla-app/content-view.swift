@@ -199,7 +199,7 @@ struct ContentView: View {
                 detail: anchorDetail
               )
 
-              if let anchorPreviewTag {
+              if anchorPreviewTag != nil {
                 surfaceDivider
 
                 surfaceRow(

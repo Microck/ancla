@@ -142,14 +142,14 @@ final class LiveScheduleNotificationService: ScheduleNotifying {
         continuation.resume(
           returning: requests
             .map(\.identifier)
-            .filter { $0.hasPrefix(identifierPrefix) }
+            .filter { $0.hasPrefix(self.identifierPrefix) }
         )
       }
     }
   }
 
   private func add(_ request: UNNotificationRequest) async throws {
-    try await withCheckedThrowingContinuation { continuation in
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
       center.add(request) { error in
         if let error {
           continuation.resume(throwing: error)
