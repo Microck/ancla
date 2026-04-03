@@ -40,6 +40,10 @@ enum AutomatedTestConfig {
   static var usesSimulatedNFC: Bool {
     !simulatedStickerHashes.isEmpty
   }
+
+  static var isRunningTests: Bool {
+    ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+  }
 }
 
 struct LocalSnapshotStore: AppSnapshotStore {
@@ -104,4 +108,9 @@ final class LiteStickerPairingService: StickerPairing {
 
     return try await scanner.scanSticker()
   }
+}
+
+@MainActor
+final class NoopScheduleNotificationService: ScheduleNotifying {
+  func refresh(for _: AppSnapshot, now _: Date) async {}
 }

@@ -61,6 +61,7 @@ final class AppViewModel {
   private let shieldingService: any Shielding
   private let stickerPairingService: any StickerPairing
   private let runtimeDiagnosticsProbe: any RuntimeDiagnosticsProbing
+  private let scheduleNotificationService: any ScheduleNotifying
   private let nowProvider: () -> Date
 
   init(
@@ -70,10 +71,12 @@ final class AppViewModel {
     shieldingService: (any Shielding)? = nil,
     stickerPairingService: (any StickerPairing)? = nil,
     runtimeDiagnosticsProbe: (any RuntimeDiagnosticsProbing)? = nil,
+    scheduleNotificationService: (any ScheduleNotifying)? = nil,
     nowProvider: @escaping () -> Date = { .now }
   ) {
     self.buildVariant = buildVariant
     self.runtimeDiagnosticsProbe = runtimeDiagnosticsProbe ?? LiveRuntimeDiagnosticsProbe()
+    self.scheduleNotificationService = scheduleNotificationService ?? LiveScheduleNotificationService.shared
     self.nowProvider = nowProvider
 
     switch buildVariant {
@@ -204,6 +207,7 @@ final class AppViewModel {
     prepareDraftForNewMode()
     prepareDraftForNewSchedule()
     _ = syncScheduledSessions()
+    refreshScheduleNotifications()
   }
 
   func requestAuthorization() async {
@@ -698,6 +702,11 @@ final class AppViewModel {
     }
   }
 
+  func handleSceneDidBecomeActive() {
+    _ = syncScheduledSessions()
+    refreshScheduleNotifications()
+  }
+
   func isActionInProgress(_ action: AppActionID) -> Bool {
     isBusy && activeAction == action
   }
@@ -774,6 +783,15 @@ final class AppViewModel {
 
   private func persist() throws {
     try store.save(snapshot)
+    refreshScheduleNotifications()
+  }
+
+  private func refreshScheduleNotifications() {
+    let snapshot = snapshot
+    let now = nowProvider()
+    Task { @MainActor [scheduleNotificationService] in
+      await scheduleNotificationService.refresh(for: snapshot, now: now)
+    }
   }
 
   private func arm(mode: BlockMode) async throws {
