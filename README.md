@@ -25,7 +25,7 @@
 
 the point is not automation for its own sake. the point is friction.
 
-[sticker guide](docs/sticker-buying-guide.md) | [installation notes](docs/sideloading.md) | [local testing](docs/local-testing.md) | [implementation guide](docs/implementation-guide.md)
+[installation notes](docs/sideloading.md)
 
 ## why
 
@@ -53,13 +53,39 @@ wrong tags do not release the session. the point is to tie the exit path to one 
 - normal adhesive for desks, walls, wood, glass, or plastic
 - `on-metal` only if the sticker will live on metal
 
-if you want the default buy, use `ntag213`, prefer `25 mm` minimum, and choose `38 mm` when the listing offers it. the exact links are in [docs/sticker-buying-guide.md](docs/sticker-buying-guide.md).
+if you want the default buy, use `ntag213`, prefer `25 mm` minimum, and choose `38 mm` when the listing offers it.
+
+## sticker buying guide
+
+buy `ntag213`. that is the clean default for `ancla`.
+
+why this one:
+
+- iphone compatibility is the main priority, not extra tag memory
+- `ancla` only needs a reliable unique tag identifier for pairing and release
+- larger round stickers are easier to scan on iphone than tiny tags
+- `on-metal` only matters when you are mounting the sticker on metal
+
+avoid these as the default:
+
+- `mifare classic`
+- tiny `10 x 10 mm` stickers
+- `ntag215` or `ntag216` unless you have some other memory-heavy use case
+- standard stickers on metal surfaces
+
+recommended buys:
+
+| marketplace | pick | notes | link |
+| --- | --- | --- | --- |
+| aliExpress | `ntag213` round sticker, `38 mm` if available | best default buy for `ancla` | https://s.click.aliexpress.com/e/_c3De6uih |
+| aliExpress | `ntag213` round sticker, `25 mm` | smaller fallback if you want a cheaper pack | https://s.click.aliexpress.com/e/_c3SMBZ1j |
+| aliExpress | `ntag213` anti-metal tag | only if the sticker will live on metal | https://s.click.aliexpress.com/e/_c3GSnHd7 |
+| amazon | fongwah `ntag213` sticker pack | straightforward non-metal default | https://www.amazon.com/Stickers-Adhesive-Compatible-NFC-Enabled-Smartphones/dp/B07GFHLZD1 |
+| amazon | gotoTags on-metal `ntag213` | use only for metal mounting | https://www.amazon.com/Blank-White-Metal-NFC-Tag/dp/B01135KABO |
 
 ## installation
 
 if you just want to get the app onto your phone, use the direct ipa path in [docs/sideloading.md](docs/sideloading.md). that keeps installation brief here and keeps the changing signing details out of the README.
-
-if you want the full entitlement-backed blocker loop on a real iphone, use the native iOS path described in [docs/implementation-guide.md](docs/implementation-guide.md).
 
 ## local verification
 
@@ -99,6 +125,6 @@ the linux lane covers the shared core logic. real nfc reads, screen time authori
 ancla/
 ├── ios/      native iphone app, shared logic, shield extension, tests
 ├── site/     next.js site
-├── docs/     install, testing, implementation, and sticker notes
+├── docs/     sideloading notes and working prompts
 └── brand/    canonical brand assets and visual direction
 ```

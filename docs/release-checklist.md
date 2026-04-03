@@ -47,7 +47,7 @@
 6. Deleting a mode clears active session if that mode was armed.
 7. Sticker rename and unpair flows persist correctly.
 8. Mode selection highlights and per-mode arm action stay in sync.
-9. Sticker buy guidance matches `docs/sticker-buying-guide.md`.
+9. Sticker buy guidance matches `README.md`.
 10. TestFlight copy matches the current Apple tester/public-link policy.
 
 ## QA Artifacts
