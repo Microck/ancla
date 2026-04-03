@@ -110,9 +110,41 @@ struct SessionHistoryEntry: Codable, Equatable, Identifiable {
 
 struct AppSnapshot: Codable, Equatable {
   var isAuthorized = false
-  var pairedTag: PairedTag?
+  var pairedTags: [PairedTag] = []
   var modes: [BlockMode] = []
   var activeSession: AnchorSession?
   var sessionHistory: [SessionHistoryEntry] = []
   var emergencyUnbricksRemaining = 5
+
+  init(
+    isAuthorized: Bool = false,
+    pairedTag: PairedTag? = nil,
+    pairedTags: [PairedTag] = [],
+    modes: [BlockMode] = [],
+    activeSession: AnchorSession? = nil,
+    sessionHistory: [SessionHistoryEntry] = [],
+    emergencyUnbricksRemaining: Int = 5
+  ) {
+    self.isAuthorized = isAuthorized
+    self.pairedTags = pairedTags.isEmpty ? (pairedTag.map { [$0] } ?? []) : pairedTags
+    self.modes = modes
+    self.activeSession = activeSession
+    self.sessionHistory = sessionHistory
+    self.emergencyUnbricksRemaining = emergencyUnbricksRemaining
+  }
+
+  var pairedTag: PairedTag? {
+    get { pairedTags.first }
+    set {
+      if let newValue {
+        if pairedTags.isEmpty {
+          pairedTags = [newValue]
+        } else {
+          pairedTags[0] = newValue
+        }
+      } else {
+        pairedTags = []
+      }
+    }
+  }
 }

@@ -30,7 +30,7 @@ final class ShieldConfigurationExtension: ShieldConfigurationDataSource {
   private func makeConfiguration(title: String) -> ShieldConfiguration {
     let snapshot = (try? store.load()) ?? AppSnapshot()
     let activeModeName = activeModeName(in: snapshot) ?? "Focus mode"
-    let anchorName = snapshot.pairedTag?.displayName ?? "paired anchor"
+    let anchorName = activeAnchorName(in: snapshot) ?? "paired anchor"
 
     return ShieldConfiguration(
       backgroundBlurStyle: .systemThinMaterialDark,
@@ -61,5 +61,12 @@ final class ShieldConfigurationExtension: ShieldConfigurationDataSource {
       return nil
     }
     return snapshot.modes.first(where: { $0.id == session.modeId })?.name
+  }
+
+  private func activeAnchorName(in snapshot: AppSnapshot) -> String? {
+    guard let session = snapshot.activeSession else {
+      return snapshot.pairedTag?.displayName
+    }
+    return AnclaCore.pairedTag(for: session.pairedTagId, in: snapshot)?.displayName
   }
 }

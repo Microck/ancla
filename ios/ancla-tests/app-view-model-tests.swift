@@ -101,7 +101,7 @@ final class AppViewModelTests: XCTestCase {
     XCTAssertEqual(viewModel.snapshot.activeSession?.modeId, mode.id)
   }
 
-  func testPairRenameAndUnpairSticker() async {
+  func testPairStickerAppendsAnchorsAndRejectsDuplicates() async {
     let store = InMemorySnapshotStore(
       snapshot: AppSnapshot(
         isAuthorized: true,
@@ -110,7 +110,9 @@ final class AppViewModelTests: XCTestCase {
         activeSession: nil
       )
     )
-    let stickerService = FakeStickerPairingService(nextHashes: ["tag-hash-001"])
+    let stickerService = FakeStickerPairingService(
+      nextHashes: ["tag-hash-001", "tag-hash-002", "tag-hash-002"]
+    )
     let viewModel = AppViewModel(
       store: store,
       authorizationClient: FakeAuthorizationClient(),
@@ -120,14 +122,43 @@ final class AppViewModelTests: XCTestCase {
 
     viewModel.draftTagName = " Desk "
     await viewModel.pairSticker()
-    XCTAssertEqual(viewModel.snapshot.pairedTag?.displayName, "Desk")
-    XCTAssertEqual(viewModel.snapshot.pairedTag?.uidHash, "tag-hash-001")
+    XCTAssertEqual(viewModel.snapshot.pairedTags.map(\.displayName), ["Desk"])
+    XCTAssertEqual(viewModel.snapshot.pairedTags.map(\.uidHash), ["tag-hash-001"])
 
-    await viewModel.renamePairedSticker("Office")
-    XCTAssertEqual(viewModel.snapshot.pairedTag?.displayName, "Office")
+    viewModel.draftTagName = "Bag anchor"
+    await viewModel.pairSticker()
+    XCTAssertEqual(viewModel.snapshot.pairedTags.map(\.displayName), ["Desk", "Bag anchor"])
+    XCTAssertEqual(viewModel.snapshot.pairedTags.map(\.uidHash), ["tag-hash-001", "tag-hash-002"])
 
-    await viewModel.unpairSticker()
-    XCTAssertNil(viewModel.snapshot.pairedTag)
+    viewModel.draftTagName = "Duplicate"
+    await viewModel.pairSticker()
+    XCTAssertEqual(viewModel.lastError, ValidationError.duplicatePairedTag.errorDescription)
+    XCTAssertEqual(viewModel.snapshot.pairedTags.map(\.displayName), ["Desk", "Bag anchor"])
+  }
+
+  func testRenameAndRemoveSpecificPairedAnchor() async {
+    let firstTag = PairedTag(uidHash: "tag-hash-001", displayName: "Desk anchor")
+    let secondTag = PairedTag(uidHash: "tag-hash-002", displayName: "Bag anchor")
+    let store = InMemorySnapshotStore(
+      snapshot: AppSnapshot(
+        isAuthorized: true,
+        pairedTags: [firstTag, secondTag],
+        modes: [],
+        activeSession: nil
+      )
+    )
+    let viewModel = AppViewModel(
+      store: store,
+      authorizationClient: FakeAuthorizationClient(),
+      shieldingService: FakeShieldingService(),
+      stickerPairingService: FakeStickerPairingService()
+    )
+
+    await viewModel.renamePairedSticker(secondTag.id, name: "Office anchor")
+    XCTAssertEqual(viewModel.snapshot.pairedTags.map(\.displayName), ["Desk anchor", "Office anchor"])
+
+    await viewModel.unpairSticker(firstTag.id)
+    XCTAssertEqual(viewModel.snapshot.pairedTags.map(\.displayName), ["Office anchor"])
   }
 
   func testEditModeCanPromoteDefaultAndRefreshActiveShield() async throws {
@@ -205,6 +236,77 @@ final class AppViewModelTests: XCTestCase {
     await viewModel.releaseActiveSession()
     XCTAssertNil(viewModel.lastError)
     XCTAssertEqual(viewModel.snapshot.activeSession?.state, .released)
+    XCTAssertEqual(shielding.clearCallCount, 1)
+  }
+
+  func testArmSelectedModeBindsSessionToMatchedAnchorInsteadOfFirstAnchor() async throws {
+    let selection = FamilyActivitySelection()
+    let mode = try BlockMode(name: "Work", selection: selection, isDefault: true)
+    let firstTag = PairedTag(uidHash: "paired-hash-1", displayName: "Desk anchor")
+    let secondTag = PairedTag(uidHash: "paired-hash-2", displayName: "Bag anchor")
+    let store = InMemorySnapshotStore(
+      snapshot: AppSnapshot(
+        isAuthorized: true,
+        pairedTags: [firstTag, secondTag],
+        modes: [mode],
+        activeSession: nil
+      )
+    )
+    let shielding = FakeShieldingService()
+    let stickerService = FakeStickerPairingService(nextHashes: ["paired-hash-2"])
+    let viewModel = AppViewModel(
+      store: store,
+      authorizationClient: FakeAuthorizationClient(),
+      shieldingService: shielding,
+      stickerPairingService: stickerService
+    )
+
+    await viewModel.armSelectedMode()
+
+    XCTAssertNil(viewModel.lastError)
+    XCTAssertEqual(shielding.appliedModeIDs, [mode.id])
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .armed)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.pairedTagId, secondTag.id)
+    XCTAssertEqual(viewModel.activePairedTag?.displayName, "Bag anchor")
+  }
+
+  func testReleaseRequiresAnchorThatStartedSession() async throws {
+    let selection = FamilyActivitySelection()
+    let mode = try BlockMode(name: "Work", selection: selection, isDefault: true)
+    let firstTag = PairedTag(uidHash: "paired-hash-1", displayName: "Desk anchor")
+    let secondTag = PairedTag(uidHash: "paired-hash-2", displayName: "Bag anchor")
+    let activeSession = AnchorSession(
+      pairedTagId: secondTag.id,
+      modeId: mode.id,
+      state: .armed
+    )
+    let store = InMemorySnapshotStore(
+      snapshot: AppSnapshot(
+        isAuthorized: true,
+        pairedTags: [firstTag, secondTag],
+        modes: [mode],
+        activeSession: activeSession
+      )
+    )
+    let shielding = FakeShieldingService()
+    let stickerService = FakeStickerPairingService(nextHashes: ["paired-hash-1", "paired-hash-2"])
+    let viewModel = AppViewModel(
+      store: store,
+      authorizationClient: FakeAuthorizationClient(),
+      shieldingService: shielding,
+      stickerPairingService: stickerService
+    )
+
+    await viewModel.releaseActiveSession()
+    XCTAssertEqual(viewModel.lastError, ValidationError.mismatchedTag.errorDescription)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .mismatchedTag)
+    XCTAssertEqual(viewModel.snapshot.sessionHistory.count, 0)
+
+    await viewModel.releaseActiveSession()
+    XCTAssertNil(viewModel.lastError)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .released)
+    XCTAssertEqual(viewModel.snapshot.sessionHistory.count, 1)
+    XCTAssertEqual(viewModel.snapshot.sessionHistory[0].pairedTagName, "Bag anchor")
     XCTAssertEqual(shielding.clearCallCount, 1)
   }
 
@@ -316,6 +418,40 @@ final class AppViewModelTests: XCTestCase {
     XCTAssertEqual(shielding.clearCallCount, 0)
   }
 
+  func testRemovingActiveSessionAnchorClearsSessionAndShielding() async throws {
+    let selection = FamilyActivitySelection()
+    let mode = try BlockMode(name: "Work", selection: selection, isDefault: true)
+    let firstTag = PairedTag(uidHash: "paired-hash-1", displayName: "Desk anchor")
+    let secondTag = PairedTag(uidHash: "paired-hash-2", displayName: "Bag anchor")
+    let activeSession = AnchorSession(
+      pairedTagId: secondTag.id,
+      modeId: mode.id,
+      state: .armed
+    )
+    let store = InMemorySnapshotStore(
+      snapshot: AppSnapshot(
+        isAuthorized: true,
+        pairedTags: [firstTag, secondTag],
+        modes: [mode],
+        activeSession: activeSession
+      )
+    )
+    let shielding = FakeShieldingService()
+    let viewModel = AppViewModel(
+      store: store,
+      authorizationClient: FakeAuthorizationClient(),
+      shieldingService: shielding,
+      stickerPairingService: FakeStickerPairingService()
+    )
+
+    await viewModel.unpairSticker(secondTag.id)
+
+    XCTAssertNil(viewModel.lastError)
+    XCTAssertEqual(viewModel.snapshot.pairedTags.map(\.displayName), ["Desk anchor"])
+    XCTAssertNil(viewModel.snapshot.activeSession)
+    XCTAssertEqual(shielding.clearCallCount, 1)
+  }
+
   func testLoadRepairsMissingDefaultAndSelectsFirstMode() async throws {
     let selection = FamilyActivitySelection()
     let firstMode = try BlockMode(name: "Focus", selection: selection, isDefault: false)
@@ -354,8 +490,8 @@ final class AppViewModelTests: XCTestCase {
 
     viewModel.draftTagName = "Desk anchor"
     await viewModel.pairSticker()
-    XCTAssertEqual(viewModel.snapshot.pairedTag?.displayName, "Desk anchor")
-    XCTAssertNotNil(viewModel.snapshot.pairedTag?.uidHash)
+    XCTAssertEqual(viewModel.snapshot.pairedTags.first?.displayName, "Desk anchor")
+    XCTAssertNotNil(viewModel.snapshot.pairedTags.first?.uidHash)
 
     viewModel.draftModeName = "Phone break"
     await viewModel.saveMode()
