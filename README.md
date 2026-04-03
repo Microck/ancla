@@ -29,12 +29,7 @@ the point is not automation for its own sake. the point is friction.
 
 ## why
 
-most blockers fail because the override lives on the same screen as the temptation. `ancla` changes that loop.
-
-- pair one specific anchor instead of trusting any random nfc tag
-- keep pairing and session state on the device
-- use apple screen time surfaces for the full blocker path
-- make the unblock ritual annoying on purpose
+most blockers fail because the escape hatch is still living on the same piece of glass as the distraction. `ancla` moves that release path into the room instead. you pair one specific anchor, keep the state on the device, use the native apple surfaces where they matter, and force yourself to make a physical decision before the block goes away.
 
 ## how it works
 

@@ -20,7 +20,7 @@ jobs:
     runs-on: macos-15
     env:
       APP_SCHEME: AnclaSideload
-      APP_BUNDLE_NAME: AnclaSideload.app
+      APP_BUNDLE_NAME: Ancla.app
       PROJECT_PATH: ios/Ancla.xcodeproj
     steps:
       - name: Checkout

@@ -115,7 +115,7 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: ancla-app/Info.plist
-        PRODUCT_NAME: AnclaSideload
+        PRODUCT_NAME: Ancla
         PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla.sideload
         TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_KEY_CFBundleDisplayName: Ancla
