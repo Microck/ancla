@@ -1,91 +1,89 @@
-<div align="center">
-  <img src="https://raw.githubusercontent.com/Microck/ancla/main/brand/logo/ancla-app-icon.png" width="140" alt="ancla logo" />
+<p align="center">
+  <img src=".github/assets/ancla-readme-icon.png" alt="ancla" width="100">
+</p>
 
-  <h1>ancla</h1>
+<h1 align="center">ancla</h1>
 
-  <p><strong>iPhone app blocking with a paired NFC anchor</strong></p>
+<p align="center">
+  <strong>an iphone app blocker built around one paired nfc anchor</strong>
+</p>
 
-  <p>
-    <img src="https://img.shields.io/badge/platform-ios%2017%2B-0f172a.svg?style=flat-square" alt="ios" />
-    <img src="https://img.shields.io/badge/ui-swiftui-0f172a.svg?style=flat-square" alt="swiftui" />
-    <img src="https://img.shields.io/badge/site-next.js%2016-0f172a.svg?style=flat-square" alt="next.js" />
-    <img src="https://img.shields.io/badge/model-local--first-0f172a.svg?style=flat-square" alt="local first" />
-  </p>
-</div>
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-ios%2017%2B-0f172a.svg?style=flat-square" alt="ios badge">
+  <img src="https://img.shields.io/badge/unlock-paired%20nfc-0f172a.svg?style=flat-square" alt="nfc badge">
+  <img src="https://img.shields.io/badge/model-on--device-0f172a.svg?style=flat-square" alt="on-device badge">
+  <img src="https://img.shields.io/badge/ui-swiftui-0f172a.svg?style=flat-square" alt="swiftui badge">
+</p>
 
-Ancla is an iPhone-first blocker that uses Apple App Controls plus one paired NFC anchor to make distracting apps physically inconvenient to reopen. Instead of keeping the override on the same glass surface as the temptation, it moves the release path into the room around you.
-
----
-
-## Why
-
-Most blockers fail because the escape hatch is still one tap away. Ancla changes the shape of the loop:
-
-- pick the apps and sites you want blocked
-- pair one physical anchor
-- arm a mode
-- walk to the anchor if you really want the apps back
-
-It is meant to create friction, not clever automation.
+<p align="center">
+  <img src=".github/assets/ancla-readme-banner.jpg" alt="ancla banner" width="800">
+</p>
 
 ---
 
-## How It Works
+`ancla` is a native iphone blocker that makes the release path physical. you pick the apps and sites you want blocked, pair one nfc anchor, arm a mode, and walk back to that same anchor when you want the block lifted.
 
-```text
-user picks apps + domains
-        │
-        ▼
-App Controls selection is saved as a block mode
-        │
-        ▼
-managedsettings shields the selected targets
-        │
-        ▼
-user scans one NFC anchor with Core NFC
-        │
-        ▼
-Ancla hashes the tag identifier and stores that local fingerprint
-        │
-        ▼
-release is allowed only when a future scan matches the paired fingerprint
-```
+the point is not automation for its own sake. the point is friction.
 
-Wrong tags do not release the session. The block stays active until the paired anchor is scanned.
+[sticker guide](docs/sticker-buying-guide.md) | [installation notes](docs/sideloading.md) | [local testing](docs/local-testing.md) | [implementation guide](docs/implementation-guide.md)
 
----
+## why
 
-## Features
+most blockers fail because the override lives on the same screen as the temptation. `ancla` changes that loop.
 
-1. Single-screen native flow for authorize, pair, create mode, arm, and release.
-2. Multiple block modes with default-mode support.
-3. Paired anchor rename, replace, and unpair flows.
-4. Wrong-tag handling that keeps the session active and allows immediate retry.
-5. Shield extension subtitle that reflects the active mode and anchor name.
-6. No backend in the current path - pairing and comparison stay on-device.
+- pair one specific anchor instead of trusting any random nfc tag
+- keep pairing and session state on the device
+- use apple screen time surfaces for the full blocker path
+- make the unblock ritual annoying on purpose
 
----
+## how it works
 
-## Quickstart
+1. grant screen time access on iphone
+2. choose the apps and domains you want blocked
+3. pair one physical nfc anchor
+4. arm a mode
+5. scan the paired anchor later to release it
 
-### web
+wrong tags do not release the session. the point is to tie the exit path to one object in the room, not another tap in the app.
+
+## what you need
+
+- an iphone with nfc support
+- one `ntag213` sticker
+- normal adhesive for desks, walls, wood, glass, or plastic
+- `on-metal` only if the sticker will live on metal
+
+if you want the default buy, use `ntag213`, prefer `25 mm` minimum, and choose `38 mm` when the listing offers it. the exact links are in [docs/sticker-buying-guide.md](docs/sticker-buying-guide.md).
+
+## installation
+
+if you just want to get the app onto your phone, use the direct ipa path in [docs/sideloading.md](docs/sideloading.md). that keeps installation brief here and keeps the changing signing details out of the README.
+
+if you want the full entitlement-backed blocker loop on a real iphone, use the native iOS path described in [docs/implementation-guide.md](docs/implementation-guide.md).
+
+## local verification
+
+run the web surface:
 
 ```bash
-cd /home/ubuntu/workspace/ancla/site
+cd site
 pnpm install
 pnpm dev
 ```
 
-### local verification
+run the checks:
 
 ```bash
-cd /home/ubuntu/workspace/ancla/site
+cd site
 pnpm lint
 pnpm build
 ```
 
+run the shared swift logic tests from linux:
+
 ```bash
-cd /home/ubuntu/workspace/ancla
+cd /path/to/ancla
+
 docker run --rm \
   -v "$PWD/ios:/workspace" \
   -w /workspace \
@@ -93,50 +91,14 @@ docker run --rm \
   swift test
 ```
 
-The Docker Swift lane validates the framework-free core logic only. Real NFC scanning, App Controls authorization, and Managed Settings enforcement still need a Mac and a physical iPhone.
+the linux lane covers the shared core logic. real nfc reads, screen time authorization, and managed settings enforcement still need a physical iphone.
 
-Run `ios-sideload-ipa` if you want the installable iPhone build that is intended for direct IPA distribution while keeping the real NFC anchor flow.
-
-Run `ios-sideload-lite-ipa` only if you specifically want the older secondary fallback target.
-
-For installation notes, see [`docs/sideloading.md`](docs/sideloading.md).
-
-For a Windows-first release path, see [`docs/testflight-github-actions.md`](docs/testflight-github-actions.md).
-
----
-
-## Recommended Tag
-
-If you want the default answer, buy:
-
-- `NTAG213`
-- standard adhesive
-- `38 mm` if the listing offers it
-- `https://s.click.aliexpress.com/e/_c3De6uih`
-
-Only buy on-metal tags if the anchor will live on metal.
-
----
-
-## Repo Layout
+## repo layout
 
 ```text
 ancla/
-├── ios/      native iphone app, shield extension, shared core, tests
-├── site/     next.js marketing site
-└── brand/    logo, palette, naming, shared visual direction
+├── ios/      native iphone app, shared logic, shield extension, tests
+├── site/     next.js site
+├── docs/     install, testing, implementation, and sticker notes
+└── brand/    canonical brand assets and visual direction
 ```
-
----
-
-## Current Constraint
-
-This repo can be developed and partially verified from Linux, but the real product loop is still native iOS:
-
-- build/signing needs xcode on macos
-- the IPA workflow can produce an unsigned `.ipa`, but users still need a signing or installation path
-- App Controls entitlement behavior needs Apple tooling
-- Core NFC needs a real iPhone
-- Managed Settings shielding needs a real iPhone
-
-That is not a documentation gap. It is the product boundary.
