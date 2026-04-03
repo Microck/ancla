@@ -67,6 +67,7 @@ struct AnchorSession: Codable, Equatable, Identifiable {
 
 enum SessionReleaseMethod: String, Codable {
   case anchor
+  case emergencyUnbrick
 }
 
 struct SessionHistoryEntry: Codable, Equatable, Identifiable {
@@ -113,4 +114,5 @@ struct AppSnapshot: Codable, Equatable {
   var modes: [BlockMode] = []
   var activeSession: AnchorSession?
   var sessionHistory: [SessionHistoryEntry] = []
+  var emergencyUnbricksRemaining = 5
 }

@@ -239,6 +239,78 @@ final class AppViewModelTests: XCTestCase {
     XCTAssertEqual(viewModel.recentSessionHistory.count, 1)
   }
 
+  func testEmergencyUnbrickReleasesSessionAndConsumesFailsafe() async throws {
+    let selection = FamilyActivitySelection()
+    let mode = try BlockMode(name: "Work", selection: selection, isDefault: true)
+    let pairedTag = PairedTag(uidHash: "paired-hash", displayName: "Desk sticker")
+    let activeSession = AnchorSession(
+      pairedTagId: pairedTag.id,
+      modeId: mode.id,
+      state: .armed
+    )
+    let store = InMemorySnapshotStore(
+      snapshot: AppSnapshot(
+        isAuthorized: true,
+        pairedTag: pairedTag,
+        modes: [mode],
+        activeSession: activeSession,
+        sessionHistory: [],
+        emergencyUnbricksRemaining: 2
+      )
+    )
+    let shielding = FakeShieldingService()
+    let viewModel = AppViewModel(
+      store: store,
+      authorizationClient: FakeAuthorizationClient(),
+      shieldingService: shielding,
+      stickerPairingService: FakeStickerPairingService()
+    )
+
+    await viewModel.useEmergencyUnbrick()
+
+    XCTAssertNil(viewModel.lastError)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .released)
+    XCTAssertEqual(viewModel.snapshot.emergencyUnbricksRemaining, 1)
+    XCTAssertEqual(viewModel.snapshot.sessionHistory.count, 1)
+    XCTAssertEqual(viewModel.snapshot.sessionHistory[0].releaseMethod, .emergencyUnbrick)
+    XCTAssertEqual(shielding.clearCallCount, 1)
+  }
+
+  func testEmergencyUnbrickStopsWhenFailsafesAreExhausted() async throws {
+    let selection = FamilyActivitySelection()
+    let mode = try BlockMode(name: "Work", selection: selection, isDefault: true)
+    let pairedTag = PairedTag(uidHash: "paired-hash", displayName: "Desk sticker")
+    let activeSession = AnchorSession(
+      pairedTagId: pairedTag.id,
+      modeId: mode.id,
+      state: .armed
+    )
+    let store = InMemorySnapshotStore(
+      snapshot: AppSnapshot(
+        isAuthorized: true,
+        pairedTag: pairedTag,
+        modes: [mode],
+        activeSession: activeSession,
+        sessionHistory: [],
+        emergencyUnbricksRemaining: 0
+      )
+    )
+    let shielding = FakeShieldingService()
+    let viewModel = AppViewModel(
+      store: store,
+      authorizationClient: FakeAuthorizationClient(),
+      shieldingService: shielding,
+      stickerPairingService: FakeStickerPairingService()
+    )
+
+    await viewModel.useEmergencyUnbrick()
+
+    XCTAssertEqual(viewModel.lastError, ValidationError.noEmergencyUnbricksRemaining.errorDescription)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .armed)
+    XCTAssertTrue(viewModel.snapshot.sessionHistory.isEmpty)
+    XCTAssertEqual(shielding.clearCallCount, 0)
+  }
+
   func testLoadRepairsMissingDefaultAndSelectsFirstMode() async throws {
     let selection = FamilyActivitySelection()
     let firstMode = try BlockMode(name: "Focus", selection: selection, isDefault: false)
@@ -284,7 +356,7 @@ final class AppViewModelTests: XCTestCase {
     await viewModel.saveMode()
     XCTAssertNil(viewModel.lastError)
     XCTAssertEqual(viewModel.snapshot.modes.count, 1)
-    XCTAssertEqual(viewModel.selectionSummary(for: viewModel.snapshot.modes[0]), "Local mode only")
+    XCTAssertEqual(viewModel.selectionSummary(for: viewModel.snapshot.modes[0]), "On-device mode")
 
     await viewModel.armSelectedMode()
     XCTAssertEqual(viewModel.snapshot.activeSession?.state, .armed)
