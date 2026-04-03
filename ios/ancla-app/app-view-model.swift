@@ -129,7 +129,10 @@ final class AppViewModel {
   }
 
   var activePairedTag: PairedTag? {
-    guard let activeSession = snapshot.activeSession else {
+    guard
+      let activeSession = snapshot.activeSession,
+      activeSession.state == .armed || activeSession.state == .mismatchedTag
+    else {
       return nil
     }
 
