@@ -20,3 +20,8 @@ protocol Shielding {
 protocol StickerPairing {
   func scanSticker() async throws -> String
 }
+
+@MainActor
+protocol ScheduleNotifying {
+  func refresh(for snapshot: AppSnapshot, now: Date) async
+}

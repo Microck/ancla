@@ -15,6 +15,7 @@ private enum NextStep {
 
 struct ContentView: View {
   @Bindable var viewModel: AppViewModel
+  @Environment(\.scenePhase) private var scenePhase
 
   // Keep the final rows reachable above the fixed bottom action bar.
   private let bottomActionBarClearance: CGFloat = 132
@@ -87,6 +88,11 @@ struct ContentView: View {
       .onChange(of: renamingAnchorID) { _, tagID in
         if let tagID, let pairedTag = viewModel.pairedTag(tagID) {
           anchorNameDraft = pairedTag.displayName
+        }
+      }
+      .onChange(of: scenePhase) { _, phase in
+        if phase == .active {
+          viewModel.handleSceneDidBecomeActive()
         }
       }
     }
