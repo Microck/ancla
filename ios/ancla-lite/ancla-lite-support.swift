@@ -27,6 +27,21 @@ enum SideloadLiteError: LocalizedError {
   }
 }
 
+enum AutomatedTestConfig {
+  private static let stickerHashesKey = "ANCLA_TEST_STICKER_HASHES"
+
+  static var simulatedStickerHashes: [String] {
+    ProcessInfo.processInfo.environment[stickerHashesKey]?
+      .split(separator: ",")
+      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .filter { !$0.isEmpty } ?? []
+  }
+
+  static var usesSimulatedNFC: Bool {
+    !simulatedStickerHashes.isEmpty
+  }
+}
+
 struct LocalSnapshotStore: AppSnapshotStore {
   private let encoder = JSONEncoder()
   private let decoder = JSONDecoder()
@@ -80,8 +95,13 @@ final class LiteShieldingService: Shielding {
 @MainActor
 final class LiteStickerPairingService: StickerPairing {
   private let scanner = StickerPairingService()
+  private var simulatedHashes = AutomatedTestConfig.simulatedStickerHashes
 
   func scanSticker() async throws -> String {
+    if !simulatedHashes.isEmpty {
+      return simulatedHashes.removeFirst()
+    }
+
     try await scanner.scanSticker()
   }
 }

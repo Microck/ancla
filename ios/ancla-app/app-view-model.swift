@@ -470,7 +470,9 @@ final class AppViewModel {
   }
 
   func refreshDiagnostics() {
-    let environment = runtimeDiagnosticsProbe.environment(for: buildVariant)
+    let environment = automationAdjustedEnvironment(
+      runtimeDiagnosticsProbe.environment(for: buildVariant)
+    )
 
     if isSideloadLiteBuild {
       snapshot.isAuthorized = true
@@ -529,6 +531,24 @@ final class AppViewModel {
     !selection.applicationTokens.isEmpty
       || !selection.categoryTokens.isEmpty
       || !selection.webDomainTokens.isEmpty
+  }
+
+  private func automationAdjustedEnvironment(
+    _ environment: RuntimeEnvironmentSnapshot
+  ) -> RuntimeEnvironmentSnapshot {
+    guard AutomatedTestConfig.usesSimulatedNFC else {
+      return environment
+    }
+
+    return RuntimeEnvironmentSnapshot(
+      buildLabel: environment.buildLabel,
+      buildDetail: environment.buildDetail,
+      storageLabel: environment.storageLabel,
+      storageDetail: environment.storageDetail,
+      storageTone: environment.storageTone,
+      nfcAvailable: true,
+      screenTimeAuthorization: environment.screenTimeAuthorization
+    )
   }
 
   private func runTask(
