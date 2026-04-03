@@ -209,7 +209,7 @@ extension AnclaCore {
     }
 
     if !environment.nfcAvailable {
-      return "This iPhone cannot scan NFC anchors, so pairing and release are unavailable on this device."
+      return "This iPhone cannot scan NFC anchors, so pairing, start confirmation, and release are unavailable on this device."
     }
 
     if environment.screenTimeAuthorization != .notRequired,
@@ -230,7 +230,7 @@ extension AnclaCore {
       return "Only the paired anchor can release the current session."
     }
 
-    return "The selected mode is ready to start."
+    return "Tap the paired anchor to start the selected mode."
   }
 
   private static func sessionTitle(_ state: AnchorSessionState?) -> String {

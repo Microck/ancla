@@ -287,8 +287,11 @@ final class AppViewModel {
         throw ValidationError.missingMode
       }
 
-      try arm(mode: mode)
-      feedback = ActionFeedback(message: "\"\(mode.name)\" is active.", tone: .success)
+      try await arm(mode: mode)
+      feedback = ActionFeedback(
+        message: "Paired anchor confirmed. \"\(mode.name)\" is active.",
+        tone: .success
+      )
     }
   }
 
@@ -298,8 +301,11 @@ final class AppViewModel {
         throw ValidationError.missingMode
       }
       selectedModeID = mode.id
-      try arm(mode: mode)
-      feedback = ActionFeedback(message: "\"\(mode.name)\" is active.", tone: .success)
+      try await arm(mode: mode)
+      feedback = ActionFeedback(
+        message: "Paired anchor confirmed. \"\(mode.name)\" is active.",
+        tone: .success
+      )
     }
   }
 
@@ -524,13 +530,18 @@ final class AppViewModel {
     try store.save(snapshot)
   }
 
-  private func arm(mode: BlockMode) throws {
+  private func arm(mode: BlockMode) async throws {
     guard snapshot.isAuthorized else {
       throw ValidationError.missingAuthorization
     }
 
     guard let pairedTag = snapshot.pairedTag else {
       throw ValidationError.missingPairedTag
+    }
+
+    let scannedHash = try await stickerPairingService.scanSticker()
+    guard scannedHash == pairedTag.uidHash else {
+      throw ValidationError.mismatchedTagOnArm
     }
 
     try shieldingService.apply(mode: mode)
@@ -640,6 +651,7 @@ enum ValidationError: LocalizedError {
   case missingMode
   case noTargetsSelected
   case noEmergencyUnbricksRemaining
+  case mismatchedTagOnArm
   case mismatchedTag
   case sessionNotArmed
 
@@ -655,6 +667,8 @@ enum ValidationError: LocalizedError {
       return "Choose at least one app, category, or domain."
     case .noEmergencyUnbricksRemaining:
       return "No emergency unbricks remain on this iPhone."
+    case .mismatchedTagOnArm:
+      return "Scan the paired anchor to start this session."
     case .mismatchedTag:
       return "That anchor does not match the paired release key."
     case .sessionNotArmed:
