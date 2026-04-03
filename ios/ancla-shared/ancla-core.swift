@@ -48,9 +48,17 @@ enum AnclaCore {
 
   static func canArmSelectedMode(_ snapshot: AppSnapshot) -> Bool {
     snapshot.isAuthorized
-      && snapshot.pairedTag != nil
+      && !snapshot.pairedTags.isEmpty
       && !snapshot.modes.isEmpty
       && !activeSessionIsBlocking(snapshot)
+  }
+
+  static func pairedTag(for id: UUID, in snapshot: AppSnapshot) -> PairedTag? {
+    snapshot.pairedTags.first(where: { $0.id == id })
+  }
+
+  static func matchedPairedTag(for uidHash: String, in snapshot: AppSnapshot) -> PairedTag? {
+    snapshot.pairedTags.first(where: { $0.uidHash == uidHash })
   }
 
   static func recentHistory(

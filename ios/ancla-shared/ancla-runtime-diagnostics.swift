@@ -136,11 +136,9 @@ extension AnclaCore {
       RuntimeDiagnosticItem(
         id: "sticker",
         title: "Anchor",
-        value: snapshot.pairedTag?.displayName ?? "Not paired",
-        detail: snapshot.pairedTag == nil
-          ? "Pair the NFC anchor that should release sessions on this iPhone."
-          : "The paired anchor is the only release key for this iPhone.",
-        tone: snapshot.pairedTag == nil ? .attention : .ready
+        value: anchorValue(snapshot),
+        detail: anchorDetail(snapshot),
+        tone: snapshot.pairedTags.isEmpty ? .attention : .ready
       ),
       RuntimeDiagnosticItem(
         id: "mode",
@@ -185,7 +183,7 @@ extension AnclaCore {
       return "Controls unavailable"
     }
 
-    if snapshot.pairedTag == nil {
+    if snapshot.pairedTags.isEmpty {
       return "Pair an anchor"
     }
 
@@ -218,8 +216,8 @@ extension AnclaCore {
       return environment.screenTimeAuthorization.detail
     }
 
-    if snapshot.pairedTag == nil {
-      return "Pair one NFC anchor to set the physical release key for this iPhone."
+    if snapshot.pairedTags.isEmpty {
+      return "Pair at least one NFC anchor to set the physical release keys for this iPhone."
     }
 
     if snapshot.modes.isEmpty {
@@ -265,6 +263,28 @@ extension AnclaCore {
       return .attention
     case .released, .idle, nil:
       return .neutral
+    }
+  }
+
+  private static func anchorValue(_ snapshot: AppSnapshot) -> String {
+    switch snapshot.pairedTags.count {
+    case 0:
+      return "Not paired"
+    case 1:
+      return snapshot.pairedTags[0].displayName
+    default:
+      return "\(snapshot.pairedTags.count) paired"
+    }
+  }
+
+  private static func anchorDetail(_ snapshot: AppSnapshot) -> String {
+    switch snapshot.pairedTags.count {
+    case 0:
+      return "Pair the NFC anchors that should be allowed to start and release sessions on this iPhone."
+    case 1:
+      return "The paired anchor can start a session and must also release it."
+    default:
+      return "Any paired anchor can start a session. The same anchor must release the session it started."
     }
   }
 }

@@ -8,7 +8,6 @@ enum AppActionID: Equatable {
   case refresh
   case authorize
   case pairAnchor
-  case replaceAnchor
   case armSession
   case releaseSession
   case emergencyUnbrick
@@ -109,6 +108,32 @@ final class AppViewModel {
 
   var recentSessionHistory: [SessionHistoryEntry] {
     AnclaCore.recentHistory(in: snapshot)
+  }
+
+  var pairedTagsForDisplay: [PairedTag] {
+    guard let activePairedTag else {
+      return snapshot.pairedTags
+    }
+
+    return snapshot.pairedTags.sorted { lhs, rhs in
+      if lhs.id == activePairedTag.id {
+        return true
+      }
+
+      if rhs.id == activePairedTag.id {
+        return false
+      }
+
+      return lhs.createdAt < rhs.createdAt
+    }
+  }
+
+  var activePairedTag: PairedTag? {
+    guard let activeSession = snapshot.activeSession else {
+      return nil
+    }
+
+    return AnclaCore.pairedTag(for: activeSession.pairedTagId, in: snapshot)
   }
 
   var isNFCAvailable: Bool {
@@ -256,28 +281,19 @@ final class AppViewModel {
   func pairSticker() async {
     await runTask(action: .pairAnchor) { [self] in
       let uidHash = try await stickerPairingService.scanSticker()
+      guard AnclaCore.matchedPairedTag(for: uidHash, in: snapshot) == nil else {
+        throw ValidationError.duplicatePairedTag
+      }
+
       let trimmedName = draftTagName.trimmingCharacters(in: .whitespacesAndNewlines)
       let displayName = trimmedName.isEmpty ? "Desk anchor" : trimmedName
-      snapshot.pairedTag = PairedTag(
+      let pairedTag = PairedTag(
         uidHash: uidHash,
         displayName: displayName
       )
+      snapshot.pairedTags.append(pairedTag)
       try persist()
       feedback = ActionFeedback(message: "\(displayName) paired.", tone: .success)
-    }
-  }
-
-  func replaceSticker() async {
-    await runTask(action: .replaceAnchor) { [self] in
-      let uidHash = try await stickerPairingService.scanSticker()
-      let trimmedName = draftTagName.trimmingCharacters(in: .whitespacesAndNewlines)
-      let displayName = trimmedName.isEmpty ? "Desk anchor" : trimmedName
-      snapshot.pairedTag = PairedTag(
-        uidHash: uidHash,
-        displayName: displayName
-      )
-      try persist()
-      feedback = ActionFeedback(message: "\(displayName) paired as the new anchor.", tone: .success)
     }
   }
 
@@ -319,14 +335,17 @@ final class AppViewModel {
       }
 
       let scannedHash = try await stickerPairingService.scanSticker()
-      guard scannedHash == snapshot.pairedTag?.uidHash else {
+      guard let pairedTag = AnclaCore.pairedTag(for: activeSession.pairedTagId, in: snapshot) else {
+        throw ValidationError.missingPairedTag
+      }
+
+      guard scannedHash == pairedTag.uidHash else {
         snapshot.activeSession?.state = .mismatchedTag
         try persist()
         throw ValidationError.mismatchedTag
       }
 
       guard
-        let pairedTag = snapshot.pairedTag,
         let mode = snapshot.modes.first(where: { $0.id == activeSession.modeId })
       else {
         throw ValidationError.missingMode
@@ -358,7 +377,7 @@ final class AppViewModel {
       }
 
       guard
-        let pairedTag = snapshot.pairedTag,
+        let pairedTag = AnclaCore.pairedTag(for: activeSession.pairedTagId, in: snapshot),
         let mode = snapshot.modes.first(where: { $0.id == activeSession.modeId })
       else {
         throw ValidationError.missingMode
@@ -419,25 +438,30 @@ final class AppViewModel {
     }
   }
 
-  func renamePairedSticker(_ name: String) async {
+  func renamePairedSticker(_ tagID: UUID, name: String) async {
     await runTask(action: .renameAnchor) { [self] in
-      guard snapshot.pairedTag != nil else {
+      guard let index = snapshot.pairedTags.firstIndex(where: { $0.id == tagID }) else {
         throw ValidationError.missingPairedTag
       }
 
       let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
       let displayName = trimmedName.isEmpty ? "Desk anchor" : trimmedName
-      snapshot.pairedTag?.displayName = displayName
-      draftTagName = snapshot.pairedTag?.displayName ?? "Desk anchor"
+      snapshot.pairedTags[index].displayName = displayName
+      draftTagName = snapshot.pairedTags[index].displayName
       try persist()
       feedback = ActionFeedback(message: "Anchor renamed to \(displayName).", tone: .success)
     }
   }
 
-  func unpairSticker() async {
+  func unpairSticker(_ tagID: UUID) async {
     await runTask(action: .removeAnchor, successMessage: "Anchor removed.") { [self] in
-      snapshot.pairedTag = nil
-      if snapshot.activeSession != nil {
+      guard let index = snapshot.pairedTags.firstIndex(where: { $0.id == tagID }) else {
+        throw ValidationError.missingPairedTag
+      }
+
+      let removedTag = snapshot.pairedTags.remove(at: index)
+
+      if snapshot.activeSession?.pairedTagId == removedTag.id {
         shieldingService.clear()
         snapshot.activeSession = nil
       }
@@ -457,6 +481,10 @@ final class AppViewModel {
       return nil
     }
     return snapshot.modes.first(where: { $0.id == selectedModeID })
+  }
+
+  func pairedTag(_ tagID: UUID) -> PairedTag? {
+    snapshot.pairedTags.first(where: { $0.id == tagID })
   }
 
   func preferredMode() -> BlockMode? {
@@ -535,12 +563,12 @@ final class AppViewModel {
       throw ValidationError.missingAuthorization
     }
 
-    guard let pairedTag = snapshot.pairedTag else {
+    guard !snapshot.pairedTags.isEmpty else {
       throw ValidationError.missingPairedTag
     }
 
     let scannedHash = try await stickerPairingService.scanSticker()
-    guard scannedHash == pairedTag.uidHash else {
+    guard let pairedTag = AnclaCore.matchedPairedTag(for: scannedHash, in: snapshot) else {
       throw ValidationError.mismatchedTagOnArm
     }
 
@@ -651,6 +679,7 @@ enum ValidationError: LocalizedError {
   case missingMode
   case noTargetsSelected
   case noEmergencyUnbricksRemaining
+  case duplicatePairedTag
   case mismatchedTagOnArm
   case mismatchedTag
   case sessionNotArmed
@@ -667,10 +696,12 @@ enum ValidationError: LocalizedError {
       return "Choose at least one app, category, or domain."
     case .noEmergencyUnbricksRemaining:
       return "No emergency unbricks remain on this iPhone."
+    case .duplicatePairedTag:
+      return "That NFC anchor is already paired on this iPhone."
     case .mismatchedTagOnArm:
-      return "Scan the paired anchor to start this session."
+      return "Scan any paired anchor to start this session."
     case .mismatchedTag:
-      return "That anchor does not match the paired release key."
+      return "That anchor does not match the release anchor for this session."
     case .sessionNotArmed:
       return "Start a session before attempting release."
     }

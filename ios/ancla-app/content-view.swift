@@ -20,7 +20,7 @@ struct ContentView: View {
   private let bottomActionBarClearance: CGFloat = 132
 
   @State private var isModeEditorPresented = false
-  @State private var isRenamingAnchor = false
+  @State private var renamingAnchorID: UUID?
   @State private var anchorNameDraft = ""
 
   var body: some View {
@@ -54,7 +54,7 @@ struct ContentView: View {
         )
         .presentationBackground(.clear)
       }
-      .sheet(isPresented: $isRenamingAnchor) {
+      .sheet(isPresented: renameAnchorPresented) {
         renameAnchorSheet
           .presentationBackground(.clear)
       }
@@ -65,9 +65,9 @@ struct ContentView: View {
       .task {
         viewModel.refreshDiagnostics()
       }
-      .onChange(of: isRenamingAnchor) { _, isOpen in
-        if isOpen {
-          anchorNameDraft = viewModel.snapshot.pairedTag?.displayName ?? ""
+      .onChange(of: renamingAnchorID) { _, tagID in
+        if let tagID, let pairedTag = viewModel.pairedTag(tagID) {
+          anchorNameDraft = pairedTag.displayName
         }
       }
     }
@@ -163,17 +163,17 @@ struct ContentView: View {
 
               surfaceRow(
                 label: "Anchor",
-                value: viewModel.snapshot.pairedTag?.displayName ?? "Not paired",
+                value: anchorValue,
                 detail: anchorDetail
               )
 
-              if viewModel.snapshot.pairedTag != nil {
+              if let anchorPreviewTag {
                 surfaceDivider
 
                 surfaceRow(
-                  label: "Anchor ID",
+                  label: anchorPreviewLabel,
                   value: fingerprintValue,
-                  detail: "Short preview of the paired anchor fingerprint.",
+                  detail: fingerprintDetail,
                   monospaced: true
                 )
               }
@@ -315,75 +315,83 @@ struct ContentView: View {
         surfaceDivider
 
         sectionBlock(
-          title: "Anchor",
+          title: "Anchors",
           content: {
             VStack(spacing: 12) {
-              if let pairedTag = viewModel.snapshot.pairedTag {
-                informativeRow(
-                  title: pairedTag.displayName,
-                  detail: "This anchor is currently paired to release active sessions on this iPhone.",
-                  accentColor: AnclaTheme.primaryText,
-                  highlight: true,
-                  trailingText: "Paired"
-                )
-
-                Button {
-                  isRenamingAnchor = true
-                } label: {
-                  actionRow(
-                    icon: "pencil.line",
-                    title: "Rename anchor",
-                    detail: "Update the visible label for the paired anchor.",
-                    isLoading: false
-                  )
-                }
-                .buttonStyle(AnclaPressableButtonStyle())
-                .disabled(viewModel.isBusy)
-
-                Button {
-                  Task { await viewModel.replaceSticker() }
-                } label: {
-                  actionRow(
-                    icon: "arrow.triangle.2.circlepath",
-                    title: "Pair replacement anchor",
-                    detail: "Scan a different NFC anchor and make it the new release key.",
-                    isLoading: viewModel.isActionInProgress(.replaceAnchor)
-                  )
-                }
-                .buttonStyle(AnclaPressableButtonStyle())
-                .disabled(viewModel.isBusy)
-
-                Button {
-                  Task { await viewModel.unpairSticker() }
-                } label: {
-                  actionRow(
-                    icon: "trash",
-                    title: "Remove anchor",
-                    detail: "Clear the current paired anchor from this iPhone.",
-                    isLoading: viewModel.isActionInProgress(.removeAnchor),
-                    isDestructive: true
-                  )
-                }
-                .buttonStyle(
-                  AnclaPressableButtonStyle(
-                    background: AnclaTheme.panelInteractive,
-                    pressedBackground: AnclaTheme.panelRaised,
-                    stroke: AnclaTheme.errorText.opacity(0.32)
-                  )
-                )
-                .disabled(viewModel.isBusy)
-              } else {
+              if viewModel.pairedTagsForDisplay.isEmpty {
                 informativeRow(
                   title: "No anchor paired",
                   detail: "Pair one NFC anchor to set the physical release key for this iPhone.",
                   accentColor: AnclaTheme.primaryText,
                   highlight: false
                 )
+              } else {
+                ForEach(viewModel.pairedTagsForDisplay) { pairedTag in
+                  pairedAnchorCard(pairedTag)
+                }
+
+                Button {
+                  Task { await viewModel.pairSticker() }
+                } label: {
+                  actionRow(
+                    icon: "plus",
+                    title: "Pair another anchor",
+                    detail: "Scan one more NFC anchor that can start its own session on this iPhone.",
+                    isLoading: viewModel.isActionInProgress(.pairAnchor)
+                  )
+                }
+                .buttonStyle(AnclaPressableButtonStyle())
+                .disabled(viewModel.isBusy)
               }
             }
           }
         )
       }
+    }
+  }
+
+  private func pairedAnchorCard(_ pairedTag: PairedTag) -> some View {
+    VStack(spacing: 12) {
+      informativeRow(
+        title: pairedTag.displayName,
+        detail: pairedAnchorDetail(for: pairedTag),
+        accentColor: isActiveAnchor(pairedTag.id) ? AnclaTheme.warningText : AnclaTheme.primaryText,
+        highlight: isActiveAnchor(pairedTag.id),
+        trailingText: pairedAnchorBadge(for: pairedTag)
+      )
+
+      Button {
+        renamingAnchorID = pairedTag.id
+      } label: {
+        actionRow(
+          icon: "pencil.line",
+          title: "Rename \(pairedTag.displayName)",
+          detail: "Update the visible label for this paired anchor.",
+          isLoading: false
+        )
+      }
+      .buttonStyle(AnclaPressableButtonStyle())
+      .disabled(viewModel.isBusy)
+
+      Button {
+        Task { await viewModel.unpairSticker(pairedTag.id) }
+      } label: {
+        actionRow(
+          icon: "trash",
+          title: "Remove \(pairedTag.displayName)",
+          detail: removeAnchorDetail(for: pairedTag),
+          isLoading: viewModel.isActionInProgress(.removeAnchor),
+          isDestructive: true
+        )
+      }
+      .buttonStyle(
+        AnclaPressableButtonStyle(
+          background: AnclaTheme.panelInteractive,
+          pressedBackground: AnclaTheme.panelRaised,
+          stroke: AnclaTheme.errorText.opacity(0.32)
+        )
+      )
+      .disabled(viewModel.isBusy)
     }
   }
 
@@ -699,7 +707,7 @@ struct ContentView: View {
 
         HStack {
           Button("Cancel") {
-            isRenamingAnchor = false
+            renamingAnchorID = nil
           }
           .font(.ancla(14, weight: .medium))
           .foregroundStyle(AnclaTheme.secondaryText)
@@ -716,7 +724,7 @@ struct ContentView: View {
 
           Spacer()
 
-          Text("Rename anchor")
+          Text(currentRenamingAnchor?.displayName ?? "Rename anchor")
             .font(.ancla(18, weight: .bold))
             .foregroundStyle(AnclaTheme.primaryText)
 
@@ -724,9 +732,12 @@ struct ContentView: View {
 
           Button("Save") {
             Task {
-              await viewModel.renamePairedSticker(anchorNameDraft)
+              guard let renamingAnchorID else {
+                return
+              }
+              await viewModel.renamePairedSticker(renamingAnchorID, name: anchorNameDraft)
               if viewModel.lastError == nil {
-                isRenamingAnchor = false
+                self.renamingAnchorID = nil
               }
             }
           }
@@ -791,15 +802,26 @@ struct ContentView: View {
   }
 
   private var anchorDetail: String {
-    guard viewModel.snapshot.pairedTag != nil else {
+    switch viewModel.snapshot.pairedTags.count {
+    case 0:
       return "No anchor is paired to this iPhone yet."
-    }
+    case 1:
+      if let activePairedTag = viewModel.activePairedTag {
+        return "\(activePairedTag.displayName) started the current session and must also release it."
+      }
 
-    return "The paired anchor is required to start and release sessions on this iPhone."
+      return "The paired anchor can start a session and must also release it."
+    default:
+      if let activePairedTag = viewModel.activePairedTag {
+        return "\(viewModel.snapshot.pairedTags.count) anchors are paired. \(activePairedTag.displayName) must release the current session."
+      }
+
+      return "\(viewModel.snapshot.pairedTags.count) anchors are paired on this iPhone."
+    }
   }
 
   private var fingerprintValue: String {
-    guard let uidHash = viewModel.snapshot.pairedTag?.uidHash else {
+    guard let uidHash = anchorPreviewTag?.uidHash else {
       return "Awaiting pair"
     }
 
@@ -931,7 +953,7 @@ struct ContentView: View {
       return .unavailable
     }
 
-    if viewModel.snapshot.pairedTag == nil {
+    if viewModel.snapshot.pairedTags.isEmpty {
       return .pairAnchor
     }
 
@@ -1050,7 +1072,89 @@ struct ContentView: View {
   }
 
   private var sessionWaitingDetail: String {
-    "The current session remains active until the paired anchor is scanned. \(emergencyCountSentence)"
+    if let activePairedTag = viewModel.activePairedTag {
+      return "The current session remains active until \(activePairedTag.displayName) is scanned. \(emergencyCountSentence)"
+    }
+
+    return "The current session remains active until the release anchor is scanned. \(emergencyCountSentence)"
+  }
+
+  private var renameAnchorPresented: Binding<Bool> {
+    Binding(
+      get: { renamingAnchorID != nil },
+      set: { isPresented in
+        if !isPresented {
+          renamingAnchorID = nil
+        }
+      }
+    )
+  }
+
+  private var currentRenamingAnchor: PairedTag? {
+    guard let renamingAnchorID else {
+      return nil
+    }
+
+    return viewModel.pairedTag(renamingAnchorID)
+  }
+
+  private var activePairedTag: PairedTag? {
+    viewModel.activePairedTag
+  }
+
+  private var anchorValue: String {
+    if let activePairedTag {
+      return activePairedTag.displayName
+    }
+
+    switch viewModel.snapshot.pairedTags.count {
+    case 0:
+      return "Not paired"
+    case 1:
+      return viewModel.snapshot.pairedTags[0].displayName
+    default:
+      return "\(viewModel.snapshot.pairedTags.count) paired"
+    }
+  }
+
+  private var anchorPreviewTag: PairedTag? {
+    activePairedTag ?? viewModel.snapshot.pairedTags.first
+  }
+
+  private var anchorPreviewLabel: String {
+    activePairedTag == nil ? "Anchor ID" : "Active anchor ID"
+  }
+
+  private var fingerprintDetail: String {
+    if let activePairedTag {
+      return "\(activePairedTag.displayName) is the anchor that must release the current session."
+    }
+
+    return "Short preview of a paired anchor fingerprint."
+  }
+
+  private func isActiveAnchor(_ tagID: UUID) -> Bool {
+    viewModel.activePairedTag?.id == tagID
+  }
+
+  private func pairedAnchorDetail(for pairedTag: PairedTag) -> String {
+    if isActiveAnchor(pairedTag.id) {
+      return "This anchor started the current session and is the only one that can release it."
+    }
+
+    return "This anchor can start a new session on this iPhone."
+  }
+
+  private func pairedAnchorBadge(for pairedTag: PairedTag) -> String {
+    isActiveAnchor(pairedTag.id) ? "Active" : "Paired"
+  }
+
+  private func removeAnchorDetail(for pairedTag: PairedTag) -> String {
+    if isActiveAnchor(pairedTag.id) {
+      return "Remove this anchor and clear the active session from this iPhone."
+    }
+
+    return "Remove this paired anchor from this iPhone."
   }
 }
 
