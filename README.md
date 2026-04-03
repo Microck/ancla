@@ -10,8 +10,6 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-ios%2017%2B-0f172a.svg?style=flat-square" alt="ios badge">
-  <img src="https://img.shields.io/badge/unlock-paired%20nfc-0f172a.svg?style=flat-square" alt="nfc badge">
-  <img src="https://img.shields.io/badge/model-on--device-0f172a.svg?style=flat-square" alt="on-device badge">
   <img src="https://img.shields.io/badge/ui-swiftui-0f172a.svg?style=flat-square" alt="swiftui badge">
 </p>
 
@@ -22,10 +20,6 @@
 ---
 
 `ancla` is a native iphone blocker that makes the release path physical. you pick the apps and sites you want blocked, pair one nfc anchor, arm a mode, and walk back to that same anchor when you want the block lifted.
-
-the point is not automation for its own sake. the point is friction.
-
-[installation notes](docs/sideloading.md)
 
 ## why
 
@@ -50,10 +44,6 @@ wrong tags do not release the session. the point is to tie the exit path to one 
 
 - an iphone with nfc support
 - one `ntag213` sticker
-- normal adhesive for desks, walls, wood, glass, or plastic
-- `on-metal` only if the sticker will live on metal
-
-if you want the default buy, use `ntag213`, prefer `25 mm` minimum, and choose `38 mm` when the listing offers it.
 
 ## sticker buying guide
 
@@ -75,49 +65,23 @@ avoid these as the default:
 
 recommended buys:
 
-| marketplace | pick | notes | link |
-| --- | --- | --- | --- |
-| aliExpress | `ntag213` round sticker, `38 mm` if available | best default buy for `ancla` | https://s.click.aliexpress.com/e/_c3De6uih |
-| aliExpress | `ntag213` round sticker, `25 mm` | smaller fallback if you want a cheaper pack | https://s.click.aliexpress.com/e/_c3SMBZ1j |
-| aliExpress | `ntag213` anti-metal tag | only if the sticker will live on metal | https://s.click.aliexpress.com/e/_c3GSnHd7 |
-| amazon | fongwah `ntag213` sticker pack | straightforward non-metal default | https://www.amazon.com/Stickers-Adhesive-Compatible-NFC-Enabled-Smartphones/dp/B07GFHLZD1 |
-| amazon | gotoTags on-metal `ntag213` | use only for metal mounting | https://www.amazon.com/Blank-White-Metal-NFC-Tag/dp/B01135KABO |
+| marketplace | pick | notes |
+| --- | --- | --- |
+| [aliexpress](https://s.click.aliexpress.com/e/_c3De6uih) | `ntag213` round sticker, `38 mm` if available | best default buy for `ancla` |
+| [aliexpress](https://s.click.aliexpress.com/e/_c3SMBZ1j) | `ntag213` round sticker, `25 mm` | smaller fallback if you want a cheaper pack |
+| [aliexpress](https://s.click.aliexpress.com/e/_c3GSnHd7) | `ntag213` anti-metal tag | only if the sticker will live on metal |
+| [amazon](https://www.amazon.com/Stickers-Adhesive-Compatible-NFC-Enabled-Smartphones/dp/B07GFHLZD1) | fongwah `ntag213` sticker pack | straightforward non-metal default |
+| [amazon](https://www.amazon.com/Blank-White-Metal-NFC-Tag/dp/B01135KABO) | gotoTags on-metal `ntag213` | use only for metal mounting |
+
+<img width="272" height="272" alt="nfctag" src="https://github.com/user-attachments/assets/8e1eda31-47ae-47db-8550-340086999be1" />
 
 ## installation
 
-if you just want to get the app onto your phone, use the direct ipa path in [docs/sideloading.md](docs/sideloading.md). that keeps installation brief here and keeps the changing signing details out of the README.
+you will need to sideload the .ipa into your iphone:
 
-## local verification
-
-run the web surface:
-
-```bash
-cd site
-pnpm install
-pnpm dev
-```
-
-run the checks:
-
-```bash
-cd site
-pnpm lint
-pnpm build
-```
-
-run the shared swift logic tests from linux:
-
-```bash
-cd /path/to/ancla
-
-docker run --rm \
-  -v "$PWD/ios:/workspace" \
-  -w /workspace \
-  swift:5.10-jammy \
-  swift test
-```
-
-the linux lane covers the shared core logic. real nfc reads, screen time authorization, and managed settings enforcement still need a physical iphone.
+1. download `ancla-*.ipa` from releases
+2. sign the `.ipa` in Feather (or whatever app you decide to use)
+3. install it on your iPhone
 
 ## repo layout
 
@@ -128,3 +92,7 @@ ancla/
 ├── docs/     sideloading notes and working prompts
 └── brand/    canonical brand assets and visual direction
 ```
+
+## license
+
+MIT
