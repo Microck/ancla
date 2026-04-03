@@ -106,6 +106,10 @@ final class AppViewModel {
     !snapshot.modes.isEmpty
   }
 
+  var recentSessionHistory: [SessionHistoryEntry] {
+    AnclaCore.recentHistory(in: snapshot)
+  }
+
   var isNFCAvailable: Bool {
     diagnostics.items.first(where: { $0.id == "nfc" })?.value == "Ready"
   }
@@ -310,14 +314,31 @@ final class AppViewModel {
         throw ValidationError.mismatchedTag
       }
 
+      guard
+        let pairedTag = snapshot.pairedTag,
+        let mode = snapshot.modes.first(where: { $0.id == activeSession.modeId })
+      else {
+        throw ValidationError.missingMode
+      }
+
+      let releasedAt = Date.now
       shieldingService.clear()
-      snapshot.activeSession = AnchorSession(
+      let releasedSession = AnchorSession(
         id: activeSession.id,
         pairedTagId: activeSession.pairedTagId,
         modeId: activeSession.modeId,
         state: .released,
         armedAt: activeSession.armedAt,
-        releasedAt: .now
+        releasedAt: releasedAt
+      )
+      snapshot.activeSession = releasedSession
+      snapshot = AnclaCore.recordHistory(
+        in: snapshot,
+        session: releasedSession,
+        mode: mode,
+        pairedTag: pairedTag,
+        releaseMethod: .anchor,
+        releasedAt: releasedAt
       )
       try persist()
     }

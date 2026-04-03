@@ -203,6 +203,42 @@ final class AppViewModelTests: XCTestCase {
     XCTAssertEqual(shielding.clearCallCount, 1)
   }
 
+  func testReleaseAppendsUsageHistoryEntry() async throws {
+    let selection = FamilyActivitySelection()
+    let mode = try BlockMode(name: "Work", selection: selection, isDefault: true)
+    let pairedTag = PairedTag(uidHash: "paired-hash", displayName: "Desk sticker")
+    let activeSession = AnchorSession(
+      pairedTagId: pairedTag.id,
+      modeId: mode.id,
+      state: .armed
+    )
+    let store = InMemorySnapshotStore(
+      snapshot: AppSnapshot(
+        isAuthorized: true,
+        pairedTag: pairedTag,
+        modes: [mode],
+        activeSession: activeSession
+      )
+    )
+    let shielding = FakeShieldingService()
+    let stickerService = FakeStickerPairingService(nextHashes: ["paired-hash"])
+    let viewModel = AppViewModel(
+      store: store,
+      authorizationClient: FakeAuthorizationClient(),
+      shieldingService: shielding,
+      stickerPairingService: stickerService
+    )
+
+    await viewModel.releaseActiveSession()
+
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .released)
+    XCTAssertEqual(viewModel.snapshot.sessionHistory.count, 1)
+    XCTAssertEqual(viewModel.snapshot.sessionHistory[0].modeName, "Work")
+    XCTAssertEqual(viewModel.snapshot.sessionHistory[0].pairedTagName, "Desk sticker")
+    XCTAssertEqual(viewModel.snapshot.sessionHistory[0].releaseMethod, .anchor)
+    XCTAssertEqual(viewModel.recentSessionHistory.count, 1)
+  }
+
   func testLoadRepairsMissingDefaultAndSelectsFirstMode() async throws {
     let selection = FamilyActivitySelection()
     let firstMode = try BlockMode(name: "Focus", selection: selection, isDefault: false)

@@ -65,9 +65,52 @@ struct AnchorSession: Codable, Equatable, Identifiable {
   }
 }
 
+enum SessionReleaseMethod: String, Codable {
+  case anchor
+}
+
+struct SessionHistoryEntry: Codable, Equatable, Identifiable {
+  let id: UUID
+  let sessionID: UUID
+  let pairedTagId: UUID
+  let pairedTagName: String
+  let modeId: UUID
+  let modeName: String
+  let armedAt: Date
+  let releasedAt: Date
+  let releaseMethod: SessionReleaseMethod
+
+  init(
+    id: UUID = UUID(),
+    sessionID: UUID,
+    pairedTagId: UUID,
+    pairedTagName: String,
+    modeId: UUID,
+    modeName: String,
+    armedAt: Date,
+    releasedAt: Date,
+    releaseMethod: SessionReleaseMethod
+  ) {
+    self.id = id
+    self.sessionID = sessionID
+    self.pairedTagId = pairedTagId
+    self.pairedTagName = pairedTagName
+    self.modeId = modeId
+    self.modeName = modeName
+    self.armedAt = armedAt
+    self.releasedAt = releasedAt
+    self.releaseMethod = releaseMethod
+  }
+
+  var duration: TimeInterval {
+    max(0, releasedAt.timeIntervalSince(armedAt))
+  }
+}
+
 struct AppSnapshot: Codable, Equatable {
   var isAuthorized = false
   var pairedTag: PairedTag?
   var modes: [BlockMode] = []
   var activeSession: AnchorSession?
+  var sessionHistory: [SessionHistoryEntry] = []
 }

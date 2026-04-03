@@ -193,6 +193,29 @@ struct ContentView: View {
         surfaceDivider
 
         sectionBlock(
+          title: "Recent sessions",
+          content: {
+            VStack(spacing: 12) {
+              if viewModel.recentSessionHistory.isEmpty {
+                informativeRow(
+                  title: "No sessions recorded",
+                  detail: "Completed sessions will appear here after you release them with the paired anchor.",
+                  accentColor: AnclaTheme.primaryText,
+                  highlight: false,
+                  trailingSymbol: "clock.arrow.circlepath"
+                )
+              } else {
+                ForEach(viewModel.recentSessionHistory) { entry in
+                  historyRow(entry)
+                }
+              }
+            }
+          }
+        )
+
+        surfaceDivider
+
+        sectionBlock(
           title: "Modes",
           content: {
             VStack(spacing: 12) {
@@ -504,6 +527,36 @@ struct ContentView: View {
               isSelected ? AnclaTheme.accentStroke.opacity(0.55) : AnclaTheme.panelStroke.opacity(0.75),
               lineWidth: 1
             )
+        )
+    )
+  }
+
+  private func historyRow(_ entry: SessionHistoryEntry) -> some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack(alignment: .firstTextBaseline, spacing: 12) {
+        Text(entry.modeName)
+          .font(.ancla(15, weight: .medium))
+          .foregroundStyle(AnclaTheme.primaryText)
+
+        Spacer(minLength: 0)
+
+        Text(historyDurationLabel(for: entry))
+          .font(.ancla(12, weight: .medium))
+          .foregroundStyle(AnclaTheme.successText)
+      }
+
+      Text(historySubtitle(for: entry))
+        .font(.ancla(12))
+        .foregroundStyle(AnclaTheme.secondaryText)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .padding(16)
+    .background(
+      RoundedRectangle(cornerRadius: 18, style: .continuous)
+        .fill(AnclaTheme.panelInteractive)
+        .overlay(
+          RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
         )
     )
   }
@@ -885,6 +938,37 @@ struct ContentView: View {
       return "checkmark"
     case .error:
       return "exclamationmark"
+    }
+  }
+
+  private func historyDurationLabel(for entry: SessionHistoryEntry) -> String {
+    let seconds = Int(entry.duration.rounded())
+    if seconds < 60 {
+      return "\(seconds)s"
+    }
+
+    let minutes = seconds / 60
+    if minutes < 60 {
+      return "\(minutes)m"
+    }
+
+    let hours = minutes / 60
+    let remainingMinutes = minutes % 60
+    if remainingMinutes == 0 {
+      return "\(hours)h"
+    }
+
+    return "\(hours)h \(remainingMinutes)m"
+  }
+
+  private func historySubtitle(for entry: SessionHistoryEntry) -> String {
+    "\(historyMethodLabel(for: entry.releaseMethod)) via \(entry.pairedTagName) • \(entry.releasedAt.formatted(date: .abbreviated, time: .shortened))"
+  }
+
+  private func historyMethodLabel(for method: SessionReleaseMethod) -> String {
+    switch method {
+    case .anchor:
+      return "Released"
     }
   }
 }
