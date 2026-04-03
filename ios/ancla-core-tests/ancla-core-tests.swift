@@ -2,6 +2,30 @@ import XCTest
 @testable import AnclaCore
 
 final class AnclaCoreTests: XCTestCase {
+  func testBlockModeDefaultsToNonStrictAndCanOptIn() {
+    let defaultMode = BlockMode(name: "Work", selectionData: Data(), isDefault: true)
+    let strictMode = BlockMode(name: "Locked down", selectionData: Data(), isDefault: false, isStrict: true)
+
+    XCTAssertFalse(defaultMode.isStrict)
+    XCTAssertTrue(strictMode.isStrict)
+  }
+
+  func testBlockModeDecodeDefaultsStrictFlagWhenMissing() throws {
+    let encoded = """
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "Work",
+      "selectionData": "",
+      "isDefault": true
+    }
+    """.data(using: .utf8)!
+
+    let decoded = try JSONDecoder().decode(BlockMode.self, from: encoded)
+
+    XCTAssertFalse(decoded.isStrict)
+    XCTAssertEqual(decoded.name, "Work")
+  }
+
   func testSortedModesPlacesDefaultFirstThenAlphabetical() {
     let laterDefault = BlockMode(name: "Work", selectionData: Data(), isDefault: true)
     let alpha = BlockMode(name: "Calls", selectionData: Data(), isDefault: false)

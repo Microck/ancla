@@ -20,6 +20,7 @@ struct ContentView: View {
   private let bottomActionBarClearance: CGFloat = 132
 
   @State private var isModeEditorPresented = false
+  @State private var isShortcutGuidesPresented = false
   @State private var renamingAnchorID: UUID?
   @State private var anchorNameDraft = ""
 
@@ -56,6 +57,10 @@ struct ContentView: View {
       }
       .sheet(isPresented: renameAnchorPresented) {
         renameAnchorSheet
+          .presentationBackground(.clear)
+      }
+      .sheet(isPresented: $isShortcutGuidesPresented) {
+        ShortcutGuidesSheet()
           .presentationBackground(.clear)
       }
       .anclaFamilyActivityPicker(
@@ -131,6 +136,13 @@ struct ContentView: View {
 
   private var headlineSection: some View {
     VStack(alignment: .leading, spacing: 10) {
+      if viewModel.currentModeIsStrict {
+        Text("STRICT MODE")
+          .font(.ancla(11, weight: .semibold))
+          .foregroundStyle(AnclaTheme.warningText)
+          .tracking(1.6)
+      }
+
       Text(viewModel.diagnostics.headline)
         .font(.ancla(40, weight: .medium))
         .foregroundStyle(AnclaTheme.primaryText)
@@ -189,6 +201,38 @@ struct ContentView: View {
             }
           }
         )
+
+        if viewModel.currentModeIsStrict {
+          surfaceDivider
+
+          sectionBlock(
+            title: "Strict mode",
+            content: {
+              VStack(spacing: 12) {
+                informativeRow(
+                  title: strictModeTitle,
+                  detail: strictModeDetail,
+                  accentColor: AnclaTheme.warningText,
+                  highlight: viewModel.canReleaseActiveSession,
+                  trailingText: "Tighter"
+                )
+
+                Button {
+                  isShortcutGuidesPresented = true
+                } label: {
+                  actionRow(
+                    icon: "bolt.horizontal.circle",
+                    title: "Review Apple app guides",
+                    detail: "Safari, Settings, Messages, Mail, Phone, and Calendar still need Shortcuts automations.",
+                    isLoading: false
+                  )
+                }
+                .buttonStyle(AnclaPressableButtonStyle())
+                .disabled(viewModel.isBusy)
+              }
+            }
+          )
+        }
 
         surfaceDivider
 
@@ -555,6 +599,12 @@ struct ContentView: View {
 
       Spacer(minLength: 0)
 
+      if mode.isStrict {
+        Text("Strict")
+          .font(.ancla(12, weight: .medium))
+          .foregroundStyle(AnclaTheme.warningText)
+      }
+
       if isArmed {
         Text("Active")
           .font(.ancla(12, weight: .medium))
@@ -798,7 +848,12 @@ struct ContentView: View {
       return "Create or choose a mode before starting a session."
     }
 
-    return viewModel.selectionSummary(for: currentMode)
+    let summary = viewModel.selectionSummary(for: currentMode)
+    guard currentMode.isStrict else {
+      return summary
+    }
+
+    return "\(summary) • strict mode"
   }
 
   private var anchorDetail: String {
@@ -846,6 +901,10 @@ struct ContentView: View {
     case .armed:
       return sessionWaitingDetail
     case .mismatchedTag:
+      if viewModel.currentModeIsStrict {
+        return "A different anchor was scanned. Strict mode stays active until the right anchor is used. \(emergencyCountSentence)"
+      }
+
       return "A different anchor was scanned. The session remains active. \(emergencyCountSentence)"
     case .released:
       return "The most recent session was released successfully."
@@ -1073,6 +1132,10 @@ struct ContentView: View {
 
   private var sessionWaitingDetail: String {
     if let activePairedTag = viewModel.activePairedTag {
+      if viewModel.currentModeIsStrict {
+        return "Strict mode is active. \(activePairedTag.displayName) is the only release path. \(emergencyCountSentence)"
+      }
+
       return "The current session remains active until \(activePairedTag.displayName) is scanned. \(emergencyCountSentence)"
     }
 
@@ -1155,6 +1218,18 @@ struct ContentView: View {
     }
 
     return "Remove this paired anchor from this iPhone."
+  }
+
+  private var strictModeTitle: String {
+    viewModel.canReleaseActiveSession ? "Strict mode is active" : "Strict mode is ready"
+  }
+
+  private var strictModeDetail: String {
+    if viewModel.canReleaseActiveSession {
+      return "This session is meant to feel harder to bypass. Close obvious loopholes with the Apple app shortcut guides before you rely on it."
+    }
+
+    return "This mode uses stronger, more committed copy and a native-Apple-app checklist so the easy bypasses are harder to ignore."
   }
 }
 
