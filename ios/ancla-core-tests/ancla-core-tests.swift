@@ -238,6 +238,134 @@ final class AnclaCoreTests: XCTestCase {
     XCTAssertEqual(recent[0].releaseMethod, .anchor)
   }
 
+  func testScheduledPlanIsActiveRequiresEnabledMatchingWeekdayAndWindow() {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let mondayMorning = Date(timeIntervalSince1970: 1_710_150_000)
+    let mondayWeekday = AnclaCore.weekdayNumber(for: mondayMorning, calendar: calendar)
+
+    let activePlan = ScheduledSessionPlan(
+      modeId: UUID(),
+      pairedTagId: UUID(),
+      weekdayNumbers: [mondayWeekday],
+      startMinuteOfDay: 8 * 60,
+      endMinuteOfDay: 10 * 60,
+      isEnabled: true
+    )
+    XCTAssertTrue(AnclaCore.scheduledPlanIsActive(activePlan, at: mondayMorning, calendar: calendar))
+
+    let disabledPlan = ScheduledSessionPlan(
+      modeId: UUID(),
+      pairedTagId: UUID(),
+      weekdayNumbers: [mondayWeekday],
+      startMinuteOfDay: 8 * 60,
+      endMinuteOfDay: 10 * 60,
+      isEnabled: false
+    )
+    XCTAssertFalse(AnclaCore.scheduledPlanIsActive(disabledPlan, at: mondayMorning, calendar: calendar))
+
+    let wrongWeekdayPlan = ScheduledSessionPlan(
+      modeId: UUID(),
+      pairedTagId: UUID(),
+      weekdayNumbers: [((mondayWeekday % 7) + 1)],
+      startMinuteOfDay: 8 * 60,
+      endMinuteOfDay: 10 * 60,
+      isEnabled: true
+    )
+    XCTAssertFalse(AnclaCore.scheduledPlanIsActive(wrongWeekdayPlan, at: mondayMorning, calendar: calendar))
+
+    let expiredPlan = ScheduledSessionPlan(
+      modeId: UUID(),
+      pairedTagId: UUID(),
+      weekdayNumbers: [mondayWeekday],
+      startMinuteOfDay: 6 * 60,
+      endMinuteOfDay: 8 * 60,
+      isEnabled: true
+    )
+    XCTAssertFalse(AnclaCore.scheduledPlanIsActive(expiredPlan, at: mondayMorning, calendar: calendar))
+  }
+
+  func testSortedScheduledPlansPlacesActiveThenEnabledThenDisabled() {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let now = Date(timeIntervalSince1970: 1_710_150_000)
+    let weekday = AnclaCore.weekdayNumber(for: now, calendar: calendar)
+
+    let activePlan = ScheduledSessionPlan(
+      modeId: UUID(),
+      pairedTagId: UUID(),
+      weekdayNumbers: [weekday],
+      startMinuteOfDay: 8 * 60,
+      endMinuteOfDay: 10 * 60,
+      isEnabled: true
+    )
+    let laterEnabledPlan = ScheduledSessionPlan(
+      modeId: UUID(),
+      pairedTagId: UUID(),
+      weekdayNumbers: [weekday],
+      startMinuteOfDay: 12 * 60,
+      endMinuteOfDay: 14 * 60,
+      isEnabled: true
+    )
+    let disabledPlan = ScheduledSessionPlan(
+      modeId: UUID(),
+      pairedTagId: UUID(),
+      weekdayNumbers: [weekday],
+      startMinuteOfDay: 7 * 60,
+      endMinuteOfDay: 9 * 60,
+      isEnabled: false
+    )
+
+    let sorted = AnclaCore.sortedScheduledPlans(
+      [disabledPlan, laterEnabledPlan, activePlan],
+      at: now,
+      calendar: calendar
+    )
+
+    XCTAssertEqual(sorted.map(\.id), [activePlan.id, laterEnabledPlan.id, disabledPlan.id])
+  }
+
+  func testSnapshotAndSessionDecodeScheduleDefaultsAndLegacyAnchorFallback() throws {
+    let pairedTagID = UUID(uuidString: "00000000-0000-0000-0000-000000000011")!
+    let modeID = UUID(uuidString: "00000000-0000-0000-0000-000000000022")!
+
+    let encodedSnapshot = """
+    {
+      "isAuthorized": true,
+      "pairedTag": {
+        "id": "\(pairedTagID.uuidString)",
+        "uidHash": "legacy-hash",
+        "displayName": "Desk anchor",
+        "createdAt": "2026-04-03T10:00:00Z"
+      },
+      "modes": [
+        {
+          "id": "\(modeID.uuidString)",
+          "name": "Work",
+          "selectionData": "",
+          "isDefault": true
+        }
+      ],
+      "activeSession": {
+        "id": "00000000-0000-0000-0000-000000000033",
+        "pairedTagId": "\(pairedTagID.uuidString)",
+        "modeId": "\(modeID.uuidString)",
+        "state": "armed",
+        "armedAt": "2026-04-03T10:10:00Z"
+      }
+    }
+    """.data(using: .utf8)!
+
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    let snapshot = try decoder.decode(AppSnapshot.self, from: encodedSnapshot)
+
+    XCTAssertEqual(snapshot.pairedTags.count, 1)
+    XCTAssertEqual(snapshot.pairedTags.first?.displayName, "Desk anchor")
+    XCTAssertTrue(snapshot.scheduledPlans.isEmpty)
+    XCTAssertNil(snapshot.activeSession?.scheduledPlanID)
+  }
+
   func testRuntimeDiagnosticsFlagMissingStorageBeforeAnythingElse() {
     let diagnostics = AnclaCore.runtimeDiagnostics(
       snapshot: AppSnapshot(),

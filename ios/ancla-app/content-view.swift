@@ -20,6 +20,7 @@ struct ContentView: View {
   private let bottomActionBarClearance: CGFloat = 132
 
   @State private var isModeEditorPresented = false
+  @State private var isScheduleEditorPresented = false
   @State private var isShortcutGuidesPresented = false
   @State private var renamingAnchorID: UUID?
   @State private var anchorNameDraft = ""
@@ -55,6 +56,13 @@ struct ContentView: View {
         )
         .presentationBackground(.clear)
       }
+      .sheet(isPresented: $isScheduleEditorPresented) {
+        ScheduleEditorView(
+          viewModel: viewModel,
+          isEditingSchedule: viewModel.draftScheduleID != nil
+        )
+        .presentationBackground(.clear)
+      }
       .sheet(isPresented: renameAnchorPresented) {
         renameAnchorSheet
           .presentationBackground(.clear)
@@ -69,6 +77,12 @@ struct ContentView: View {
       )
       .task {
         viewModel.refreshDiagnostics()
+      }
+      .task {
+        while !Task.isCancelled {
+          try? await Task.sleep(nanoseconds: 30_000_000_000)
+          _ = viewModel.syncScheduledSessions()
+        }
       }
       .onChange(of: renamingAnchorID) { _, tagID in
         if let tagID, let pairedTag = viewModel.pairedTag(tagID) {
@@ -260,6 +274,44 @@ struct ContentView: View {
         surfaceDivider
 
         sectionBlock(
+          title: "Scheduled sessions",
+          content: {
+            VStack(spacing: 12) {
+              if viewModel.scheduledPlansForDisplay.isEmpty {
+                informativeRow(
+                  title: "No schedules saved",
+                  detail: scheduledSessionsEmptyDetail,
+                  accentColor: AnclaTheme.primaryText,
+                  highlight: false,
+                  trailingSymbol: "calendar.badge.plus"
+                )
+              } else {
+                ForEach(viewModel.scheduledPlansForDisplay) { plan in
+                  scheduledPlanCard(plan)
+                }
+              }
+
+              Button {
+                viewModel.prepareDraftForNewSchedule()
+                isScheduleEditorPresented = true
+              } label: {
+                actionRow(
+                  icon: "calendar.badge.plus",
+                  title: "Create schedule",
+                  detail: "Auto-start a saved mode on selected weekdays and still require a paired anchor for early release.",
+                  isLoading: false
+                )
+              }
+              .buttonStyle(AnclaPressableButtonStyle())
+              .disabled(viewModel.isBusy || !canCreateScheduledPlan)
+              .opacity(viewModel.isBusy || !canCreateScheduledPlan ? 0.65 : 1)
+            }
+          }
+        )
+
+        surfaceDivider
+
+        sectionBlock(
           title: "Emergency unbricks",
           content: {
             VStack(spacing: 12) {
@@ -425,6 +477,52 @@ struct ContentView: View {
           title: "Remove \(pairedTag.displayName)",
           detail: removeAnchorDetail(for: pairedTag),
           isLoading: viewModel.isActionInProgress(.removeAnchor),
+          isDestructive: true
+        )
+      }
+      .buttonStyle(
+        AnclaPressableButtonStyle(
+          background: AnclaTheme.panelInteractive,
+          pressedBackground: AnclaTheme.panelRaised,
+          stroke: AnclaTheme.errorText.opacity(0.32)
+        )
+      )
+      .disabled(viewModel.isBusy)
+    }
+  }
+
+  private func scheduledPlanCard(_ plan: ScheduledSessionPlan) -> some View {
+    VStack(spacing: 12) {
+      informativeRow(
+        title: scheduledPlanTitle(for: plan),
+        detail: scheduledPlanDetail(for: plan),
+        accentColor: scheduledPlanAccent(for: plan),
+        highlight: isScheduledPlanActive(plan),
+        trailingText: scheduledPlanBadge(for: plan)
+      )
+
+      Button {
+        viewModel.prepareDraftForEditingScheduledPlan(plan.id)
+        isScheduleEditorPresented = true
+      } label: {
+        actionRow(
+          icon: "square.and.pencil",
+          title: "Edit schedule",
+          detail: "Adjust the weekdays, window, mode, or release anchor.",
+          isLoading: false
+        )
+      }
+      .buttonStyle(AnclaPressableButtonStyle())
+      .disabled(viewModel.isBusy)
+
+      Button {
+        Task { await viewModel.deleteScheduledPlan(plan.id) }
+      } label: {
+        actionRow(
+          icon: "trash",
+          title: "Remove schedule",
+          detail: removeScheduleDetail(for: plan),
+          isLoading: viewModel.isActionInProgress(.removeSchedule),
           isDestructive: true
         )
       }
@@ -1092,6 +1190,8 @@ struct ContentView: View {
       return "Released via \(entry.pairedTagName)"
     case .emergencyUnbrick:
       return "Emergency unbrick for \(entry.pairedTagName)"
+    case .schedule:
+      return "Ended on schedule for \(entry.pairedTagName)"
     }
   }
 
@@ -1132,6 +1232,10 @@ struct ContentView: View {
 
   private var sessionWaitingDetail: String {
     if let activePairedTag = viewModel.activePairedTag {
+      if viewModel.snapshot.activeSession?.scheduledPlanID != nil {
+        return "This scheduled session is active now. \(activePairedTag.displayName) is still the early release path. \(emergencyCountSentence)"
+      }
+
       if viewModel.currentModeIsStrict {
         return "Strict mode is active. \(activePairedTag.displayName) is the only release path. \(emergencyCountSentence)"
       }
@@ -1230,6 +1334,151 @@ struct ContentView: View {
     }
 
     return "This mode uses stronger, more committed copy and a native-Apple-app checklist so the easy bypasses are harder to ignore."
+  }
+
+  private var canCreateScheduledPlan: Bool {
+    !viewModel.modesForDisplay.isEmpty && !viewModel.pairedTagsForDisplay.isEmpty
+  }
+
+  private var scheduledSessionsEmptyDetail: String {
+    if !canCreateScheduledPlan {
+      return "Pair at least one anchor and save at least one mode before adding a schedule."
+    }
+
+    return "Schedules can auto-start saved modes on chosen weekdays and still keep a paired anchor as the manual release key."
+  }
+
+  private func scheduledPlanTitle(for plan: ScheduledSessionPlan) -> String {
+    let modeName = viewModel.snapshot.modes.first(where: { $0.id == plan.modeId })?.name ?? "Missing mode"
+    return "\(modeName) • \(scheduledPlanDaysLabel(for: plan))"
+  }
+
+  private func scheduledPlanDetail(for plan: ScheduledSessionPlan) -> String {
+    let anchorName = viewModel.pairedTag(plan.pairedTagId)?.displayName ?? "Missing anchor"
+    var details = [scheduledPlanTimeLabel(for: plan)]
+
+    if isScheduledPlanActive(plan) {
+      details.append("Running now")
+    } else if let nextStart = nextScheduledStartLabel(for: plan) {
+      details.append(nextStart)
+    }
+
+    details.append("Release early with \(anchorName)")
+    return details.joined(separator: " • ")
+  }
+
+  private func scheduledPlanBadge(for plan: ScheduledSessionPlan) -> String {
+    if isScheduledPlanActive(plan) {
+      return "Active"
+    }
+
+    if !plan.isEnabled {
+      return "Off"
+    }
+
+    return nextScheduledStartLabel(for: plan) == nil ? "On" : "Upcoming"
+  }
+
+  private func scheduledPlanAccent(for plan: ScheduledSessionPlan) -> Color {
+    if isScheduledPlanActive(plan) {
+      return AnclaTheme.warningText
+    }
+
+    return plan.isEnabled ? AnclaTheme.primaryText : AnclaTheme.secondaryText
+  }
+
+  private func removeScheduleDetail(for plan: ScheduledSessionPlan) -> String {
+    if isScheduledPlanActive(plan) {
+      return "Remove this schedule and release the active scheduled session from this iPhone."
+    }
+
+    return "Remove this saved recurring schedule from this iPhone."
+  }
+
+  private func isScheduledPlanActive(_ plan: ScheduledSessionPlan) -> Bool {
+    viewModel.snapshot.activeSession?.scheduledPlanID == plan.id && viewModel.canReleaseActiveSession
+  }
+
+  private func scheduledPlanDaysLabel(for plan: ScheduledSessionPlan) -> String {
+    let names = plan.weekdayNumbers.compactMap(weekdayShortName)
+    guard !names.isEmpty else {
+      return "No days"
+    }
+
+    if names.count == 7 {
+      return "Every day"
+    }
+
+    return names.joined(separator: ", ")
+  }
+
+  private func weekdayShortName(_ weekdayNumber: Int) -> String? {
+    switch weekdayNumber {
+    case 1:
+      return "Sun"
+    case 2:
+      return "Mon"
+    case 3:
+      return "Tue"
+    case 4:
+      return "Wed"
+    case 5:
+      return "Thu"
+    case 6:
+      return "Fri"
+    case 7:
+      return "Sat"
+    default:
+      return nil
+    }
+  }
+
+  private func scheduledPlanTimeLabel(for plan: ScheduledSessionPlan) -> String {
+    "\(formattedScheduleTime(plan.startMinuteOfDay)) - \(formattedScheduleTime(plan.endMinuteOfDay))"
+  }
+
+  private func formattedScheduleTime(_ minutes: Int) -> String {
+    let hours = minutes / 60
+    let remainder = minutes % 60
+    let isPM = hours >= 12
+    let displayHour = ((hours + 11) % 12) + 1
+    return "\(displayHour):" + String(format: "%02d", remainder) + (isPM ? " PM" : " AM")
+  }
+
+  private func nextScheduledStartLabel(for plan: ScheduledSessionPlan) -> String? {
+    guard plan.isEnabled, !plan.weekdayNumbers.isEmpty else {
+      return nil
+    }
+
+    let calendar = Calendar.current
+    let now = Date()
+    let startOfToday = calendar.startOfDay(for: now)
+
+    for dayOffset in 0..<7 {
+      guard let candidateDay = calendar.date(byAdding: .day, value: dayOffset, to: startOfToday) else {
+        continue
+      }
+
+      let weekday = calendar.component(.weekday, from: candidateDay)
+      guard plan.weekdayNumbers.contains(weekday) else {
+        continue
+      }
+
+      let todayMinutes = calendar.dateComponents([.hour, .minute], from: now)
+      let currentMinuteOfDay = (todayMinutes.hour ?? 0) * 60 + (todayMinutes.minute ?? 0)
+      if dayOffset == 0 && currentMinuteOfDay >= plan.startMinuteOfDay {
+        continue
+      }
+
+      guard let start = calendar.date(byAdding: .minute, value: plan.startMinuteOfDay, to: candidateDay) else {
+        continue
+      }
+
+      let weekdayLabel = dayOffset == 0 ? "Today" : weekdayShortName(weekday) ?? start.formatted(.dateTime.weekday(.abbreviated))
+      return "\(weekdayLabel) at \(start.formatted(date: .omitted, time: .shortened))"
+    }
+
+    return nil
   }
 }
 

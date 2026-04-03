@@ -570,6 +570,147 @@ final class AppViewModelTests: XCTestCase {
     XCTAssertEqual(viewModel.lastError, ValidationError.noTargetsSelected.errorDescription)
     XCTAssertTrue(viewModel.snapshot.modes.isEmpty)
   }
+
+  func testSaveScheduledPlanPersistsModeAnchorDaysAndWindow() async throws {
+    let mode = BlockMode(name: "Locked down", selectionData: Data(), isDefault: true, isStrict: true)
+    let pairedTag = PairedTag(uidHash: "desk-hash", displayName: "Desk anchor")
+    let viewModel = AppViewModel(
+      buildVariant: .sideloadLite,
+      store: InMemorySnapshotStore(
+        snapshot: AppSnapshot(
+          isAuthorized: true,
+          pairedTags: [pairedTag],
+          modes: [mode]
+        )
+      ),
+      shieldingService: FakeShieldingService(),
+      stickerPairingService: FakeStickerPairingService()
+    )
+
+    viewModel.draftScheduleModeID = mode.id
+    viewModel.draftSchedulePairedTagID = pairedTag.id
+    viewModel.draftScheduleWeekdayNumbers = [2, 4, 6]
+    viewModel.draftScheduleStartMinuteOfDay = 8 * 60 + 30
+    viewModel.draftScheduleEndMinuteOfDay = 11 * 60
+    await viewModel.saveScheduledPlan()
+
+    let savedPlan = try XCTUnwrap(viewModel.snapshot.scheduledPlans.first)
+    XCTAssertNil(viewModel.lastError)
+    XCTAssertEqual(savedPlan.modeId, mode.id)
+    XCTAssertEqual(savedPlan.pairedTagId, pairedTag.id)
+    XCTAssertEqual(savedPlan.weekdayNumbers, [2, 4, 6])
+    XCTAssertEqual(savedPlan.startMinuteOfDay, 8 * 60 + 30)
+    XCTAssertEqual(savedPlan.endMinuteOfDay, 11 * 60)
+    XCTAssertTrue(savedPlan.isEnabled)
+  }
+
+  func testUseCurrentDraftScheduleWindowMatchesProvidedClock() {
+    let now = Date(timeIntervalSince1970: 1_710_150_000)
+    let viewModel = AppViewModel(
+      buildVariant: .sideloadLite,
+      store: InMemorySnapshotStore(),
+      stickerPairingService: FakeStickerPairingService(),
+      nowProvider: { now }
+    )
+
+    viewModel.useCurrentDraftScheduleWindow()
+
+    let minute = AnclaCore.minuteOfDay(for: now)
+    XCTAssertEqual(viewModel.draftScheduleWeekdayNumbers, [AnclaCore.weekdayNumber(for: now)])
+    XCTAssertEqual(viewModel.draftScheduleStartMinuteOfDay, max(0, minute - 15))
+    XCTAssertEqual(viewModel.draftScheduleEndMinuteOfDay, min(23 * 60 + 59, minute + 60))
+    XCTAssertTrue(viewModel.draftScheduleIsEnabled)
+  }
+
+  func testSyncScheduledSessionsStartsMatchingPlanAutomatically() throws {
+    let now = Date(timeIntervalSince1970: 1_710_150_000)
+    let mode = BlockMode(name: "Focus", selectionData: Data(), isDefault: true)
+    let pairedTag = PairedTag(uidHash: "desk-hash", displayName: "Desk anchor")
+    let weekday = AnclaCore.weekdayNumber(for: now)
+    let plan = ScheduledSessionPlan(
+      modeId: mode.id,
+      pairedTagId: pairedTag.id,
+      weekdayNumbers: [weekday],
+      startMinuteOfDay: AnclaCore.minuteOfDay(for: now) - 5,
+      endMinuteOfDay: AnclaCore.minuteOfDay(for: now) + 30
+    )
+    let shielding = FakeShieldingService()
+    let viewModel = AppViewModel(
+      buildVariant: .sideloadLite,
+      store: InMemorySnapshotStore(
+        snapshot: AppSnapshot(
+          isAuthorized: true,
+          pairedTags: [pairedTag],
+          modes: [mode]
+        )
+      ),
+      shieldingService: shielding,
+      stickerPairingService: FakeStickerPairingService(),
+      nowProvider: { now }
+    )
+
+    viewModel.snapshot.scheduledPlans = [plan]
+    let changed = viewModel.syncScheduledSessions()
+
+    XCTAssertTrue(changed)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .armed)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.scheduledPlanID, plan.id)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.pairedTagId, pairedTag.id)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.modeId, mode.id)
+    XCTAssertEqual(viewModel.snapshot.scheduledPlans.first?.lastStartedDayKey, AnclaCore.dayKey(for: now))
+    XCTAssertEqual(shielding.appliedModeIDs, [mode.id])
+  }
+
+  func testSyncScheduledSessionsEndsExpiredScheduledSessionWithScheduleHistory() throws {
+    var currentTime = Date(timeIntervalSince1970: 1_710_150_000)
+    let mode = BlockMode(name: "Focus", selectionData: Data(), isDefault: true)
+    let pairedTag = PairedTag(uidHash: "desk-hash", displayName: "Desk anchor")
+    let dayKey = AnclaCore.dayKey(for: currentTime)
+    let plan = ScheduledSessionPlan(
+      modeId: mode.id,
+      pairedTagId: pairedTag.id,
+      weekdayNumbers: [AnclaCore.weekdayNumber(for: currentTime)],
+      startMinuteOfDay: AnclaCore.minuteOfDay(for: currentTime) - 120,
+      endMinuteOfDay: AnclaCore.minuteOfDay(for: currentTime) - 30,
+      isEnabled: true,
+      lastStartedDayKey: dayKey
+    )
+    currentTime = Date(timeIntervalSince1970: 1_710_145_500)
+    let activeSession = AnchorSession(
+      pairedTagId: pairedTag.id,
+      modeId: mode.id,
+      state: .armed,
+      armedAt: currentTime.addingTimeInterval(-3_600),
+      scheduledPlanID: plan.id
+    )
+    let shielding = FakeShieldingService()
+    let viewModel = AppViewModel(
+      buildVariant: .sideloadLite,
+      store: InMemorySnapshotStore(
+        snapshot: AppSnapshot(
+          isAuthorized: true,
+          pairedTags: [pairedTag],
+          modes: [mode],
+          activeSession: activeSession,
+          scheduledPlans: [plan]
+        )
+      ),
+      shieldingService: shielding,
+      stickerPairingService: FakeStickerPairingService(),
+      nowProvider: { currentTime }
+    )
+
+    currentTime = Date(timeIntervalSince1970: 1_710_150_000)
+    let changed = viewModel.syncScheduledSessions()
+
+    XCTAssertTrue(changed)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .released)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.scheduledPlanID, plan.id)
+    XCTAssertEqual(viewModel.snapshot.sessionHistory.count, 1)
+    XCTAssertEqual(viewModel.snapshot.sessionHistory.first?.releaseMethod, .schedule)
+    XCTAssertEqual(viewModel.snapshot.scheduledPlans.first?.lastEndedDayKey, dayKey)
+    XCTAssertEqual(shielding.clearCallCount, 1)
+  }
 }
 
 private final class InMemorySnapshotStore: AppSnapshotStore {
