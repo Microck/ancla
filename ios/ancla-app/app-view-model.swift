@@ -14,6 +14,8 @@ enum AppActionID: Equatable {
   case renameAnchor
   case removeAnchor
   case saveMode
+  case saveSchedule
+  case removeSchedule
 }
 
 enum ActionFeedbackTone {
@@ -39,6 +41,13 @@ final class AppViewModel {
   var draftModeName = "Work block"
   var draftModeShouldBeDefault = false
   var draftModeIsStrict = false
+  var draftScheduleID: UUID?
+  var draftScheduleModeID: UUID?
+  var draftSchedulePairedTagID: UUID?
+  var draftScheduleWeekdayNumbers: [Int] = []
+  var draftScheduleStartMinuteOfDay = 9 * 60
+  var draftScheduleEndMinuteOfDay = 17 * 60
+  var draftScheduleIsEnabled = true
   var draftTagName = "Desk anchor"
   var selectedModeID: UUID?
   var isPickerPresented = false
@@ -52,6 +61,7 @@ final class AppViewModel {
   private let shieldingService: any Shielding
   private let stickerPairingService: any StickerPairing
   private let runtimeDiagnosticsProbe: any RuntimeDiagnosticsProbing
+  private let nowProvider: () -> Date
 
   init(
     buildVariant: AppBuildVariant = .current,
@@ -59,10 +69,12 @@ final class AppViewModel {
     authorizationClient: (any AuthorizationClienting)? = nil,
     shieldingService: (any Shielding)? = nil,
     stickerPairingService: (any StickerPairing)? = nil,
-    runtimeDiagnosticsProbe: (any RuntimeDiagnosticsProbing)? = nil
+    runtimeDiagnosticsProbe: (any RuntimeDiagnosticsProbing)? = nil,
+    nowProvider: @escaping () -> Date = { .now }
   ) {
     self.buildVariant = buildVariant
     self.runtimeDiagnosticsProbe = runtimeDiagnosticsProbe ?? LiveRuntimeDiagnosticsProbe()
+    self.nowProvider = nowProvider
 
     switch buildVariant {
     case .full:
@@ -164,6 +176,17 @@ final class AppViewModel {
     (selectedMode() ?? preferredMode())?.isStrict == true
   }
 
+  var scheduledPlansForDisplay: [ScheduledSessionPlan] {
+    AnclaCore.sortedScheduledPlans(snapshot.scheduledPlans, at: nowProvider())
+  }
+
+  var canSaveDraftSchedule: Bool {
+    draftScheduleModeID != nil
+      && draftSchedulePairedTagID != nil
+      && !draftScheduleWeekdayNumbers.isEmpty
+      && draftScheduleEndMinuteOfDay > draftScheduleStartMinuteOfDay
+  }
+
   func load() {
     do {
       snapshot = AnclaCore.repairedSnapshot(try store.load())
@@ -179,7 +202,8 @@ final class AppViewModel {
 
     selectedModeID = preferredMode()?.id
     prepareDraftForNewMode()
-    refreshDiagnostics()
+    prepareDraftForNewSchedule()
+    _ = syncScheduledSessions()
   }
 
   func requestAuthorization() async {
@@ -253,6 +277,37 @@ final class AppViewModel {
     }
   }
 
+  func saveScheduledPlan() async {
+    await runTask(action: .saveSchedule) { [self] in
+      guard canSaveDraftSchedule else {
+        throw ValidationError.invalidScheduledSession
+      }
+
+      let weekdayNumbers = Array(Set(draftScheduleWeekdayNumbers)).sorted()
+      let schedule = ScheduledSessionPlan(
+        id: draftScheduleID ?? UUID(),
+        modeId: try draftScheduleModeID.orThrow(ValidationError.missingMode),
+        pairedTagId: try draftSchedulePairedTagID.orThrow(ValidationError.missingPairedTag),
+        weekdayNumbers: weekdayNumbers,
+        startMinuteOfDay: draftScheduleStartMinuteOfDay,
+        endMinuteOfDay: draftScheduleEndMinuteOfDay,
+        isEnabled: draftScheduleIsEnabled,
+        lastStartedDayKey: existingScheduledPlan()?.lastStartedDayKey,
+        lastEndedDayKey: existingScheduledPlan()?.lastEndedDayKey
+      )
+
+      if let index = snapshot.scheduledPlans.firstIndex(where: { $0.id == schedule.id }) {
+        snapshot.scheduledPlans[index] = schedule
+      } else {
+        snapshot.scheduledPlans.append(schedule)
+      }
+
+      try persist()
+      prepareDraftForNewSchedule()
+      feedback = ActionFeedback(message: "Scheduled session saved.", tone: .success)
+    }
+  }
+
   func prepareDraftForNewMode() {
     lastError = nil
     draftModeID = nil
@@ -260,6 +315,17 @@ final class AppViewModel {
     draftSelection = FamilyActivitySelection()
     draftModeShouldBeDefault = snapshot.modes.isEmpty
     draftModeIsStrict = false
+  }
+
+  func prepareDraftForNewSchedule() {
+    lastError = nil
+    draftScheduleID = nil
+    draftScheduleModeID = selectedMode()?.id ?? preferredMode()?.id ?? snapshot.modes.first?.id
+    draftSchedulePairedTagID = snapshot.pairedTags.first?.id
+    draftScheduleWeekdayNumbers = [AnclaCore.weekdayNumber(for: nowProvider())]
+    draftScheduleStartMinuteOfDay = 9 * 60
+    draftScheduleEndMinuteOfDay = 17 * 60
+    draftScheduleIsEnabled = true
   }
 
   func prepareDraftForEditingMode(_ modeID: UUID) {
@@ -289,6 +355,66 @@ final class AppViewModel {
         tone: .error
       )
     }
+  }
+
+  func prepareDraftForEditingScheduledPlan(_ planID: UUID) {
+    lastError = nil
+    guard let plan = snapshot.scheduledPlans.first(where: { $0.id == planID }) else {
+      lastError = ValidationError.missingScheduledSession.localizedDescription
+      return
+    }
+
+    draftScheduleID = plan.id
+    draftScheduleModeID = plan.modeId
+    draftSchedulePairedTagID = plan.pairedTagId
+    draftScheduleWeekdayNumbers = plan.weekdayNumbers
+    draftScheduleStartMinuteOfDay = plan.startMinuteOfDay
+    draftScheduleEndMinuteOfDay = plan.endMinuteOfDay
+    draftScheduleIsEnabled = plan.isEnabled
+  }
+
+  func deleteScheduledPlan(_ planID: UUID) async {
+    await runTask(action: .removeSchedule) { [self] in
+      guard let index = snapshot.scheduledPlans.firstIndex(where: { $0.id == planID }) else {
+        throw ValidationError.missingScheduledSession
+      }
+
+      let deletedPlan = snapshot.scheduledPlans.remove(at: index)
+      if snapshot.activeSession?.scheduledPlanID == deletedPlan.id {
+        try releaseDeletedScheduledSession(planID: deletedPlan.id)
+      } else {
+        try persist()
+      }
+
+      prepareDraftForNewSchedule()
+      feedback = ActionFeedback(message: "Scheduled session removed.", tone: .success)
+    }
+  }
+
+  func toggleDraftScheduleWeekday(_ weekdayNumber: Int) {
+    if let index = draftScheduleWeekdayNumbers.firstIndex(of: weekdayNumber) {
+      draftScheduleWeekdayNumbers.remove(at: index)
+    } else {
+      draftScheduleWeekdayNumbers.append(weekdayNumber)
+      draftScheduleWeekdayNumbers.sort()
+    }
+  }
+
+  func shiftDraftScheduleStart(by minutes: Int) {
+    draftScheduleStartMinuteOfDay = max(0, min(draftScheduleStartMinuteOfDay + minutes, max(0, draftScheduleEndMinuteOfDay - 15)))
+  }
+
+  func shiftDraftScheduleEnd(by minutes: Int) {
+    draftScheduleEndMinuteOfDay = min(23 * 60 + 59, max(draftScheduleEndMinuteOfDay + minutes, draftScheduleStartMinuteOfDay + 15))
+  }
+
+  func useCurrentDraftScheduleWindow() {
+    let now = nowProvider()
+    let minutes = AnclaCore.minuteOfDay(for: now)
+    draftScheduleWeekdayNumbers = [AnclaCore.weekdayNumber(for: now)]
+    draftScheduleStartMinuteOfDay = max(0, minutes - 15)
+    draftScheduleEndMinuteOfDay = min(23 * 60 + 59, minutes + 60)
+    draftScheduleIsEnabled = true
   }
 
   func pairSticker() async {
@@ -439,6 +565,8 @@ final class AppViewModel {
         snapshot.modes[0].isDefault = true
       }
 
+      snapshot.scheduledPlans.removeAll { $0.modeId == deletedMode.id }
+
       if snapshot.activeSession?.modeId == deletedMode.id {
         shieldingService.clear()
         snapshot.activeSession = nil
@@ -473,6 +601,7 @@ final class AppViewModel {
       }
 
       let removedTag = snapshot.pairedTags.remove(at: index)
+      snapshot.scheduledPlans.removeAll { $0.pairedTagId == removedTag.id }
 
       if snapshot.activeSession?.pairedTagId == removedTag.id {
         shieldingService.clear()
@@ -498,6 +627,10 @@ final class AppViewModel {
 
   func pairedTag(_ tagID: UUID) -> PairedTag? {
     snapshot.pairedTags.first(where: { $0.id == tagID })
+  }
+
+  func scheduledPlan(_ planID: UUID) -> ScheduledSessionPlan? {
+    snapshot.scheduledPlans.first(where: { $0.id == planID })
   }
 
   func preferredMode() -> BlockMode? {
@@ -559,12 +692,84 @@ final class AppViewModel {
   }
 
   func refreshFromHeader() {
-    refreshDiagnostics()
-    feedback = ActionFeedback(message: "Status refreshed.", tone: .neutral)
+    let changed = syncScheduledSessions()
+    if !changed {
+      feedback = ActionFeedback(message: "Status refreshed.", tone: .neutral)
+    }
   }
 
   func isActionInProgress(_ action: AppActionID) -> Bool {
     isBusy && activeAction == action
+  }
+
+  @discardableResult
+  func syncScheduledSessions() -> Bool {
+    let now = nowProvider()
+    let dayKey = AnclaCore.dayKey(for: now)
+    var didChange = false
+
+    if let activeSession = snapshot.activeSession,
+       let scheduledPlanID = activeSession.scheduledPlanID {
+      if let plan = snapshot.scheduledPlans.first(where: { $0.id == scheduledPlanID }),
+         !AnclaCore.scheduledPlanIsActive(plan, at: now),
+         let pairedTag = AnclaCore.pairedTag(for: activeSession.pairedTagId, in: snapshot),
+         let mode = snapshot.modes.first(where: { $0.id == activeSession.modeId }),
+         let index = snapshot.scheduledPlans.firstIndex(where: { $0.id == scheduledPlanID }),
+         activeSession.state == .armed || activeSession.state == .mismatchedTag
+      {
+        snapshot.scheduledPlans[index].lastEndedDayKey = dayKey
+        try? completeRelease(
+          activeSession: activeSession,
+          mode: mode,
+          pairedTag: pairedTag,
+          releaseMethod: .schedule,
+          releasedAt: now
+        )
+        if lastError == nil {
+          feedback = ActionFeedback(message: "\"\(mode.name)\" ended on schedule.", tone: .neutral)
+        }
+        didChange = true
+      }
+    }
+
+    if !AnclaCore.activeSessionIsBlocking(snapshot) {
+      for index in snapshot.scheduledPlans.indices {
+        let plan = snapshot.scheduledPlans[index]
+        guard AnclaCore.scheduledPlanIsActive(plan, at: now) else {
+          continue
+        }
+        guard plan.lastStartedDayKey != dayKey else {
+          continue
+        }
+        guard
+          let mode = snapshot.modes.first(where: { $0.id == plan.modeId }),
+          let pairedTag = AnclaCore.pairedTag(for: plan.pairedTagId, in: snapshot)
+        else {
+          continue
+        }
+
+        do {
+          try armScheduledSession(
+            plan: plan,
+            mode: mode,
+            pairedTag: pairedTag,
+            armedAt: now,
+            dayKey: dayKey
+          )
+          if lastError == nil {
+            feedback = ActionFeedback(message: "\"\(mode.name)\" started on schedule.", tone: .success)
+          }
+          didChange = true
+        } catch {
+          lastError = error.localizedDescription
+          feedback = ActionFeedback(message: error.localizedDescription, tone: .error)
+        }
+        break
+      }
+    }
+
+    refreshDiagnostics()
+    return didChange
   }
 
   private func persist() throws {
@@ -594,13 +799,36 @@ final class AppViewModel {
     try persist()
   }
 
+  private func armScheduledSession(
+    plan: ScheduledSessionPlan,
+    mode: BlockMode,
+    pairedTag: PairedTag,
+    armedAt: Date,
+    dayKey: String
+  ) throws {
+    try shieldingService.apply(mode: mode)
+    snapshot.activeSession = AnchorSession(
+      pairedTagId: pairedTag.id,
+      modeId: mode.id,
+      state: .armed,
+      armedAt: armedAt,
+      scheduledPlanID: plan.id
+    )
+    if let index = snapshot.scheduledPlans.firstIndex(where: { $0.id == plan.id }) {
+      snapshot.scheduledPlans[index].lastStartedDayKey = dayKey
+      snapshot.scheduledPlans[index].lastEndedDayKey = nil
+    }
+    selectedModeID = mode.id
+    try persist()
+  }
+
   private func completeRelease(
     activeSession: AnchorSession,
     mode: BlockMode,
     pairedTag: PairedTag,
-    releaseMethod: SessionReleaseMethod
+    releaseMethod: SessionReleaseMethod,
+    releasedAt: Date = .now
   ) throws {
-    let releasedAt = Date.now
     shieldingService.clear()
     let releasedSession = AnchorSession(
       id: activeSession.id,
@@ -608,7 +836,8 @@ final class AppViewModel {
       modeId: activeSession.modeId,
       state: .released,
       armedAt: activeSession.armedAt,
-      releasedAt: releasedAt
+      releasedAt: releasedAt,
+      scheduledPlanID: activeSession.scheduledPlanID
     )
     snapshot.activeSession = releasedSession
     snapshot = AnclaCore.recordHistory(
@@ -636,6 +865,36 @@ final class AppViewModel {
     !selection.applicationTokens.isEmpty
       || !selection.categoryTokens.isEmpty
       || !selection.webDomainTokens.isEmpty
+  }
+
+  private func existingScheduledPlan() -> ScheduledSessionPlan? {
+    guard let draftScheduleID else {
+      return nil
+    }
+
+    return snapshot.scheduledPlans.first(where: { $0.id == draftScheduleID })
+  }
+
+  private func releaseDeletedScheduledSession(planID: UUID) throws {
+    guard
+      let activeSession = snapshot.activeSession,
+      activeSession.scheduledPlanID == planID,
+      let pairedTag = AnclaCore.pairedTag(for: activeSession.pairedTagId, in: snapshot),
+      let mode = snapshot.modes.first(where: { $0.id == activeSession.modeId })
+    else {
+      snapshot.activeSession = nil
+      shieldingService.clear()
+      try persist()
+      return
+    }
+
+    try completeRelease(
+      activeSession: activeSession,
+      mode: mode,
+      pairedTag: pairedTag,
+      releaseMethod: .schedule,
+      releasedAt: nowProvider()
+    )
   }
 
   private func automationAdjustedEnvironment(
@@ -682,7 +941,7 @@ final class AppViewModel {
 
     isBusy = false
     activeAction = nil
-    refreshDiagnostics()
+    _ = syncScheduledSessions()
   }
 }
 
@@ -696,6 +955,8 @@ enum ValidationError: LocalizedError {
   case mismatchedTagOnArm
   case mismatchedTag
   case sessionNotArmed
+  case missingScheduledSession
+  case invalidScheduledSession
 
   var errorDescription: String? {
     switch self {
@@ -717,6 +978,19 @@ enum ValidationError: LocalizedError {
       return "That anchor does not match the release anchor for this session."
     case .sessionNotArmed:
       return "Start a session before attempting release."
+    case .missingScheduledSession:
+      return "Create a scheduled session before editing it."
+    case .invalidScheduledSession:
+      return "Pick a mode, pick an anchor, choose at least one day, and keep the end time after the start time."
     }
+  }
+}
+
+private extension Optional {
+  func orThrow(_ error: some Error) throws -> Wrapped {
+    guard let self else {
+      throw error
+    }
+    return self
   }
 }

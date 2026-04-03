@@ -1,6 +1,20 @@
 import Foundation
 
 enum AnclaCore {
+  static func minuteOfDay(for date: Date, calendar: Calendar = .current) -> Int {
+    let components = calendar.dateComponents([.hour, .minute], from: date)
+    return (components.hour ?? 0) * 60 + (components.minute ?? 0)
+  }
+
+  static func weekdayNumber(for date: Date, calendar: Calendar = .current) -> Int {
+    calendar.component(.weekday, from: date)
+  }
+
+  static func dayKey(for date: Date, calendar: Calendar = .current) -> String {
+    let components = calendar.dateComponents([.year, .month, .day], from: date)
+    return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
+  }
+
   static func sortedModes(_ modes: [BlockMode]) -> [BlockMode] {
     modes.sorted { lhs, rhs in
       if lhs.isDefault != rhs.isDefault {
@@ -13,6 +27,51 @@ enum AnclaCore {
 
   static func preferredMode(in snapshot: AppSnapshot) -> BlockMode? {
     snapshot.modes.first(where: \.isDefault) ?? snapshot.modes.first
+  }
+
+  static func sortedScheduledPlans(
+    _ plans: [ScheduledSessionPlan],
+    at date: Date = .now,
+    calendar: Calendar = .current
+  ) -> [ScheduledSessionPlan] {
+    plans.sorted { lhs, rhs in
+      let lhsIsActive = scheduledPlanIsActive(lhs, at: date, calendar: calendar)
+      let rhsIsActive = scheduledPlanIsActive(rhs, at: date, calendar: calendar)
+      if lhsIsActive != rhsIsActive {
+        return lhsIsActive
+      }
+
+      if lhs.isEnabled != rhs.isEnabled {
+        return lhs.isEnabled
+      }
+
+      if lhs.startMinuteOfDay != rhs.startMinuteOfDay {
+        return lhs.startMinuteOfDay < rhs.startMinuteOfDay
+      }
+
+      return lhs.id.uuidString < rhs.id.uuidString
+    }
+  }
+
+  static func scheduledPlanIsActive(
+    _ plan: ScheduledSessionPlan,
+    at date: Date,
+    calendar: Calendar = .current
+  ) -> Bool {
+    guard plan.isEnabled else {
+      return false
+    }
+
+    guard plan.endMinuteOfDay > plan.startMinuteOfDay else {
+      return false
+    }
+
+    guard plan.weekdayNumbers.contains(weekdayNumber(for: date, calendar: calendar)) else {
+      return false
+    }
+
+    let minutes = minuteOfDay(for: date, calendar: calendar)
+    return minutes >= plan.startMinuteOfDay && minutes < plan.endMinuteOfDay
   }
 
   static func repairedSnapshot(_ snapshot: AppSnapshot) -> AppSnapshot {
