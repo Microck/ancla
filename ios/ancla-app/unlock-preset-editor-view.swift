@@ -174,7 +174,7 @@ struct UnlockPresetEditorView: View {
       TextField(prompt, text: text, axis: axis)
         .font(.ancla(axis == .horizontal ? 28 : 16))
         .foregroundStyle(AnclaTheme.primaryText)
-        .lineLimit(axis == .vertical ? 3...5 : 1)
+        .lineLimit(axis == .vertical ? 5 : 1)
 
       Rectangle()
         .fill(AnclaTheme.panelStroke.opacity(0.6))
