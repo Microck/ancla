@@ -13,13 +13,52 @@ private enum NextStep {
   case rearm
 }
 
+private enum HomeSection: String, Identifiable, CaseIterable {
+  case modes
+  case anchors
+  case schedules
+  case sessions
+
+  var id: String { rawValue }
+
+  var title: String {
+    switch self {
+    case .modes:
+      return "Mode"
+    case .anchors:
+      return "Anchor"
+    case .schedules:
+      return "Schedule"
+    case .sessions:
+      return "Sessions"
+    }
+  }
+
+  var symbol: String {
+    switch self {
+    case .modes:
+      return "square.grid.2x2"
+    case .anchors:
+      return "dot.radiowaves.left.and.right"
+    case .schedules:
+      return "calendar"
+    case .sessions:
+      return "clock.arrow.circlepath"
+    }
+  }
+}
+
 struct ContentView: View {
   @Bindable var viewModel: AppViewModel
   @Environment(\.scenePhase) private var scenePhase
 
-  // Keep the final rows reachable above the fixed bottom action bar.
-  private let bottomActionBarClearance: CGFloat = 132
+  private let bottomActionBarClearance: CGFloat = 144
+  private let sectionColumns = [
+    GridItem(.flexible(), spacing: 14),
+    GridItem(.flexible(), spacing: 14),
+  ]
 
+  @State private var activeSection: HomeSection?
   @State private var isModeEditorPresented = false
   @State private var isScheduleEditorPresented = false
   @State private var isShortcutGuidesPresented = false
@@ -33,10 +72,16 @@ struct ContentView: View {
           .ignoresSafeArea()
 
         ScrollView(showsIndicators: false) {
-          VStack(alignment: .leading, spacing: 24) {
+          VStack(alignment: .leading, spacing: 20) {
             header
             headlineSection
-            controlSurface
+            overviewStrip
+
+            if let feedback = viewModel.feedback {
+              feedbackRow(feedback)
+            }
+
+            sectionGrid
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.horizontal, 24)
@@ -49,6 +94,10 @@ struct ContentView: View {
       }
       .toolbar(.hidden, for: .navigationBar)
       .preferredColorScheme(.dark)
+      .sheet(item: $activeSection) { section in
+        sectionSheet(section)
+          .presentationBackground(.clear)
+      }
       .sheet(isPresented: $isModeEditorPresented) {
         ModeEditorView(
           viewModel: viewModel,
@@ -155,301 +204,438 @@ struct ContentView: View {
   }
 
   private var headlineSection: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      if viewModel.currentModeIsStrict {
-        Text("STRICT MODE")
-          .font(.ancla(11, weight: .semibold))
-          .foregroundStyle(AnclaTheme.warningText)
-          .tracking(1.6)
+    VStack(alignment: .leading, spacing: 12) {
+      HStack(spacing: 8) {
+        if viewModel.currentModeIsStrict {
+          statusBadge("STRICT", color: AnclaTheme.warningText)
+        }
+
+        statusBadge(nextStepLabel, color: sessionAccent)
       }
 
       Text(viewModel.diagnostics.headline)
-        .font(.ancla(40, weight: .medium))
+        .font(.ancla(38, weight: .medium))
         .foregroundStyle(AnclaTheme.primaryText)
+        .lineLimit(2)
 
-      Text(viewModel.diagnostics.message)
+      Text(compactMessage)
         .font(.ancla(15))
         .foregroundStyle(AnclaTheme.secondaryText)
-        .frame(maxWidth: 340, alignment: .leading)
+        .frame(maxWidth: 360, alignment: .leading)
     }
   }
 
-  private var controlSurface: some View {
-    surface(title: "Control") {
-      VStack(alignment: .leading, spacing: 20) {
-        if let feedback = viewModel.feedback {
-          feedbackRow(feedback)
-        }
-
-        sectionBlock(
-          title: "Overview",
-          content: {
-            VStack(spacing: 16) {
-              surfaceRow(
-                label: "Current mode",
-                value: currentMode?.name ?? "None",
-                detail: currentModeDetail
-              )
-
-              surfaceDivider
-
-              surfaceRow(
-                label: "Anchor",
-                value: anchorValue,
-                detail: anchorDetail
-              )
-
-              if anchorPreviewTag != nil {
-                surfaceDivider
-
-                surfaceRow(
-                  label: anchorPreviewLabel,
-                  value: fingerprintValue,
-                  detail: fingerprintDetail,
-                  monospaced: true
-                )
-              }
-
-              surfaceDivider
-
-              surfaceRow(
-                label: "Session",
-                value: sessionValue,
-                detail: sessionDetail,
-                accentColor: sessionAccent
-              )
-            }
-          }
+  private var overviewStrip: some View {
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: 12) {
+        overviewTile(
+          label: "Mode",
+          value: currentMode?.name ?? "None",
+          detail: modeOverviewDetail,
+          accentColor: viewModel.currentModeIsStrict ? AnclaTheme.warningText : AnclaTheme.primaryText,
+          highlight: currentMode != nil
         )
 
-        if viewModel.currentModeIsStrict {
-          surfaceDivider
-
-          sectionBlock(
-            title: "Strict mode",
-            content: {
-              VStack(spacing: 12) {
-                informativeRow(
-                  title: strictModeTitle,
-                  detail: strictModeDetail,
-                  accentColor: AnclaTheme.warningText,
-                  highlight: viewModel.canReleaseActiveSession,
-                  trailingText: "Tighter"
-                )
-
-                Button {
-                  isShortcutGuidesPresented = true
-                } label: {
-                  actionRow(
-                    icon: "bolt.horizontal.circle",
-                    title: "Review Apple app guides",
-                    detail: "Safari, Settings, Messages, Mail, Phone, and Calendar still need Shortcuts automations.",
-                    isLoading: false
-                  )
-                }
-                .buttonStyle(AnclaPressableButtonStyle())
-                .disabled(viewModel.isBusy)
-              }
-            }
-          )
-        }
-
-        surfaceDivider
-
-        sectionBlock(
-          title: "Recent sessions",
-          content: {
-            VStack(spacing: 12) {
-              if viewModel.recentSessionHistory.isEmpty {
-                informativeRow(
-                  title: "No sessions recorded",
-                  detail: "Completed sessions will appear here after you release them with the paired anchor or an emergency unbrick.",
-                  accentColor: AnclaTheme.primaryText,
-                  highlight: false,
-                  trailingSymbol: "clock.arrow.circlepath"
-                )
-              } else {
-                ForEach(viewModel.recentSessionHistory) { entry in
-                  historyRow(entry)
-                }
-              }
-            }
-          }
+        overviewTile(
+          label: "Anchor",
+          value: anchorValue,
+          detail: anchorOverviewDetail,
+          accentColor: activePairedTag == nil ? AnclaTheme.primaryText : AnclaTheme.warningText,
+          highlight: !viewModel.snapshot.pairedTags.isEmpty
         )
 
-        surfaceDivider
+        overviewTile(
+          label: "Session",
+          value: sessionValue,
+          detail: sessionOverviewDetail,
+          accentColor: sessionAccent,
+          highlight: viewModel.activeSessionIsBlocking
+        )
+      }
 
-        sectionBlock(
-          title: "Scheduled sessions",
-          content: {
-            VStack(spacing: 12) {
-              if viewModel.scheduledPlansForDisplay.isEmpty {
-                informativeRow(
-                  title: "No schedules saved",
-                  detail: scheduledSessionsEmptyDetail,
-                  accentColor: AnclaTheme.primaryText,
-                  highlight: false,
-                  trailingSymbol: "calendar.badge.plus"
-                )
-              } else {
-                ForEach(viewModel.scheduledPlansForDisplay) { plan in
-                  scheduledPlanCard(plan)
-                }
-              }
-
-              Button {
-                viewModel.prepareDraftForNewSchedule()
-                isScheduleEditorPresented = true
-              } label: {
-                actionRow(
-                  icon: "calendar.badge.plus",
-                  title: "Create schedule",
-                  detail: "Auto-start a saved mode on selected weekdays and still require a paired anchor for early release.",
-                  isLoading: false
-                )
-              }
-              .buttonStyle(AnclaPressableButtonStyle())
-              .disabled(viewModel.isBusy || !canCreateScheduledPlan)
-              .opacity(viewModel.isBusy || !canCreateScheduledPlan ? 0.65 : 1)
-            }
-          }
+      VStack(spacing: 12) {
+        overviewTile(
+          label: "Mode",
+          value: currentMode?.name ?? "None",
+          detail: modeOverviewDetail,
+          accentColor: viewModel.currentModeIsStrict ? AnclaTheme.warningText : AnclaTheme.primaryText,
+          highlight: currentMode != nil
         )
 
-        surfaceDivider
-
-        sectionBlock(
-          title: "Emergency unbricks",
-          content: {
-            VStack(spacing: 12) {
-              informativeRow(
-                title: emergencyUnbrickTitle,
-                detail: emergencyUnbrickDetail,
-                accentColor: emergencyUnbrickAccent,
-                highlight: viewModel.snapshot.emergencyUnbricksRemaining > 0,
-                trailingText: emergencyUnbrickBadge
-              )
-
-              if viewModel.canUseEmergencyUnbrick || viewModel.snapshot.emergencyUnbricksRemaining == 0 {
-                Button {
-                  Task { await viewModel.useEmergencyUnbrick() }
-                } label: {
-                  actionRow(
-                    icon: "bolt.horizontal.circle",
-                    title: "Use emergency unbrick",
-                    detail: "Release the current session without scanning the paired anchor.",
-                    isLoading: viewModel.isActionInProgress(.emergencyUnbrick),
-                    isDestructive: true
-                  )
-                }
-                .buttonStyle(
-                  AnclaPressableButtonStyle(
-                    background: AnclaTheme.panelInteractive,
-                    pressedBackground: AnclaTheme.panelRaised,
-                    stroke: AnclaTheme.errorText.opacity(0.32)
-                  )
-                )
-                .disabled(viewModel.isBusy || !viewModel.canUseEmergencyUnbrick)
-                .opacity(viewModel.canUseEmergencyUnbrick ? 1 : 0.65)
-              }
-            }
-          }
+        overviewTile(
+          label: "Anchor",
+          value: anchorValue,
+          detail: anchorOverviewDetail,
+          accentColor: activePairedTag == nil ? AnclaTheme.primaryText : AnclaTheme.warningText,
+          highlight: !viewModel.snapshot.pairedTags.isEmpty
         )
 
-        surfaceDivider
-
-        sectionBlock(
-          title: "Modes",
-          content: {
-            VStack(spacing: 12) {
-              if viewModel.modesForDisplay.isEmpty {
-                informativeRow(
-                  title: "No modes saved",
-                  detail: "Create the first mode you want ready before starting a session.",
-                  accentColor: AnclaTheme.primaryText,
-                  highlight: false,
-                  trailingSymbol: "plus"
-                )
-              } else {
-                ForEach(viewModel.modesForDisplay) { mode in
-                  Button {
-                    viewModel.selectMode(mode.id)
-                  } label: {
-                    modeRow(mode)
-                  }
-                  .buttonStyle(.plain)
-                  .disabled(viewModel.isBusy)
-                }
-              }
-
-              if let currentMode {
-                Button {
-                  viewModel.prepareDraftForEditingMode(currentMode.id)
-                  isModeEditorPresented = true
-                } label: {
-                  actionRow(
-                    icon: "square.and.pencil",
-                    title: "Edit selected mode",
-                    detail: "Update the mode that will start next.",
-                    isLoading: false
-                  )
-                }
-                .buttonStyle(AnclaPressableButtonStyle())
-                .disabled(viewModel.isBusy)
-              }
-
-              Button {
-                viewModel.prepareDraftForNewMode()
-                isModeEditorPresented = true
-              } label: {
-                actionRow(
-                  icon: "plus",
-                  title: "Create mode",
-                  detail: "Add another saved mode for a different blocking setup.",
-                  isLoading: false
-                )
-              }
-              .buttonStyle(AnclaPressableButtonStyle())
-              .disabled(viewModel.isBusy)
-            }
-          }
-        )
-
-        surfaceDivider
-
-        sectionBlock(
-          title: "Anchors",
-          content: {
-            VStack(spacing: 12) {
-              if viewModel.pairedTagsForDisplay.isEmpty {
-                informativeRow(
-                  title: "No anchor paired",
-                  detail: "Pair one NFC anchor to set the physical release key for this iPhone.",
-                  accentColor: AnclaTheme.primaryText,
-                  highlight: false
-                )
-              } else {
-                ForEach(viewModel.pairedTagsForDisplay) { pairedTag in
-                  pairedAnchorCard(pairedTag)
-                }
-
-                Button {
-                  Task { await viewModel.pairSticker() }
-                } label: {
-                  actionRow(
-                    icon: "plus",
-                    title: "Pair another anchor",
-                    detail: "Scan one more NFC anchor that can start its own session on this iPhone.",
-                    isLoading: viewModel.isActionInProgress(.pairAnchor)
-                  )
-                }
-                .buttonStyle(AnclaPressableButtonStyle())
-                .disabled(viewModel.isBusy)
-              }
-            }
-          }
+        overviewTile(
+          label: "Session",
+          value: sessionValue,
+          detail: sessionOverviewDetail,
+          accentColor: sessionAccent,
+          highlight: viewModel.activeSessionIsBlocking
         )
       }
     }
+  }
+
+  private var sectionGrid: some View {
+    VStack(alignment: .leading, spacing: 14) {
+      Text("Sections")
+        .font(.ancla(11, weight: .medium))
+        .foregroundStyle(AnclaTheme.tertiaryText)
+        .tracking(1.2)
+
+      LazyVGrid(columns: sectionColumns, spacing: 14) {
+        ForEach(HomeSection.allCases) { section in
+          Button {
+            activeSection = section
+          } label: {
+            VStack(alignment: .leading, spacing: 14) {
+              HStack(alignment: .top) {
+                ZStack {
+                  Circle()
+                    .fill(sectionAccent(for: section).opacity(0.16))
+                    .frame(width: 40, height: 40)
+
+                  Image(systemName: section.symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(sectionAccent(for: section))
+                }
+
+                Spacer(minLength: 10)
+
+                Text(sectionBadge(for: section))
+                  .font(.ancla(11, weight: .medium))
+                  .foregroundStyle(sectionBadgeColor(for: section))
+                  .multilineTextAlignment(.trailing)
+                  .lineLimit(2)
+              }
+
+              Spacer(minLength: 0)
+
+              VStack(alignment: .leading, spacing: 6) {
+                Text(section.title)
+                  .font(.ancla(18, weight: .medium))
+                  .foregroundStyle(AnclaTheme.primaryText)
+
+                Text(sectionSummary(for: section))
+                  .font(.ancla(13))
+                  .foregroundStyle(AnclaTheme.secondaryText)
+                  .frame(maxWidth: .infinity, alignment: .leading)
+                  .lineLimit(3)
+              }
+            }
+            .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+            .padding(18)
+          }
+          .buttonStyle(
+            AnclaPressableButtonStyle(
+              background: sectionBackground(for: section),
+              pressedBackground: sectionPressedBackground(for: section),
+              stroke: sectionStroke(for: section),
+              cornerRadius: 24,
+              scale: 0.992
+            )
+          )
+        }
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func sectionSheet(_ section: HomeSection) -> some View {
+    switch section {
+    case .modes:
+      HomeSectionSheet(
+        title: "Modes",
+        subtitle: "Choose what the next block should do."
+      ) {
+        sectionFeedback
+        modesSectionContent
+      }
+    case .anchors:
+      HomeSectionSheet(
+        title: "Anchors",
+        subtitle: "Manage the NFC anchors tied to this iPhone."
+      ) {
+        sectionFeedback
+        anchorsSectionContent
+      }
+    case .schedules:
+      HomeSectionSheet(
+        title: "Schedules",
+        subtitle: "Start saved modes on a recurring window."
+      ) {
+        sectionFeedback
+        schedulesSectionContent
+      }
+    case .sessions:
+      HomeSectionSheet(
+        title: "Sessions",
+        subtitle: "Check live state, history, and the emergency failsafe."
+      ) {
+        sectionFeedback
+        sessionsSectionContent
+      }
+    }
+  }
+
+  @ViewBuilder
+  private var sectionFeedback: some View {
+    if let feedback = viewModel.feedback {
+      feedbackRow(feedback)
+    }
+  }
+
+  private var modesSectionContent: some View {
+    VStack(spacing: 12) {
+      if viewModel.modesForDisplay.isEmpty {
+        informativeRow(
+          title: "No modes saved",
+          detail: "Create the first mode you want ready before starting a block.",
+          accentColor: AnclaTheme.primaryText,
+          highlight: false,
+          trailingSymbol: "plus"
+        )
+      } else {
+        ForEach(viewModel.modesForDisplay) { mode in
+          Button {
+            viewModel.selectMode(mode.id)
+          } label: {
+            modeRow(mode)
+          }
+          .buttonStyle(.plain)
+          .disabled(viewModel.isBusy)
+        }
+      }
+
+      if let currentMode {
+        Button {
+          viewModel.prepareDraftForEditingMode(currentMode.id)
+          isModeEditorPresented = true
+        } label: {
+          actionRow(
+            icon: "square.and.pencil",
+            title: "Edit selected mode",
+            detail: "Adjust the mode that will start next.",
+            isLoading: false
+          )
+        }
+        .buttonStyle(AnclaPressableButtonStyle())
+        .disabled(viewModel.isBusy)
+      }
+
+      Button {
+        viewModel.prepareDraftForNewMode()
+        isModeEditorPresented = true
+      } label: {
+        actionRow(
+          icon: "plus",
+          title: "Create mode",
+          detail: "Add another saved mode for a different blocking setup.",
+          isLoading: false
+        )
+      }
+      .buttonStyle(AnclaPressableButtonStyle())
+      .disabled(viewModel.isBusy)
+    }
+  }
+
+  private var anchorsSectionContent: some View {
+    VStack(spacing: 12) {
+      if viewModel.pairedTagsForDisplay.isEmpty {
+        informativeRow(
+          title: "No anchor paired",
+          detail: "Pair one NFC anchor to set the physical release key for this iPhone.",
+          accentColor: AnclaTheme.primaryText,
+          highlight: false
+        )
+      } else {
+        ForEach(viewModel.pairedTagsForDisplay) { pairedTag in
+          pairedAnchorCard(pairedTag)
+        }
+      }
+
+      Button {
+        Task { await viewModel.pairSticker() }
+      } label: {
+        actionRow(
+          icon: "plus",
+          title: viewModel.pairedTagsForDisplay.isEmpty ? "Pair anchor" : "Pair another anchor",
+          detail: "Scan an NFC anchor that can start or release blocks on this iPhone.",
+          isLoading: viewModel.isActionInProgress(.pairAnchor)
+        )
+      }
+      .buttonStyle(AnclaPressableButtonStyle())
+      .disabled(viewModel.isBusy)
+    }
+  }
+
+  private var schedulesSectionContent: some View {
+    VStack(spacing: 12) {
+      if viewModel.scheduledPlansForDisplay.isEmpty {
+        informativeRow(
+          title: "No schedules saved",
+          detail: scheduledSessionsEmptyDetail,
+          accentColor: AnclaTheme.primaryText,
+          highlight: false,
+          trailingSymbol: "calendar.badge.plus"
+        )
+      } else {
+        ForEach(viewModel.scheduledPlansForDisplay) { plan in
+          scheduledPlanCard(plan)
+        }
+      }
+
+      Button {
+        viewModel.prepareDraftForNewSchedule()
+        isScheduleEditorPresented = true
+      } label: {
+        actionRow(
+          icon: "calendar.badge.plus",
+          title: "Create schedule",
+          detail: "Auto-start a saved mode on selected weekdays.",
+          isLoading: false
+        )
+      }
+      .buttonStyle(AnclaPressableButtonStyle())
+      .disabled(viewModel.isBusy || !canCreateScheduledPlan)
+      .opacity(viewModel.isBusy || !canCreateScheduledPlan ? 0.65 : 1)
+    }
+  }
+
+  private var sessionsSectionContent: some View {
+    VStack(spacing: 12) {
+      informativeRow(
+        title: sessionSectionTitle,
+        detail: sessionDetail,
+        accentColor: sessionAccent,
+        highlight: viewModel.activeSessionIsBlocking,
+        trailingText: sessionSectionBadge
+      )
+
+      informativeRow(
+        title: emergencyUnbrickTitle,
+        detail: emergencyUnbrickDetail,
+        accentColor: emergencyUnbrickAccent,
+        highlight: viewModel.snapshot.emergencyUnbricksRemaining > 0,
+        trailingText: emergencyUnbrickBadge
+      )
+
+      if viewModel.canUseEmergencyUnbrick || viewModel.snapshot.emergencyUnbricksRemaining == 0 {
+        Button {
+          Task { await viewModel.useEmergencyUnbrick() }
+        } label: {
+          actionRow(
+            icon: "bolt.horizontal.circle",
+            title: "Use emergency unbrick",
+            detail: "Release the current session without scanning the paired anchor.",
+            isLoading: viewModel.isActionInProgress(.emergencyUnbrick),
+            isDestructive: true
+          )
+        }
+        .buttonStyle(
+          AnclaPressableButtonStyle(
+            background: AnclaTheme.panelInteractive,
+            pressedBackground: AnclaTheme.panelRaised,
+            stroke: AnclaTheme.errorText.opacity(0.32)
+          )
+        )
+        .disabled(viewModel.isBusy || !viewModel.canUseEmergencyUnbrick)
+        .opacity(viewModel.canUseEmergencyUnbrick ? 1 : 0.65)
+      }
+
+      if viewModel.currentModeIsStrict {
+        informativeRow(
+          title: strictModeTitle,
+          detail: strictModeDetail,
+          accentColor: AnclaTheme.warningText,
+          highlight: viewModel.canReleaseActiveSession,
+          trailingText: "Strict"
+        )
+
+        Button {
+          isShortcutGuidesPresented = true
+        } label: {
+          actionRow(
+            icon: "bolt.horizontal.circle",
+            title: "Review Apple app guides",
+            detail: "Finish the Shortcuts automations that close the obvious loopholes.",
+            isLoading: false
+          )
+        }
+        .buttonStyle(AnclaPressableButtonStyle())
+        .disabled(viewModel.isBusy)
+      }
+
+      if viewModel.recentSessionHistory.isEmpty {
+        informativeRow(
+          title: "No sessions recorded",
+          detail: "Completed sessions will appear here after they end.",
+          accentColor: AnclaTheme.primaryText,
+          highlight: false,
+          trailingSymbol: "clock.arrow.circlepath"
+        )
+      } else {
+        ForEach(Array(viewModel.recentSessionHistory.prefix(5))) { entry in
+          historyRow(entry)
+        }
+      }
+    }
+  }
+
+  private func overviewTile(
+    label: String,
+    value: String,
+    detail: String,
+    accentColor: Color,
+    highlight: Bool
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Text(label)
+        .font(.ancla(11, weight: .medium))
+        .foregroundStyle(AnclaTheme.tertiaryText)
+        .tracking(1.1)
+
+      Text(value)
+        .font(.ancla(18, weight: .medium))
+        .foregroundStyle(accentColor)
+        .lineLimit(1)
+
+      Text(detail)
+        .font(.ancla(12))
+        .foregroundStyle(AnclaTheme.secondaryText)
+        .lineLimit(1)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(16)
+    .background(
+      RoundedRectangle(cornerRadius: 20, style: .continuous)
+        .fill(highlight ? AnclaTheme.panelRaised : AnclaTheme.panel)
+        .overlay(
+          RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .stroke(
+              highlight ? accentColor.opacity(0.28) : AnclaTheme.panelStroke.opacity(0.75),
+              lineWidth: 1
+            )
+        )
+    )
+  }
+
+  private func statusBadge(_ title: String, color: Color) -> some View {
+    Text(title)
+      .font(.ancla(11, weight: .semibold))
+      .foregroundStyle(color)
+      .tracking(1.4)
+      .padding(.horizontal, 10)
+      .padding(.vertical, 6)
+      .background(
+        Capsule(style: .continuous)
+          .fill(color.opacity(0.12))
+      )
   }
 
   private func pairedAnchorCard(_ pairedTag: PairedTag) -> some View {
@@ -540,56 +726,6 @@ struct ContentView: View {
         )
       )
       .disabled(viewModel.isBusy)
-    }
-  }
-
-  private func surface<Content: View>(
-    title: String,
-    @ViewBuilder content: () -> Content
-  ) -> some View {
-    VStack(alignment: .leading, spacing: 18) {
-      Text(title)
-        .font(.ancla(12, weight: .medium))
-        .foregroundStyle(AnclaTheme.tertiaryText)
-
-      content()
-    }
-    .padding(20)
-    .background(
-      RoundedRectangle(cornerRadius: 24, style: .continuous)
-        .fill(AnclaTheme.panel)
-        .overlay(
-          RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .stroke(AnclaTheme.panelStroke.opacity(0.8), lineWidth: 1)
-        )
-    )
-  }
-
-  private func surfaceRow(
-    label: String,
-    value: String,
-    detail: String,
-    accentColor: Color = AnclaTheme.primaryText,
-    monospaced: Bool = false
-  ) -> some View {
-    VStack(alignment: .leading, spacing: 8) {
-      HStack(alignment: .firstTextBaseline, spacing: 16) {
-        Text(label)
-          .font(.ancla(12, weight: .medium))
-          .foregroundStyle(AnclaTheme.tertiaryText)
-
-        Spacer(minLength: 0)
-
-        Text(value)
-          .font(monospaced ? .anclaMono(14) : .ancla(15, weight: .medium))
-          .foregroundStyle(accentColor)
-          .multilineTextAlignment(.trailing)
-      }
-
-      Text(detail)
-        .font(.ancla(13))
-        .foregroundStyle(AnclaTheme.secondaryText)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
   }
 
@@ -763,11 +899,7 @@ struct ContentView: View {
     )
   }
 
-  private var surfaceDivider: some View {
-    Rectangle()
-      .fill(AnclaTheme.panelStroke.opacity(0.55))
-      .frame(height: 1)
-  }
+  private var feedbackRowPadding: CGFloat { 14 }
 
   private func feedbackRow(_ feedback: ActionFeedback) -> some View {
     let color: Color
@@ -795,7 +927,7 @@ struct ContentView: View {
         .foregroundStyle(color)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-    .padding(14)
+    .padding(feedbackRowPadding)
     .background(
       RoundedRectangle(cornerRadius: 16, style: .continuous)
         .fill(AnclaTheme.panelInteractive)
@@ -807,38 +939,53 @@ struct ContentView: View {
   }
 
   private var bottomActionBar: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Text("Action")
-        .font(.ancla(11, weight: .medium))
-        .foregroundStyle(AnclaTheme.tertiaryText)
-        .tracking(1.2)
-
+    VStack(spacing: 0) {
       Button(action: primaryAction) {
-        HStack(spacing: 10) {
-          if viewModel.isActionInProgress(primaryActionID) {
-            ProgressView()
-              .tint(AnclaTheme.ctaText)
+        VStack(alignment: .leading, spacing: 10) {
+          HStack(alignment: .firstTextBaseline) {
+            Text("Ancla")
+              .font(.ancla(28, weight: .semibold))
+
+            Spacer(minLength: 12)
+
+            if viewModel.isActionInProgress(primaryActionID) {
+              ProgressView()
+                .tint(AnclaTheme.ctaText)
+            } else {
+              Image(systemName: primaryActionSymbol)
+                .font(.system(size: 18, weight: .semibold))
+            }
           }
 
-          Text(primaryActionTitle)
-            .font(.ancla(15, weight: .semibold))
+          VStack(alignment: .leading, spacing: 4) {
+            Text(primaryActionTitle)
+              .font(.ancla(15, weight: .semibold))
+
+            Text(primaryActionDetail)
+              .font(.ancla(12, weight: .medium))
+              .foregroundStyle(AnclaTheme.ctaText.opacity(0.72))
+              .lineLimit(2)
+          }
         }
         .foregroundStyle(AnclaTheme.ctaText)
-        .frame(maxWidth: .infinity)
-        .frame(height: 56)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: 94)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
         .background(
-          RoundedRectangle(cornerRadius: 18, style: .continuous)
+          RoundedRectangle(cornerRadius: 28, style: .continuous)
             .fill(AnclaTheme.ctaFill)
         )
       }
       .buttonStyle(.plain)
       .disabled(primaryActionDisabled || viewModel.isBusy)
       .opacity(primaryActionDisabled || viewModel.isBusy ? 0.6 : 1)
+      .accessibilityLabel(primaryActionTitle)
+      .accessibilityHint(primaryActionDetail)
     }
-    .frame(maxWidth: .infinity)
     .padding(.horizontal, 24)
     .padding(.top, 12)
-    .padding(.bottom, 16)
+    .padding(.bottom, 18)
     .background(AnclaTheme.background)
     .overlay(alignment: .top) {
       Rectangle()
@@ -947,44 +1094,249 @@ struct ContentView: View {
     viewModel.selectedMode() ?? viewModel.preferredMode()
   }
 
-  private var currentModeDetail: String {
+  private var modeOverviewDetail: String {
     guard let currentMode else {
-      return "Create or choose a mode before starting a session."
+      return "Save one mode"
     }
 
-    let summary = viewModel.selectionSummary(for: currentMode)
-    guard currentMode.isStrict else {
-      return summary
-    }
-
-    return "\(summary) • strict mode"
+    return viewModel.selectionSummary(for: currentMode)
   }
 
-  private var anchorDetail: String {
+  private var anchorOverviewDetail: String {
+    if let activePairedTag {
+      return "\(activePairedTag.displayName) releases"
+    }
+
     switch viewModel.snapshot.pairedTags.count {
     case 0:
-      return "No anchor is paired to this iPhone yet."
+      return "Pair one anchor"
     case 1:
-      if let activePairedTag = viewModel.activePairedTag {
-        return "\(activePairedTag.displayName) started the current session and must also release it."
-      }
-
-      return "The paired anchor can start a session and must also release it."
+      return "1 paired"
     default:
-      if let activePairedTag = viewModel.activePairedTag {
-        return "\(viewModel.snapshot.pairedTags.count) anchors are paired. \(activePairedTag.displayName) must release the current session."
-      }
-
-      return "\(viewModel.snapshot.pairedTags.count) anchors are paired on this iPhone."
+      return "\(viewModel.snapshot.pairedTags.count) paired"
     }
   }
 
-  private var fingerprintValue: String {
-    guard let uidHash = anchorPreviewTag?.uidHash else {
-      return "Awaiting pair"
+  private var sessionOverviewDetail: String {
+    switch viewModel.snapshot.activeSession?.state {
+    case .armed:
+      return "Anchor required"
+    case .mismatchedTag:
+      return "Wrong anchor scanned"
+    case .released:
+      return "Recently ended"
+    case .idle, nil:
+      return "Nothing live"
+    }
+  }
+
+  private var compactMessage: String {
+    switch nextStep {
+    case .authorize:
+      return "Grant App Controls once, then save a mode and pair an anchor."
+    case .unavailable:
+      return "This device cannot scan NFC anchors, so pairing and release stay unavailable here."
+    case .pairAnchor:
+      return "Pair one anchor to move the release path off the screen and into the room."
+    case .createMode:
+      return "Save one mode so Ancla has a block ready to arm."
+    case .release:
+      if let activePairedTag {
+        return "\(activePairedTag.displayName) is the only anchor that can end this live block."
+      }
+      return "Use the same paired anchor to end the live block."
+    case .arm:
+      if let currentMode {
+        return "\"\(currentMode.name)\" is ready. Start it when you want the block to go live."
+      }
+      return "Choose a mode, then start the block."
+    case .rearm:
+      return "The last block ended cleanly. Start the next one when you are ready."
+    }
+  }
+
+  private var nextStepLabel: String {
+    switch nextStep {
+    case .authorize:
+      return "SETUP"
+    case .unavailable:
+      return "UNAVAILABLE"
+    case .pairAnchor:
+      return "PAIR"
+    case .createMode:
+      return "MODE"
+    case .release:
+      return "LIVE"
+    case .arm:
+      return "READY"
+    case .rearm:
+      return "READY AGAIN"
+    }
+  }
+
+  private func sectionSummary(for section: HomeSection) -> String {
+    switch section {
+    case .modes:
+      if let currentMode {
+        return viewModel.selectionSummary(for: currentMode)
+      }
+      return "Choose and edit the block you want ready next."
+    case .anchors:
+      if let activePairedTag {
+        return "\(activePairedTag.displayName) is the active release anchor."
+      }
+      if viewModel.snapshot.pairedTags.isEmpty {
+        return "Pair the first NFC anchor for this iPhone."
+      }
+      return "Rename, remove, or add paired anchors."
+    case .schedules:
+      if let activePlan = activeScheduledPlan {
+        return scheduledPlanDetail(for: activePlan)
+      }
+      if let nextPlan = viewModel.scheduledPlansForDisplay.first {
+        return scheduledPlanDetail(for: nextPlan)
+      }
+      return "Auto-start saved modes on chosen weekdays."
+    case .sessions:
+      if viewModel.activeSessionIsBlocking {
+        return sessionDetail
+      }
+      if let recentEntry = viewModel.recentSessionHistory.first {
+        return historySubtitle(for: recentEntry)
+      }
+      return "See live state, past blocks, and the emergency failsafe."
+    }
+  }
+
+  private func sectionBadge(for section: HomeSection) -> String {
+    switch section {
+    case .modes:
+      if viewModel.currentModeIsStrict {
+        return "Strict"
+      }
+      return currentMode == nil ? "Setup" : "Ready"
+    case .anchors:
+      if activePairedTag != nil {
+        return "Active"
+      }
+      let count = viewModel.snapshot.pairedTags.count
+      return count == 0 ? "None" : "\(count)"
+    case .schedules:
+      if activeScheduledPlan != nil {
+        return "Active"
+      }
+      let count = viewModel.scheduledPlansForDisplay.count
+      return count == 0 ? "Off" : "\(count)"
+    case .sessions:
+      if viewModel.canReleaseActiveSession {
+        return "Blocking"
+      }
+      return viewModel.recentSessionHistory.isEmpty ? "Idle" : "Recent"
+    }
+  }
+
+  private func sectionBadgeColor(for section: HomeSection) -> Color {
+    switch section {
+    case .modes:
+      return viewModel.currentModeIsStrict ? AnclaTheme.warningText : AnclaTheme.secondaryText
+    case .anchors:
+      return activePairedTag == nil ? AnclaTheme.secondaryText : AnclaTheme.warningText
+    case .schedules:
+      return activeScheduledPlan == nil ? AnclaTheme.secondaryText : AnclaTheme.warningText
+    case .sessions:
+      return viewModel.canReleaseActiveSession ? AnclaTheme.warningText : AnclaTheme.secondaryText
+    }
+  }
+
+  private func sectionAccent(for section: HomeSection) -> Color {
+    switch section {
+    case .modes:
+      return viewModel.currentModeIsStrict ? AnclaTheme.warningText : AnclaTheme.accentFill
+    case .anchors:
+      return activePairedTag == nil ? AnclaTheme.accentFill : AnclaTheme.warningText
+    case .schedules:
+      return activeScheduledPlan == nil ? AnclaTheme.accentFill : AnclaTheme.warningText
+    case .sessions:
+      return viewModel.activeSessionIsBlocking ? sessionAccent : AnclaTheme.accentFill
+    }
+  }
+
+  private func sectionBackground(for section: HomeSection) -> Color {
+    switch section {
+    case .modes:
+      return currentMode == nil ? AnclaTheme.panel : AnclaTheme.panelRaised
+    case .anchors:
+      return activePairedTag == nil ? AnclaTheme.panel : AnclaTheme.panelRaised
+    case .schedules:
+      return activeScheduledPlan == nil ? AnclaTheme.panel : AnclaTheme.panelRaised
+    case .sessions:
+      return viewModel.activeSessionIsBlocking ? AnclaTheme.panelRaised : AnclaTheme.panel
+    }
+  }
+
+  private func sectionPressedBackground(for section: HomeSection) -> Color {
+    switch section {
+    case .sessions where viewModel.activeSessionIsBlocking:
+      return AnclaTheme.panelInteractive
+    default:
+      return AnclaTheme.panelRaised
+    }
+  }
+
+  private func sectionStroke(for section: HomeSection) -> Color {
+    let accent = sectionAccent(for: section)
+    switch section {
+    case .modes where currentMode != nil:
+      return accent.opacity(0.28)
+    case .anchors where activePairedTag != nil:
+      return accent.opacity(0.28)
+    case .schedules where activeScheduledPlan != nil:
+      return accent.opacity(0.28)
+    case .sessions where viewModel.activeSessionIsBlocking:
+      return accent.opacity(0.28)
+    default:
+      return AnclaTheme.panelStroke.opacity(0.75)
+    }
+  }
+
+  private var activeScheduledPlan: ScheduledSessionPlan? {
+    viewModel.snapshot.activeSession?.scheduledPlanID.flatMap(viewModel.scheduledPlan)
+  }
+
+  private var sessionSectionTitle: String {
+    switch viewModel.snapshot.activeSession?.state {
+    case .armed:
+      return "Block is live"
+    case .mismatchedTag:
+      return "Wrong anchor"
+    case .released:
+      return "Block ended"
+    case .idle, nil:
+      return "No live block"
+    }
+  }
+
+  private var sessionSectionBadge: String {
+    if viewModel.canReleaseActiveSession {
+      return "Live"
     }
 
-    return tagPreview(uidHash)
+    return sessionValue
+  }
+
+  private var anchorValue: String {
+    if let activePairedTag {
+      return activePairedTag.displayName
+    }
+
+    switch viewModel.snapshot.pairedTags.count {
+    case 0:
+      return "Not paired"
+    case 1:
+      return viewModel.snapshot.pairedTags[0].displayName
+    default:
+      return "\(viewModel.snapshot.pairedTags.count) paired"
+    }
   }
 
   private var sessionValue: String {
@@ -1043,11 +1395,55 @@ struct ContentView: View {
     case .createMode:
       return "Create Mode"
     case .release:
-      return "Release Session"
+      return "End Block"
     case .arm:
-      return "Tap to Start Session"
+      return "Start Block"
     case .rearm:
-      return "Tap to Start New Session"
+      return "Start New Block"
+    }
+  }
+
+  private var primaryActionDetail: String {
+    switch nextStep {
+    case .authorize:
+      return "Give Ancla the permission it needs before the first block."
+    case .unavailable:
+      return "This device cannot scan NFC anchors."
+    case .pairAnchor:
+      return "Scan the first release anchor."
+    case .createMode:
+      return "Save one mode so the first block has a target."
+    case .release:
+      if let activePairedTag {
+        return "\(activePairedTag.displayName) must be scanned to end the live block."
+      }
+      return "Scan the paired release anchor to end the live block."
+    case .arm:
+      if let currentMode {
+        return "Start \(currentMode.name) with a paired anchor."
+      }
+      return "Start the selected block with a paired anchor."
+    case .rearm:
+      return "Start another block with the selected mode."
+    }
+  }
+
+  private var primaryActionSymbol: String {
+    switch nextStep {
+    case .authorize:
+      return "checkmark.shield"
+    case .unavailable:
+      return "exclamationmark.triangle"
+    case .pairAnchor:
+      return "dot.radiowaves.left.and.right"
+    case .createMode:
+      return "plus"
+    case .release:
+      return "lock.open"
+    case .arm:
+      return "bolt.fill"
+    case .rearm:
+      return "arrow.clockwise"
     }
   }
 
@@ -1135,24 +1531,10 @@ struct ContentView: View {
     return .arm
   }
 
-  private func tagPreview(_ hash: String) -> String {
-    let prefix = hash.prefix(4)
-    let suffix = hash.suffix(4)
-    return "\(prefix)...\(suffix)"
-  }
-
-  private func sectionBlock<Content: View>(
-    title: String,
-    @ViewBuilder content: () -> Content
-  ) -> some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Text(title)
-        .font(.ancla(11, weight: .medium))
-        .foregroundStyle(AnclaTheme.tertiaryText)
-        .tracking(1.1)
-
-      content()
-    }
+  private var surfaceDivider: some View {
+    Rectangle()
+      .fill(AnclaTheme.panelStroke.opacity(0.55))
+      .frame(height: 1)
   }
 
   private func feedbackIcon(_ tone: ActionFeedbackTone) -> String {
@@ -1217,7 +1599,7 @@ struct ContentView: View {
     }
 
     if viewModel.canUseEmergencyUnbrick {
-      return "Use one if you need to end the current session without your paired anchor. This permanently consumes one failsafe on this iPhone."
+      return "Use one if you need to end the current session without your paired anchor."
     }
 
     return "Keep these in reserve for moments when you cannot reach the paired anchor."
@@ -1237,7 +1619,7 @@ struct ContentView: View {
   }
 
   private var sessionWaitingDetail: String {
-    if let activePairedTag = viewModel.activePairedTag {
+    if let activePairedTag {
       if viewModel.snapshot.activeSession?.scheduledPlanID != nil {
         return "This scheduled session is active now. \(activePairedTag.displayName) is still the early release path. \(emergencyCountSentence)"
       }
@@ -1273,37 +1655,6 @@ struct ContentView: View {
 
   private var activePairedTag: PairedTag? {
     viewModel.activePairedTag
-  }
-
-  private var anchorValue: String {
-    if let activePairedTag {
-      return activePairedTag.displayName
-    }
-
-    switch viewModel.snapshot.pairedTags.count {
-    case 0:
-      return "Not paired"
-    case 1:
-      return viewModel.snapshot.pairedTags[0].displayName
-    default:
-      return "\(viewModel.snapshot.pairedTags.count) paired"
-    }
-  }
-
-  private var anchorPreviewTag: PairedTag? {
-    activePairedTag ?? viewModel.snapshot.pairedTags.first
-  }
-
-  private var anchorPreviewLabel: String {
-    activePairedTag == nil ? "Anchor ID" : "Active anchor ID"
-  }
-
-  private var fingerprintDetail: String {
-    if let activePairedTag {
-      return "\(activePairedTag.displayName) is the anchor that must release the current session."
-    }
-
-    return "Short preview of a paired anchor fingerprint."
   }
 
   private func isActiveAnchor(_ tagID: UUID) -> Bool {
@@ -1485,6 +1836,81 @@ struct ContentView: View {
     }
 
     return nil
+  }
+}
+
+private struct HomeSectionSheet<Content: View>: View {
+  let title: String
+  let subtitle: String
+  let content: Content
+
+  @Environment(\.dismiss) private var dismiss
+
+  init(
+    title: String,
+    subtitle: String,
+    @ViewBuilder content: () -> Content
+  ) {
+    self.title = title
+    self.subtitle = subtitle
+    self.content = content()
+  }
+
+  var body: some View {
+    ZStack(alignment: .top) {
+      AnclaTheme.background
+        .ignoresSafeArea()
+
+      ScrollView(showsIndicators: false) {
+        VStack(alignment: .leading, spacing: 20) {
+          Capsule(style: .continuous)
+            .fill(AnclaTheme.tertiaryText.opacity(0.6))
+            .frame(width: 40, height: 4)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 8)
+
+          HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 8) {
+              Text(title)
+                .font(.ancla(30, weight: .medium))
+                .foregroundStyle(AnclaTheme.primaryText)
+
+              Text(subtitle)
+                .font(.ancla(14))
+                .foregroundStyle(AnclaTheme.secondaryText)
+            }
+
+            Spacer(minLength: 16)
+
+            Button {
+              dismiss()
+            } label: {
+              Image(systemName: "xmark")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AnclaTheme.secondaryText)
+                .frame(width: 36, height: 36)
+                .background(
+                  Circle()
+                    .fill(AnclaTheme.panelInteractive)
+                    .overlay(
+                      Circle()
+                        .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                    )
+                )
+            }
+            .buttonStyle(.plain)
+          }
+
+          content
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 16)
+        .padding(.bottom, 32)
+      }
+    }
+    .preferredColorScheme(.dark)
+    .presentationDetents([.large])
+    .presentationDragIndicator(.hidden)
   }
 }
 
