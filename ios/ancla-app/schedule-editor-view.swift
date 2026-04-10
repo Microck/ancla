@@ -16,9 +16,29 @@ struct ScheduleEditorView: View {
     (7, "S", "Saturday"),
   ]
 
+  private var isWarningThemeActive: Bool {
+    viewModel.activeSessionIsBlocking
+  }
+
+  private var chromePanelInteractive: Color {
+    isWarningThemeActive ? AnclaTheme.livePanelInteractive : AnclaTheme.panelInteractive
+  }
+
+  private var chromePanelRaised: Color {
+    isWarningThemeActive ? AnclaTheme.livePanelRaised : AnclaTheme.panelRaised
+  }
+
+  private var chromePanelStroke: Color {
+    isWarningThemeActive ? AnclaTheme.livePanelStroke : AnclaTheme.panelStroke
+  }
+
+  private var chromeCtaFill: Color {
+    isWarningThemeActive ? AnclaTheme.liveTint : AnclaTheme.ctaFill
+  }
+
   var body: some View {
     ZStack(alignment: .top) {
-      AnclaTheme.background
+      AnclaBackgroundSurface(isWarningTinted: isWarningThemeActive)
         .ignoresSafeArea()
 
       VStack(spacing: 0) {
@@ -37,10 +57,10 @@ struct ScheduleEditorView: View {
           .frame(height: 38)
           .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-              .fill(AnclaTheme.panelInteractive)
+              .fill(chromePanelInteractive)
               .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                  .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                  .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
               )
           )
 
@@ -66,7 +86,7 @@ struct ScheduleEditorView: View {
           .frame(height: 38)
           .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-              .fill(AnclaTheme.ctaFill)
+              .fill(chromeCtaFill)
           )
           .overlay {
             if viewModel.isActionInProgress(.saveSchedule) {
@@ -158,15 +178,15 @@ struct ScheduleEditorView: View {
                   RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(
                       viewModel.draftScheduleWeekdayNumbers.contains(weekday.number)
-                        ? AnclaTheme.panelRaised
-                        : AnclaTheme.panelInteractive
+                        ? chromePanelRaised
+                        : chromePanelInteractive
                     )
                     .overlay(
                       RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(
                           viewModel.draftScheduleWeekdayNumbers.contains(weekday.number)
                             ? AnclaTheme.accentStroke.opacity(0.55)
-                            : AnclaTheme.panelStroke.opacity(0.75),
+                            : chromePanelStroke.opacity(0.75),
                           lineWidth: 1
                         )
                     )
@@ -258,10 +278,10 @@ struct ScheduleEditorView: View {
             .padding(16)
             .background(
               RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(AnclaTheme.panelInteractive)
+                .fill(chromePanelInteractive)
                 .overlay(
                   RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                    .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
                 )
             )
             .padding(.top, 22)
@@ -338,11 +358,11 @@ struct ScheduleEditorView: View {
       .padding(16)
       .background(
         RoundedRectangle(cornerRadius: 18, style: .continuous)
-          .fill(isSelected ? AnclaTheme.panelRaised : AnclaTheme.panelInteractive)
+          .fill(isSelected ? chromePanelRaised : chromePanelInteractive)
           .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
               .stroke(
-                isSelected ? AnclaTheme.accentStroke.opacity(0.55) : AnclaTheme.panelStroke.opacity(0.75),
+                isSelected ? AnclaTheme.accentStroke.opacity(0.55) : chromePanelStroke.opacity(0.75),
                 lineWidth: 1
               )
           )
@@ -371,10 +391,10 @@ struct ScheduleEditorView: View {
           .frame(width: 92, height: 42)
           .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-              .fill(AnclaTheme.panelInteractive)
+              .fill(chromePanelInteractive)
               .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                  .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                  .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
               )
           )
 
@@ -385,10 +405,10 @@ struct ScheduleEditorView: View {
           .frame(height: 42)
           .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-              .fill(AnclaTheme.panelRaised)
+              .fill(chromePanelRaised)
               .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                  .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                  .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
               )
           )
 
@@ -398,10 +418,10 @@ struct ScheduleEditorView: View {
           .frame(width: 92, height: 42)
           .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-              .fill(AnclaTheme.panelInteractive)
+              .fill(chromePanelInteractive)
               .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                  .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                  .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
               )
           )
       }

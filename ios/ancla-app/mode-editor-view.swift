@@ -8,9 +8,29 @@ struct ModeEditorView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var isShortcutGuidesPresented = false
 
+  private var isWarningThemeActive: Bool {
+    viewModel.activeSessionIsBlocking
+  }
+
+  private var chromePanelInteractive: Color {
+    isWarningThemeActive ? AnclaTheme.livePanelInteractive : AnclaTheme.panelInteractive
+  }
+
+  private var chromePanelRaised: Color {
+    isWarningThemeActive ? AnclaTheme.livePanelRaised : AnclaTheme.panelRaised
+  }
+
+  private var chromePanelStroke: Color {
+    isWarningThemeActive ? AnclaTheme.livePanelStroke : AnclaTheme.panelStroke
+  }
+
+  private var chromeCtaFill: Color {
+    isWarningThemeActive ? AnclaTheme.liveTint : AnclaTheme.ctaFill
+  }
+
   var body: some View {
     ZStack(alignment: .top) {
-      AnclaTheme.background
+      AnclaBackgroundSurface(isWarningTinted: isWarningThemeActive)
         .ignoresSafeArea()
 
       VStack(spacing: 0) {
@@ -29,10 +49,10 @@ struct ModeEditorView: View {
           .frame(height: 38)
           .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-              .fill(AnclaTheme.panelInteractive)
+              .fill(chromePanelInteractive)
               .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                  .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                  .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
               )
           )
 
@@ -58,7 +78,7 @@ struct ModeEditorView: View {
           .frame(height: 38)
           .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-              .fill(AnclaTheme.ctaFill)
+              .fill(chromeCtaFill)
           )
           .overlay {
             if viewModel.isActionInProgress(.saveMode) {
@@ -158,10 +178,10 @@ struct ModeEditorView: View {
             .frame(minHeight: 68)
             .background(
               RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(AnclaTheme.panelInteractive)
+                .fill(chromePanelInteractive)
                 .overlay(
                   RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                    .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
                 )
             )
             .padding(.top, 64)
@@ -276,10 +296,10 @@ struct ModeEditorView: View {
       .padding(16)
       .background(
         RoundedRectangle(cornerRadius: 18, style: .continuous)
-          .fill(AnclaTheme.panelInteractive)
+          .fill(chromePanelInteractive)
           .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-              .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+              .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
           )
       )
     }

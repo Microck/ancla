@@ -6,8 +6,8 @@ import SwiftUI
 private enum NextStep {
   case authorize
   case unavailable
+  case modeRequired
   case pairAnchor
-  case createMode
   case release
   case arm
   case rearm
@@ -61,10 +61,42 @@ struct ContentView: View {
   @State private var renamingAnchorID: UUID?
   @State private var anchorNameDraft = ""
 
+  private var isWarningThemeActive: Bool {
+    viewModel.activeSessionIsBlocking
+  }
+
+  private var chromePanelRaised: Color {
+    isWarningThemeActive ? AnclaTheme.livePanelRaised : AnclaTheme.panelRaised
+  }
+
+  private var chromePanelInteractive: Color {
+    isWarningThemeActive ? AnclaTheme.livePanelInteractive : AnclaTheme.panelInteractive
+  }
+
+  private var chromePanelStroke: Color {
+    isWarningThemeActive ? AnclaTheme.livePanelStroke : AnclaTheme.panelStroke
+  }
+
+  private var dockShellFill: Color {
+    isWarningThemeActive ? AnclaTheme.livePanel : Color.black.opacity(0.96)
+  }
+
+  private var dockShellStroke: Color {
+    isWarningThemeActive ? AnclaTheme.liveTint.opacity(0.22) : Color.white.opacity(0.08)
+  }
+
+  private var primaryActionFill: Color {
+    isWarningThemeActive ? AnclaTheme.liveTint : Color.black
+  }
+
+  private var primaryActionShadow: Color {
+    isWarningThemeActive ? AnclaTheme.liveTint.opacity(0.42) : Color.black.opacity(0.35)
+  }
+
   var body: some View {
     NavigationStack {
       ZStack {
-        AnclaTheme.background
+        AnclaBackgroundSurface(isWarningTinted: isWarningThemeActive)
           .ignoresSafeArea()
 
         ScrollView(showsIndicators: false) {
@@ -165,10 +197,10 @@ struct ContentView: View {
         .padding(.vertical, 9)
         .background(
           Capsule(style: .continuous)
-            .fill(AnclaTheme.panelRaised)
+            .fill(chromePanelRaised)
             .overlay(
               Capsule(style: .continuous)
-                .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
             )
         )
       }
@@ -182,10 +214,10 @@ struct ContentView: View {
             .frame(width: 36, height: 36)
             .background(
               Circle()
-                .fill(AnclaTheme.panelRaised)
+                .fill(chromePanelRaised)
                 .overlay(
                   Circle()
-                    .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                    .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
                 )
             )
         }
@@ -718,10 +750,10 @@ struct ContentView: View {
     .padding(feedbackRowPadding)
     .background(
       RoundedRectangle(cornerRadius: 16, style: .continuous)
-        .fill(AnclaTheme.panelInteractive)
+        .fill(chromePanelInteractive)
         .overlay(
           RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .stroke(color.opacity(0.22), lineWidth: 1)
+            .stroke((isWarningThemeActive ? chromePanelStroke : color.opacity(0.22)), lineWidth: 1)
         )
     )
   }
@@ -729,11 +761,11 @@ struct ContentView: View {
   private var bottomDock: some View {
     ZStack(alignment: .top) {
       RoundedRectangle(cornerRadius: 34, style: .continuous)
-        .fill(Color.black.opacity(0.96))
+        .fill(dockShellFill)
         .frame(height: 94)
         .overlay(
           RoundedRectangle(cornerRadius: 34, style: .continuous)
-            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            .stroke(dockShellStroke, lineWidth: 1)
         )
 
       HStack(alignment: .bottom, spacing: 8) {
@@ -762,13 +794,13 @@ struct ContentView: View {
         .frame(width: 84, height: 84)
         .background(
           Circle()
-            .fill(Color.black)
+            .fill(primaryActionFill)
         )
         .overlay(
           Circle()
-            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            .stroke(dockShellStroke, lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.35), radius: 24, y: 16)
+        .shadow(color: primaryActionShadow, radius: 24, y: 16)
       }
       .buttonStyle(.plain)
       .disabled(primaryActionDisabled || viewModel.isBusy)
@@ -780,7 +812,7 @@ struct ContentView: View {
     .padding(.horizontal, 16)
     .padding(.top, 16)
     .padding(.bottom, 18)
-    .background(AnclaTheme.background)
+    .background(AnclaBackgroundSurface(isWarningTinted: isWarningThemeActive))
   }
 
   private func sectionTabButton(_ section: HomeSection) -> some View {
@@ -807,7 +839,7 @@ struct ContentView: View {
 
   private var renameAnchorSheet: some View {
     ZStack {
-      AnclaTheme.background
+      AnclaBackgroundSurface(isWarningTinted: isWarningThemeActive)
         .ignoresSafeArea()
 
       VStack(alignment: .leading, spacing: 20) {
@@ -827,10 +859,10 @@ struct ContentView: View {
           .frame(height: 38)
           .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-              .fill(AnclaTheme.panelInteractive)
+              .fill(chromePanelInteractive)
               .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                  .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+                  .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
               )
           )
 
@@ -859,7 +891,7 @@ struct ContentView: View {
           .frame(height: 38)
           .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-              .fill(AnclaTheme.ctaFill)
+              .fill(isWarningThemeActive ? AnclaTheme.liveTint : AnclaTheme.ctaFill)
           )
           .overlay {
             if viewModel.isActionInProgress(.renameAnchor) {
@@ -911,10 +943,10 @@ struct ContentView: View {
       return "Grant App Controls once, then save a mode and pair an anchor."
     case .unavailable:
       return "This device cannot scan NFC anchors, so pairing and release stay unavailable here."
+    case .modeRequired:
+      return "Save a mode in the Mode section. The center action stays reserved for pairing and block control."
     case .pairAnchor:
       return "Pair one anchor to move the release path off the screen and into the room."
-    case .createMode:
-      return "Save one mode so Ancla has a block ready to arm."
     case .release:
       if let activePairedTag {
         return "\(activePairedTag.displayName) is the only anchor that can end this live block."
@@ -936,10 +968,10 @@ struct ContentView: View {
       return "SETUP"
     case .unavailable:
       return "UNAVAILABLE"
+    case .modeRequired:
+      return "MODE"
     case .pairAnchor:
       return "PAIR"
-    case .createMode:
-      return "MODE"
     case .release:
       return "LIVE"
     case .arm:
@@ -1114,10 +1146,10 @@ struct ContentView: View {
       return "Enable App Controls"
     case .unavailable:
       return "NFC Unavailable"
+    case .modeRequired:
+      return "Mode Required"
     case .pairAnchor:
       return "Pair Anchor"
-    case .createMode:
-      return "Create Mode"
     case .release:
       return "End Block"
     case .arm:
@@ -1133,10 +1165,10 @@ struct ContentView: View {
       return "Give Ancla the permission it needs before the first block."
     case .unavailable:
       return "This device cannot scan NFC anchors."
+    case .modeRequired:
+      return "Save a mode in the Mode section before starting a block."
     case .pairAnchor:
       return "Scan the first release anchor."
-    case .createMode:
-      return "Save one mode so the first block has a target."
     case .release:
       if let activePairedTag {
         return "\(activePairedTag.displayName) must be scanned to end the live block."
@@ -1158,10 +1190,10 @@ struct ContentView: View {
       return "checkmark.shield"
     case .unavailable:
       return "exclamationmark.triangle"
+    case .modeRequired:
+      return "plus"
     case .pairAnchor:
       return "dot.radiowaves.left.and.right"
-    case .createMode:
-      return "plus"
     case .release:
       return "lock.open"
     case .arm:
@@ -1177,10 +1209,10 @@ struct ContentView: View {
       return .authorize
     case .unavailable:
       return .refresh
+    case .modeRequired:
+      return .saveMode
     case .pairAnchor:
       return .pairAnchor
-    case .createMode:
-      return .saveMode
     case .release:
       return .releaseSession
     case .arm, .rearm:
@@ -1194,9 +1226,9 @@ struct ContentView: View {
       return false
     case .unavailable:
       return true
+    case .modeRequired:
+      return true
     case .pairAnchor:
-      return false
-    case .createMode:
       return false
     case .release:
       return !viewModel.canReleaseActiveSession
@@ -1211,11 +1243,10 @@ struct ContentView: View {
       Task { await viewModel.requestAuthorization() }
     case .unavailable:
       break
+    case .modeRequired:
+      selectedSection = .modes
     case .pairAnchor:
       Task { await viewModel.pairSticker() }
-    case .createMode:
-      viewModel.prepareDraftForNewMode()
-      isModeEditorPresented = true
     case .release:
       Task { await viewModel.releaseActiveSession() }
     case .arm, .rearm:
@@ -1229,10 +1260,6 @@ struct ContentView: View {
     }
 
     if !viewModel.isNFCAvailable {
-      if !viewModel.hasAnyMode {
-        return .createMode
-      }
-
       return .unavailable
     }
 
@@ -1241,7 +1268,7 @@ struct ContentView: View {
     }
 
     if !viewModel.hasAnyMode {
-      return .createMode
+      return .modeRequired
     }
 
     if viewModel.canReleaseActiveSession {
@@ -1257,7 +1284,7 @@ struct ContentView: View {
 
   private var surfaceDivider: some View {
     Rectangle()
-      .fill(AnclaTheme.panelStroke.opacity(0.55))
+      .fill(chromePanelStroke.opacity(0.55))
       .frame(height: 1)
   }
 
