@@ -306,7 +306,7 @@ struct ContentView: View {
             isLoading: false
           )
         }
-        .buttonStyle(AnclaPressableButtonStyle())
+        .buttonStyle(.plain)
         .disabled(viewModel.isBusy)
       }
 
@@ -321,7 +321,7 @@ struct ContentView: View {
           isLoading: false
         )
       }
-      .buttonStyle(AnclaPressableButtonStyle())
+      .buttonStyle(.plain)
       .disabled(viewModel.isBusy)
     }
   }
@@ -351,7 +351,7 @@ struct ContentView: View {
           isLoading: viewModel.isActionInProgress(.pairAnchor)
         )
       }
-      .buttonStyle(AnclaPressableButtonStyle())
+      .buttonStyle(.plain)
       .disabled(viewModel.isBusy)
     }
   }
@@ -383,7 +383,7 @@ struct ContentView: View {
           isLoading: false
         )
       }
-      .buttonStyle(AnclaPressableButtonStyle())
+      .buttonStyle(.plain)
       .disabled(viewModel.isBusy || !canCreateScheduledPlan)
       .opacity(viewModel.isBusy || !canCreateScheduledPlan ? 0.65 : 1)
     }
@@ -419,13 +419,7 @@ struct ContentView: View {
             isDestructive: true
           )
         }
-        .buttonStyle(
-          AnclaPressableButtonStyle(
-            background: AnclaTheme.panelInteractive,
-            pressedBackground: AnclaTheme.panelRaised,
-            stroke: AnclaTheme.errorText.opacity(0.32)
-          )
-        )
+        .buttonStyle(.plain)
         .disabled(viewModel.isBusy || !viewModel.canUseEmergencyUnbrick)
         .opacity(viewModel.canUseEmergencyUnbrick ? 1 : 0.65)
       }
@@ -449,7 +443,7 @@ struct ContentView: View {
             isLoading: false
           )
         }
-        .buttonStyle(AnclaPressableButtonStyle())
+        .buttonStyle(.plain)
         .disabled(viewModel.isBusy)
       }
 
@@ -502,7 +496,7 @@ struct ContentView: View {
           isLoading: false
         )
       }
-      .buttonStyle(AnclaPressableButtonStyle())
+      .buttonStyle(.plain)
       .disabled(viewModel.isBusy)
 
       Button {
@@ -516,13 +510,7 @@ struct ContentView: View {
           isDestructive: true
         )
       }
-      .buttonStyle(
-        AnclaPressableButtonStyle(
-          background: AnclaTheme.panelInteractive,
-          pressedBackground: AnclaTheme.panelRaised,
-          stroke: AnclaTheme.errorText.opacity(0.32)
-        )
-      )
+      .buttonStyle(.plain)
       .disabled(viewModel.isBusy)
     }
   }
@@ -548,7 +536,7 @@ struct ContentView: View {
           isLoading: false
         )
       }
-      .buttonStyle(AnclaPressableButtonStyle())
+      .buttonStyle(.plain)
       .disabled(viewModel.isBusy)
 
       Button {
@@ -562,13 +550,7 @@ struct ContentView: View {
           isDestructive: true
         )
       }
-      .buttonStyle(
-        AnclaPressableButtonStyle(
-          background: AnclaTheme.panelInteractive,
-          pressedBackground: AnclaTheme.panelRaised,
-          stroke: AnclaTheme.errorText.opacity(0.32)
-        )
-      )
+      .buttonStyle(.plain)
       .disabled(viewModel.isBusy)
     }
   }
@@ -607,18 +589,7 @@ struct ContentView: View {
           .foregroundStyle(AnclaTheme.secondaryText)
       }
     }
-    .padding(16)
-    .background(
-      RoundedRectangle(cornerRadius: 18, style: .continuous)
-        .fill(highlight ? AnclaTheme.panelRaised : AnclaTheme.panelInteractive)
-        .overlay(
-          RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .stroke(
-              highlight ? AnclaTheme.accentStroke.opacity(0.55) : AnclaTheme.panelStroke.opacity(0.75),
-              lineWidth: 1
-            )
-        )
-    )
+    .padding(.vertical, 14)
   }
 
   private func actionRow(
@@ -662,7 +633,7 @@ struct ContentView: View {
         .font(.system(size: 12, weight: .semibold))
         .foregroundStyle(AnclaTheme.tertiaryText)
     }
-    .padding(16)
+    .padding(.vertical, 14)
   }
 
   private func modeRow(_ mode: BlockMode) -> some View {
@@ -699,18 +670,7 @@ struct ContentView: View {
         .font(.system(size: 16, weight: .semibold))
         .foregroundStyle(isSelected ? AnclaTheme.accentFill : AnclaTheme.tertiaryText)
     }
-    .padding(16)
-    .background(
-      RoundedRectangle(cornerRadius: 18, style: .continuous)
-        .fill(isSelected ? AnclaTheme.panelRaised : AnclaTheme.panelInteractive)
-        .overlay(
-          RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .stroke(
-              isSelected ? AnclaTheme.accentStroke.opacity(0.55) : AnclaTheme.panelStroke.opacity(0.75),
-              lineWidth: 1
-            )
-        )
-    )
+    .padding(.vertical, 14)
   }
 
   private func historyRow(_ entry: SessionHistoryEntry) -> some View {
@@ -732,15 +692,7 @@ struct ContentView: View {
         .foregroundStyle(AnclaTheme.secondaryText)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-    .padding(16)
-    .background(
-      RoundedRectangle(cornerRadius: 18, style: .continuous)
-        .fill(AnclaTheme.panelInteractive)
-        .overlay(
-          RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
-        )
-    )
+    .padding(.vertical, 14)
   }
 
   private var feedbackRowPadding: CGFloat { 14 }
@@ -785,54 +737,43 @@ struct ContentView: View {
   private var bottomDock: some View {
     ZStack(alignment: .top) {
       RoundedRectangle(cornerRadius: 34, style: .continuous)
-        .fill(Color(red: 0.94, green: 0.92, blue: 0.88))
+        .fill(Color.black.opacity(0.96))
         .frame(height: 94)
         .overlay(
           RoundedRectangle(cornerRadius: 34, style: .continuous)
-            .stroke(Color.black.opacity(0.06), lineWidth: 1)
+            .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
 
       HStack(alignment: .bottom, spacing: 8) {
         sectionTabButton(.modes)
-        sectionTabButton(.anchors)
-
-        Spacer(minLength: 104)
-
         sectionTabButton(.schedules)
+
+        Spacer(minLength: 92)
+
+        sectionTabButton(.anchors)
         sectionTabButton(.sessions)
       }
       .padding(.horizontal, 18)
       .padding(.top, 20)
 
       Button(action: primaryAction) {
-        VStack(spacing: 7) {
-          Group {
-            if viewModel.isActionInProgress(primaryActionID) {
-              ProgressView()
-                .tint(Color.white)
-            } else {
-              Image(systemName: primaryActionSymbol)
-                .font(.system(size: 22, weight: .semibold))
-            }
+        Group {
+          if viewModel.isActionInProgress(primaryActionID) {
+            ProgressView()
+              .tint(Color.white)
+          } else {
+            Image(systemName: primaryActionSymbol)
+              .font(.system(size: 28, weight: .semibold))
           }
-          .frame(height: 24)
-
-          Text("Ancla")
-            .font(.ancla(16, weight: .semibold))
-
-          Text(primaryActionTitle)
-            .font(.ancla(10, weight: .medium))
-            .multilineTextAlignment(.center)
-            .lineLimit(2)
         }
         .foregroundStyle(Color.white)
-        .frame(width: 108, height: 122)
+        .frame(width: 84, height: 84)
         .background(
-          RoundedRectangle(cornerRadius: 34, style: .continuous)
+          Circle()
             .fill(Color.black)
         )
         .overlay(
-          RoundedRectangle(cornerRadius: 34, style: .continuous)
+          Circle()
             .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.35), radius: 24, y: 16)
@@ -840,7 +781,7 @@ struct ContentView: View {
       .buttonStyle(.plain)
       .disabled(primaryActionDisabled || viewModel.isBusy)
       .opacity(primaryActionDisabled || viewModel.isBusy ? 0.55 : 1)
-      .offset(y: -34)
+      .offset(y: -18)
       .accessibilityLabel(primaryActionTitle)
       .accessibilityHint(primaryActionDetail)
     }
@@ -865,7 +806,7 @@ struct ContentView: View {
           .font(.ancla(11, weight: isSelected ? .semibold : .medium))
           .lineLimit(1)
       }
-      .foregroundStyle(isSelected ? Color.black : Color.black.opacity(0.55))
+      .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.55))
       .frame(maxWidth: .infinity)
       .padding(.vertical, 10)
     }
