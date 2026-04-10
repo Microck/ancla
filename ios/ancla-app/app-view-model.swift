@@ -3,6 +3,9 @@ import FamilyControls
 #endif
 import Foundation
 import Observation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 enum AppActionID: Equatable {
   case refresh
@@ -11,11 +14,15 @@ enum AppActionID: Equatable {
   case armSession
   case releaseSession
   case emergencyUnbrick
+  case paragraphChallenge
+  case presetUnlock
   case renameAnchor
   case removeAnchor
   case saveMode
   case saveSchedule
   case removeSchedule
+  case savePreset
+  case removePreset
 }
 
 enum ActionFeedbackTone {
@@ -48,6 +55,10 @@ final class AppViewModel {
   var draftScheduleStartMinuteOfDay = 9 * 60
   var draftScheduleEndMinuteOfDay = 17 * 60
   var draftScheduleIsEnabled = true
+  var draftPresetID: UUID?
+  var draftPresetTitle = "Check 2FA"
+  var draftPresetDetail = "Open Messages long enough to read a code."
+  var draftPresetDurationSeconds = 10
   var draftTagName = "Desk anchor"
   var selectedModeID: UUID?
   var isPickerPresented = false
@@ -55,6 +66,7 @@ final class AppViewModel {
   var activeAction: AppActionID?
   var lastError: String?
   var feedback: ActionFeedback?
+  var activeParagraphChallengeID: UUID?
 
   private let store: any AppSnapshotStore
   private let authorizationClient: any AuthorizationClienting
@@ -63,6 +75,10 @@ final class AppViewModel {
   private let runtimeDiagnosticsProbe: any RuntimeDiagnosticsProbing
   private let scheduleNotificationService: any ScheduleNotifying
   private let nowProvider: () -> Date
+  @ObservationIgnored private var temporaryUnlockTask: Task<Void, Never>?
+#if canImport(UIKit)
+  @ObservationIgnored private var temporaryUnlockBackgroundTask: UIBackgroundTaskIdentifier = .invalid
+#endif
 
   init(
     buildVariant: AppBuildVariant = .current,
@@ -183,6 +199,54 @@ final class AppViewModel {
     AnclaCore.sortedScheduledPlans(snapshot.scheduledPlans, at: nowProvider())
   }
 
+  var unlockPresetsForDisplay: [UnlockPreset] {
+    AnclaCore.sortedUnlockPresets(snapshot.unlockPresets)
+  }
+
+  var paragraphChallengesForDisplay: [ParagraphChallengePassage] {
+    snapshot.paragraphChallenges
+  }
+
+  var paragraphChallengeEnabled: Bool {
+    snapshot.paragraphChallengeEnabled
+  }
+
+  var canUseParagraphChallenge: Bool {
+    AnclaCore.canUseParagraphChallenge(snapshot)
+  }
+
+  var isTemporaryUnlockActive: Bool {
+    AnclaCore.temporaryUnlockIsActive(snapshot, at: nowProvider())
+  }
+
+  var shouldShowLockedScreen: Bool {
+    AnclaCore.blockedPresentationIsActive(snapshot, at: nowProvider())
+  }
+
+  var activeTemporaryUnlock: TemporaryUnlockState? {
+    guard isTemporaryUnlockActive else {
+      return nil
+    }
+
+    return snapshot.temporaryUnlock
+  }
+
+  var activeParagraphChallenge: ParagraphChallengePassage? {
+    guard let activeParagraphChallengeID else {
+      return nil
+    }
+
+    return snapshot.paragraphChallenges.first(where: { $0.id == activeParagraphChallengeID })
+  }
+
+  var temporaryUnlockRemainingSeconds: Int {
+    guard let activeTemporaryUnlock else {
+      return 0
+    }
+
+    return max(0, Int(ceil(activeTemporaryUnlock.expiresAt.timeIntervalSince(nowProvider()))))
+  }
+
   var canSaveDraftSchedule: Bool {
     draftScheduleModeID != nil
       && draftSchedulePairedTagID != nil
@@ -206,6 +270,7 @@ final class AppViewModel {
     selectedModeID = preferredMode()?.id
     prepareDraftForNewMode()
     prepareDraftForNewSchedule()
+    prepareDraftForNewPreset()
     _ = syncScheduledSessions()
     refreshScheduleNotifications()
   }
@@ -332,6 +397,14 @@ final class AppViewModel {
     draftScheduleIsEnabled = true
   }
 
+  func prepareDraftForNewPreset() {
+    lastError = nil
+    draftPresetID = nil
+    draftPresetTitle = "Check 2FA"
+    draftPresetDetail = "Open Messages long enough to read a code."
+    draftPresetDurationSeconds = 10
+  }
+
   func prepareDraftForEditingMode(_ modeID: UUID) {
     lastError = nil
     guard let mode = snapshot.modes.first(where: { $0.id == modeID }) else {
@@ -377,6 +450,19 @@ final class AppViewModel {
     draftScheduleIsEnabled = plan.isEnabled
   }
 
+  func prepareDraftForEditingPreset(_ presetID: UUID) {
+    lastError = nil
+    guard let preset = snapshot.unlockPresets.first(where: { $0.id == presetID }) else {
+      lastError = ValidationError.missingUnlockPreset.localizedDescription
+      return
+    }
+
+    draftPresetID = preset.id
+    draftPresetTitle = preset.title
+    draftPresetDetail = preset.detail
+    draftPresetDurationSeconds = preset.durationSeconds
+  }
+
   func deleteScheduledPlan(_ planID: UUID) async {
     await runTask(action: .removeSchedule) { [self] in
       guard let index = snapshot.scheduledPlans.firstIndex(where: { $0.id == planID }) else {
@@ -419,6 +505,140 @@ final class AppViewModel {
     draftScheduleStartMinuteOfDay = max(0, minutes - 15)
     draftScheduleEndMinuteOfDay = min(23 * 60 + 59, minutes + 60)
     draftScheduleIsEnabled = true
+  }
+
+  func saveUnlockPreset() async {
+    await runTask(action: .savePreset) { [self] in
+      let trimmedTitle = draftPresetTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+      let trimmedDetail = draftPresetDetail.trimmingCharacters(in: .whitespacesAndNewlines)
+
+      guard !trimmedTitle.isEmpty else {
+        throw ValidationError.invalidUnlockPreset
+      }
+
+      guard (5...300).contains(draftPresetDurationSeconds) else {
+        throw ValidationError.invalidUnlockPreset
+      }
+
+      let preset = UnlockPreset(
+        id: draftPresetID ?? UUID(),
+        title: trimmedTitle,
+        detail: trimmedDetail.isEmpty ? "Temporary access." : trimmedDetail,
+        durationSeconds: draftPresetDurationSeconds,
+        createdAt: existingUnlockPreset()?.createdAt ?? nowProvider()
+      )
+
+      if let index = snapshot.unlockPresets.firstIndex(where: { $0.id == preset.id }) {
+        snapshot.unlockPresets[index] = preset
+      } else {
+        snapshot.unlockPresets.append(preset)
+      }
+
+      try persist()
+      prepareDraftForNewPreset()
+      feedback = ActionFeedback(message: "\"\(preset.title)\" preset saved.", tone: .success)
+    }
+  }
+
+  func deleteUnlockPreset(_ presetID: UUID) async {
+    await runTask(action: .removePreset) { [self] in
+      guard let index = snapshot.unlockPresets.firstIndex(where: { $0.id == presetID }) else {
+        throw ValidationError.missingUnlockPreset
+      }
+
+      let deletedPreset = snapshot.unlockPresets.remove(at: index)
+      if snapshot.temporaryUnlock?.presetID == deletedPreset.id {
+        try restoreShieldingAfterTemporaryUnlock()
+      }
+      try persist()
+      prepareDraftForNewPreset()
+      feedback = ActionFeedback(message: "\"\(deletedPreset.title)\" preset removed.", tone: .success)
+    }
+  }
+
+  func setParagraphChallengeEnabled(_ isEnabled: Bool) async {
+    await runTask(action: .savePreset) { [self] in
+      snapshot.paragraphChallengeEnabled = isEnabled
+      try persist()
+      feedback = ActionFeedback(
+        message: isEnabled ? "Failsafe challenge enabled." : "Failsafe challenge disabled.",
+        tone: .success
+      )
+    }
+  }
+
+  func prepareParagraphChallenge() {
+    lastError = nil
+    activeParagraphChallengeID = snapshot.paragraphChallenges.first?.id
+  }
+
+  func clearParagraphChallenge() {
+    activeParagraphChallengeID = nil
+  }
+
+  func submitParagraphChallenge(_ typedPassage: String) async {
+    await runTask(action: .paragraphChallenge) { [self] in
+      guard
+        let activeSession = snapshot.activeSession,
+        activeSession.state == .armed || activeSession.state == .mismatchedTag
+      else {
+        throw ValidationError.sessionNotArmed
+      }
+
+      guard let challenge = activeParagraphChallenge, canUseParagraphChallenge else {
+        throw ValidationError.paragraphChallengeUnavailable
+      }
+
+      guard normalizedChallengeText(typedPassage) == normalizedChallengeText(challenge.passage) else {
+        throw ValidationError.paragraphChallengeMismatch
+      }
+
+      guard
+        let pairedTag = AnclaCore.pairedTag(for: activeSession.pairedTagId, in: snapshot),
+        let mode = snapshot.modes.first(where: { $0.id == activeSession.modeId })
+      else {
+        throw ValidationError.missingMode
+      }
+
+      clearParagraphChallenge()
+      try completeRelease(
+        activeSession: activeSession,
+        mode: mode,
+        pairedTag: pairedTag,
+        releaseMethod: .paragraphChallenge
+      )
+      feedback = ActionFeedback(message: "Failsafe challenge passed. Session released.", tone: .success)
+    }
+  }
+
+  func activateUnlockPreset(_ presetID: UUID) async {
+    await runTask(action: .presetUnlock) { [self] in
+      guard
+        let activeSession = snapshot.activeSession,
+        activeSession.state == .armed || activeSession.state == .mismatchedTag
+      else {
+        throw ValidationError.sessionNotArmed
+      }
+
+      guard let preset = snapshot.unlockPresets.first(where: { $0.id == presetID }) else {
+        throw ValidationError.missingUnlockPreset
+      }
+
+      shieldingService.clear()
+      let now = nowProvider()
+      snapshot.temporaryUnlock = TemporaryUnlockState(
+        presetID: preset.id,
+        reason: preset.title,
+        startedAt: now,
+        expiresAt: now.addingTimeInterval(TimeInterval(preset.durationSeconds))
+      )
+      try persist()
+      scheduleTemporaryUnlockExpirationIfNeeded()
+      feedback = ActionFeedback(
+        message: "\"\(preset.title)\" unlocked the phone for \(preset.durationSeconds) seconds.",
+        tone: .success
+      )
+    }
   }
 
   func pairSticker() async {
@@ -573,6 +793,9 @@ final class AppViewModel {
 
       if snapshot.activeSession?.modeId == deletedMode.id {
         shieldingService.clear()
+        snapshot.temporaryUnlock = nil
+        clearParagraphChallenge()
+        cancelTemporaryUnlockExpiration()
         snapshot.activeSession = nil
       }
 
@@ -609,6 +832,9 @@ final class AppViewModel {
 
       if snapshot.activeSession?.pairedTagId == removedTag.id {
         shieldingService.clear()
+        snapshot.temporaryUnlock = nil
+        clearParagraphChallenge()
+        cancelTemporaryUnlockExpiration()
         snapshot.activeSession = nil
       }
       try persist()
@@ -715,7 +941,7 @@ final class AppViewModel {
   func syncScheduledSessions() -> Bool {
     let now = nowProvider()
     let dayKey = AnclaCore.dayKey(for: now)
-    var didChange = false
+    var didChange = syncTemporaryUnlockState(at: now)
 
     if let activeSession = snapshot.activeSession,
        let scheduledPlanID = activeSession.scheduledPlanID {
@@ -809,6 +1035,9 @@ final class AppViewModel {
     }
 
     try shieldingService.apply(mode: mode)
+    snapshot.temporaryUnlock = nil
+    clearParagraphChallenge()
+    cancelTemporaryUnlockExpiration()
     snapshot.activeSession = AnchorSession(
       pairedTagId: pairedTag.id,
       modeId: mode.id,
@@ -825,6 +1054,9 @@ final class AppViewModel {
     dayKey: String
   ) throws {
     try shieldingService.apply(mode: mode)
+    snapshot.temporaryUnlock = nil
+    clearParagraphChallenge()
+    cancelTemporaryUnlockExpiration()
     snapshot.activeSession = AnchorSession(
       pairedTagId: pairedTag.id,
       modeId: mode.id,
@@ -848,6 +1080,9 @@ final class AppViewModel {
     releasedAt: Date = .now
   ) throws {
     shieldingService.clear()
+    snapshot.temporaryUnlock = nil
+    clearParagraphChallenge()
+    cancelTemporaryUnlockExpiration()
     let releasedSession = AnchorSession(
       id: activeSession.id,
       pairedTagId: activeSession.pairedTagId,
@@ -893,6 +1128,14 @@ final class AppViewModel {
     return snapshot.scheduledPlans.first(where: { $0.id == draftScheduleID })
   }
 
+  private func existingUnlockPreset() -> UnlockPreset? {
+    guard let draftPresetID else {
+      return nil
+    }
+
+    return snapshot.unlockPresets.first(where: { $0.id == draftPresetID })
+  }
+
   private func releaseDeletedScheduledSession(planID: UUID) throws {
     guard
       let activeSession = snapshot.activeSession,
@@ -933,6 +1176,127 @@ final class AppViewModel {
     )
   }
 
+  private func normalizedChallengeText(_ text: String) -> String {
+    text.replacingOccurrences(of: "\r\n", with: "\n")
+      .replacingOccurrences(of: "\r", with: "\n")
+  }
+
+  private func syncTemporaryUnlockState(at now: Date) -> Bool {
+    guard let temporaryUnlock = snapshot.temporaryUnlock else {
+      cancelTemporaryUnlockExpiration()
+      return false
+    }
+
+    guard AnclaCore.activeSessionIsBlocking(snapshot) else {
+      snapshot.temporaryUnlock = nil
+      cancelTemporaryUnlockExpiration()
+      try? persist()
+      return true
+    }
+
+    guard temporaryUnlock.expiresAt <= now else {
+      scheduleTemporaryUnlockExpirationIfNeeded()
+      return false
+    }
+
+    do {
+      try restoreShieldingAfterTemporaryUnlock()
+      feedback = ActionFeedback(message: "\"\(temporaryUnlock.reason)\" ended. Block restored.", tone: .neutral)
+      return true
+    } catch {
+      lastError = error.localizedDescription
+      feedback = ActionFeedback(message: error.localizedDescription, tone: .error)
+      return false
+    }
+  }
+
+  private func restoreShieldingAfterTemporaryUnlock() throws {
+    guard snapshot.temporaryUnlock != nil else {
+      cancelTemporaryUnlockExpiration()
+      return
+    }
+
+    guard
+      let activeSession = snapshot.activeSession,
+      activeSession.state == .armed || activeSession.state == .mismatchedTag,
+      let mode = snapshot.modes.first(where: { $0.id == activeSession.modeId })
+    else {
+      snapshot.temporaryUnlock = nil
+      cancelTemporaryUnlockExpiration()
+      try persist()
+      return
+    }
+
+    try shieldingService.apply(mode: mode)
+    snapshot.temporaryUnlock = nil
+    cancelTemporaryUnlockExpiration()
+    try persist()
+  }
+
+  private func scheduleTemporaryUnlockExpirationIfNeeded() {
+    guard !AutomatedTestConfig.isRunningTests else {
+      return
+    }
+
+    temporaryUnlockTask?.cancel()
+
+    guard let temporaryUnlock = snapshot.temporaryUnlock else {
+      cancelTemporaryUnlockExpiration()
+      return
+    }
+
+    let remaining = temporaryUnlock.expiresAt.timeIntervalSince(nowProvider())
+    guard remaining > 0 else {
+      Task { @MainActor [weak self] in
+        _ = self?.syncScheduledSessions()
+      }
+      return
+    }
+
+    beginTemporaryUnlockBackgroundTask()
+    temporaryUnlockTask = Task { @MainActor [weak self] in
+      let nanoseconds = UInt64(remaining * 1_000_000_000)
+      try? await Task.sleep(nanoseconds: nanoseconds)
+      guard !Task.isCancelled else {
+        return
+      }
+      _ = self?.syncScheduledSessions()
+    }
+  }
+
+  private func cancelTemporaryUnlockExpiration() {
+    temporaryUnlockTask?.cancel()
+    temporaryUnlockTask = nil
+    endTemporaryUnlockBackgroundTask()
+  }
+
+#if canImport(UIKit)
+  private func beginTemporaryUnlockBackgroundTask() {
+    guard temporaryUnlockBackgroundTask == .invalid else {
+      return
+    }
+
+    temporaryUnlockBackgroundTask = UIApplication.shared.beginBackgroundTask(withName: "ancla-preset-unlock") { [weak self] in
+      Task { @MainActor in
+        self?.endTemporaryUnlockBackgroundTask()
+      }
+    }
+  }
+
+  private func endTemporaryUnlockBackgroundTask() {
+    guard temporaryUnlockBackgroundTask != .invalid else {
+      return
+    }
+
+    UIApplication.shared.endBackgroundTask(temporaryUnlockBackgroundTask)
+    temporaryUnlockBackgroundTask = .invalid
+  }
+#else
+  private func beginTemporaryUnlockBackgroundTask() {}
+
+  private func endTemporaryUnlockBackgroundTask() {}
+#endif
+
   private func runTask(
     action: AppActionID,
     successMessage: String? = nil,
@@ -967,6 +1331,7 @@ enum ValidationError: LocalizedError {
   case missingAuthorization
   case missingPairedTag
   case missingMode
+  case missingUnlockPreset
   case noTargetsSelected
   case noEmergencyUnbricksRemaining
   case duplicatePairedTag
@@ -975,6 +1340,9 @@ enum ValidationError: LocalizedError {
   case sessionNotArmed
   case missingScheduledSession
   case invalidScheduledSession
+  case invalidUnlockPreset
+  case paragraphChallengeUnavailable
+  case paragraphChallengeMismatch
 
   var errorDescription: String? {
     switch self {
@@ -984,6 +1352,8 @@ enum ValidationError: LocalizedError {
       return "Pair an anchor before starting a session."
     case .missingMode:
       return "Create a mode before starting a session."
+    case .missingUnlockPreset:
+      return "Create a preset before trying to use it."
     case .noTargetsSelected:
       return "Choose at least one app, category, or domain."
     case .noEmergencyUnbricksRemaining:
@@ -1000,6 +1370,12 @@ enum ValidationError: LocalizedError {
       return "Create a scheduled session before editing it."
     case .invalidScheduledSession:
       return "Pick a mode, pick an anchor, choose at least one day, and keep the end time after the start time."
+    case .invalidUnlockPreset:
+      return "Give the preset a name and keep the duration between 5 and 300 seconds."
+    case .paragraphChallengeUnavailable:
+      return "No paragraph challenge is available for this session."
+    case .paragraphChallengeMismatch:
+      return "The text must match exactly, including punctuation."
     }
   }
 }

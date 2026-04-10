@@ -30,7 +30,7 @@ private enum HomeSection: String, Identifiable, CaseIterable {
     case .schedules:
       return "Schedule"
     case .sessions:
-      return "Sessions"
+      return "Unlock"
     }
   }
 
@@ -43,7 +43,7 @@ private enum HomeSection: String, Identifiable, CaseIterable {
     case .schedules:
       return "calendar"
     case .sessions:
-      return "clock.arrow.circlepath"
+      return "lock.open"
     }
   }
 }
@@ -57,32 +57,31 @@ struct ContentView: View {
   @State private var selectedSection: HomeSection = .modes
   @State private var isModeEditorPresented = false
   @State private var isScheduleEditorPresented = false
+  @State private var isPresetEditorPresented = false
+  @State private var isParagraphChallengePresented = false
   @State private var isShortcutGuidesPresented = false
+  @State private var isUnlockMenuPresented = false
   @State private var renamingAnchorID: UUID?
   @State private var anchorNameDraft = ""
 
-  private var isWarningThemeActive: Bool {
-    viewModel.activeSessionIsBlocking
-  }
-
   private var chromePanelRaised: Color {
-    isWarningThemeActive ? AnclaTheme.livePanelRaised : AnclaTheme.panelRaised
+    AnclaTheme.panelRaised
   }
 
   private var chromePanelInteractive: Color {
-    isWarningThemeActive ? AnclaTheme.livePanelInteractive : AnclaTheme.panelInteractive
+    AnclaTheme.panelInteractive
   }
 
   private var chromePanelStroke: Color {
-    isWarningThemeActive ? AnclaTheme.livePanelStroke : AnclaTheme.panelStroke
+    AnclaTheme.panelStroke
   }
 
   private var primaryActionFill: Color {
-    isWarningThemeActive ? AnclaTheme.liveTint : Color.black
+    Color.black
   }
 
   private var primaryActionShadow: Color {
-    isWarningThemeActive ? AnclaTheme.liveTint.opacity(0.42) : Color.black.opacity(0.35)
+    Color.black.opacity(0.35)
   }
 
   private var primaryActionBlocksTapThrough: Bool {
@@ -92,28 +91,56 @@ struct ContentView: View {
   var body: some View {
     NavigationStack {
       ZStack {
-        AnclaBackgroundSurface(isWarningTinted: isWarningThemeActive)
+        AnclaBackgroundSurface(isWarningTinted: false)
           .ignoresSafeArea()
 
-        ScrollView(showsIndicators: false) {
-          VStack(alignment: .leading, spacing: 20) {
-            header
-            headlineSection
+        if !viewModel.shouldShowLockedScreen {
+          ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 20) {
+              header
+              headlineSection
 
-            if let feedback = viewModel.feedback {
-              feedbackRow(feedback)
+              if let temporaryUnlock = viewModel.activeTemporaryUnlock {
+                temporaryUnlockBanner(temporaryUnlock)
+              }
+
+              if let feedback = viewModel.feedback {
+                feedbackRow(feedback)
+              }
+
+              selectedSectionPanel
             }
-
-            selectedSectionPanel
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, bottomActionBarClearance)
           }
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(.horizontal, 24)
-          .padding(.top, 24)
-          .padding(.bottom, bottomActionBarClearance)
+        }
+
+        if viewModel.shouldShowLockedScreen {
+          LockScreenView(
+            unlockMenuPresented: isUnlockMenuPresented,
+            emergencyTitle: lockScreenEmergencyTitle,
+            emergencyDetail: lockScreenEmergencyDetail,
+            emergencyEnabled: lockScreenEmergencyEnabled,
+            presets: viewModel.unlockPresetsForDisplay,
+            feedback: viewModel.feedback,
+            isBusy: viewModel.isBusy,
+            onToggleUnlockMenu: {
+              isUnlockMenuPresented.toggle()
+            },
+            onEmergencyAction: handleLockScreenEmergencyAction,
+            onPreset: { preset in
+              Task { await viewModel.activateUnlockPreset(preset.id) }
+              isUnlockMenuPresented = false
+            }
+          )
         }
       }
       .safeAreaInset(edge: .bottom, spacing: 0) {
-        bottomDock
+        if !viewModel.shouldShowLockedScreen {
+          bottomDock
+        }
       }
       .toolbar(.hidden, for: .navigationBar)
       .preferredColorScheme(.dark)
@@ -131,6 +158,17 @@ struct ContentView: View {
           isEditingSchedule: viewModel.draftScheduleID != nil
         )
         .presentationBackground(.clear)
+      }
+      .sheet(isPresented: $isPresetEditorPresented) {
+        UnlockPresetEditorView(
+          viewModel: viewModel,
+          isEditingPreset: viewModel.draftPresetID != nil
+        )
+        .presentationBackground(.clear)
+      }
+      .sheet(isPresented: $isParagraphChallengePresented) {
+        ParagraphChallengeSheet(viewModel: viewModel)
+          .presentationBackground(.clear)
       }
       .sheet(isPresented: renameAnchorPresented) {
         renameAnchorSheet
@@ -161,6 +199,16 @@ struct ContentView: View {
       .onChange(of: scenePhase) { _, phase in
         if phase == .active {
           viewModel.handleSceneDidBecomeActive()
+        }
+      }
+      .onChange(of: viewModel.shouldShowLockedScreen) { _, isShowingLockedScreen in
+        if !isShowingLockedScreen {
+          isUnlockMenuPresented = false
+        }
+      }
+      .onChange(of: viewModel.isTemporaryUnlockActive) { _, isTemporaryUnlockActive in
+        if isTemporaryUnlockActive {
+          isUnlockMenuPresented = false
         }
       }
     }
@@ -399,21 +447,96 @@ struct ContentView: View {
         trailingText: emergencyUnbrickBadge
       )
 
-      if viewModel.canUseEmergencyUnbrick || viewModel.snapshot.emergencyUnbricksRemaining == 0 {
+      if viewModel.canUseEmergencyUnbrick {
         Button {
           Task { await viewModel.useEmergencyUnbrick() }
         } label: {
           actionRow(
             icon: "bolt.horizontal.circle",
-            title: "Use emergency unbrick",
+            title: "Use failsafe",
             detail: "Release the current session without scanning the paired anchor.",
             isLoading: viewModel.isActionInProgress(.emergencyUnbrick),
             isDestructive: true
           )
         }
         .buttonStyle(.plain)
-        .disabled(viewModel.isBusy || !viewModel.canUseEmergencyUnbrick)
-        .opacity(viewModel.canUseEmergencyUnbrick ? 1 : 0.65)
+        .disabled(viewModel.isBusy)
+      }
+
+      informativeRow(
+        title: "Failsafe challenge",
+        detail: paragraphChallengeDetail,
+        accentColor: viewModel.paragraphChallengeEnabled ? AnclaTheme.primaryText : AnclaTheme.secondaryText,
+        highlight: viewModel.canUseParagraphChallenge,
+        trailingText: viewModel.paragraphChallengeEnabled ? "On" : "Off"
+      )
+
+      Button {
+        Task { await viewModel.setParagraphChallengeEnabled(!viewModel.paragraphChallengeEnabled) }
+      } label: {
+        actionRow(
+          icon: viewModel.paragraphChallengeEnabled ? "checkmark.circle" : "circle",
+          title: viewModel.paragraphChallengeEnabled ? "Disable failsafe challenge" : "Enable failsafe challenge",
+          detail: "Keep the paragraph fallback ready after the normal failsafes run out.",
+          isLoading: false
+        )
+      }
+      .buttonStyle(.plain)
+      .disabled(viewModel.isBusy)
+
+      if viewModel.canUseParagraphChallenge {
+        Button {
+          viewModel.prepareParagraphChallenge()
+          isParagraphChallengePresented = true
+        } label: {
+          actionRow(
+            icon: "text.alignleft",
+            title: "Start failsafe challenge",
+            detail: "Type the full passage exactly to release the current session.",
+            isLoading: false,
+            isDestructive: true
+          )
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.isBusy)
+      }
+
+      if viewModel.unlockPresetsForDisplay.isEmpty {
+        informativeRow(
+          title: "No presets saved",
+          detail: "Save a quick unlock for short tasks like checking a 2FA code.",
+          accentColor: AnclaTheme.primaryText,
+          highlight: false,
+          trailingSymbol: "plus"
+        )
+      } else {
+        ForEach(viewModel.unlockPresetsForDisplay) { preset in
+          unlockPresetCard(preset)
+        }
+      }
+
+      Button {
+        viewModel.prepareDraftForNewPreset()
+        isPresetEditorPresented = true
+      } label: {
+        actionRow(
+          icon: "plus",
+          title: "Create preset",
+          detail: "Add a short timed unlock for a specific task.",
+          isLoading: false
+        )
+      }
+      .buttonStyle(.plain)
+      .disabled(viewModel.isBusy)
+
+      if let activeTemporaryUnlock = viewModel.activeTemporaryUnlock {
+        informativeRow(
+          title: "\"\(activeTemporaryUnlock.reason)\" is active",
+          detail: "The phone is temporarily open for \(viewModel.temporaryUnlockRemainingSeconds) more seconds.",
+          accentColor: AnclaTheme.successText,
+          highlight: true,
+          trailingText: "\(viewModel.temporaryUnlockRemainingSeconds)s"
+        )
       }
 
       if viewModel.currentModeIsStrict {
@@ -539,6 +662,46 @@ struct ContentView: View {
           title: "Remove schedule",
           detail: removeScheduleDetail(for: plan),
           isLoading: viewModel.isActionInProgress(.removeSchedule),
+          isDestructive: true
+        )
+      }
+      .buttonStyle(.plain)
+      .disabled(viewModel.isBusy)
+    }
+  }
+
+  private func unlockPresetCard(_ preset: UnlockPreset) -> some View {
+    VStack(spacing: 12) {
+      informativeRow(
+        title: preset.title,
+        detail: preset.detail,
+        accentColor: AnclaTheme.primaryText,
+        highlight: viewModel.activeTemporaryUnlock?.presetID == preset.id,
+        trailingText: "\(preset.durationSeconds)s"
+      )
+
+      Button {
+        viewModel.prepareDraftForEditingPreset(preset.id)
+        isPresetEditorPresented = true
+      } label: {
+        actionRow(
+          icon: "square.and.pencil",
+          title: "Edit preset",
+          detail: "Rename it, rewrite the note, or change the unlock duration.",
+          isLoading: false
+        )
+      }
+      .buttonStyle(.plain)
+      .disabled(viewModel.isBusy)
+
+      Button {
+        Task { await viewModel.deleteUnlockPreset(preset.id) }
+      } label: {
+        actionRow(
+          icon: "trash",
+          title: "Remove preset",
+          detail: "Delete this timed unlock from the app.",
+          isLoading: viewModel.isActionInProgress(.removePreset),
           isDestructive: true
         )
       }
@@ -721,7 +884,41 @@ struct ContentView: View {
         .fill(chromePanelInteractive)
         .overlay(
           RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .stroke((isWarningThemeActive ? chromePanelStroke : color.opacity(0.22)), lineWidth: 1)
+            .stroke(color.opacity(0.22), lineWidth: 1)
+        )
+    )
+  }
+
+  private func temporaryUnlockBanner(_ temporaryUnlock: TemporaryUnlockState) -> some View {
+    HStack(spacing: 10) {
+      Circle()
+        .fill(AnclaTheme.successText.opacity(0.16))
+        .frame(width: 24, height: 24)
+        .overlay {
+          Image(systemName: "lock.open")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(AnclaTheme.successText)
+        }
+
+      VStack(alignment: .leading, spacing: 3) {
+        Text("Preset unlock active")
+          .font(.ancla(13, weight: .medium))
+          .foregroundStyle(AnclaTheme.successText)
+
+        Text("\(temporaryUnlock.reason) • \(viewModel.temporaryUnlockRemainingSeconds)s left")
+          .font(.ancla(12))
+          .foregroundStyle(AnclaTheme.secondaryText)
+      }
+
+      Spacer(minLength: 0)
+    }
+    .padding(feedbackRowPadding)
+    .background(
+      RoundedRectangle(cornerRadius: 16, style: .continuous)
+        .fill(chromePanelInteractive)
+        .overlay(
+          RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(AnclaTheme.successText.opacity(0.22), lineWidth: 1)
         )
     )
   }
@@ -818,7 +1015,7 @@ struct ContentView: View {
 
   private var renameAnchorSheet: some View {
     ZStack {
-      AnclaBackgroundSurface(isWarningTinted: isWarningThemeActive)
+      AnclaBackgroundSurface(isWarningTinted: false)
         .ignoresSafeArea()
 
       VStack(alignment: .leading, spacing: 20) {
@@ -870,7 +1067,7 @@ struct ContentView: View {
           .frame(height: 38)
           .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-              .fill(isWarningThemeActive ? AnclaTheme.liveTint : AnclaTheme.ctaFill)
+              .fill(AnclaTheme.ctaFill)
           )
           .overlay {
             if viewModel.isActionInProgress(.renameAnchor) {
@@ -978,6 +1175,10 @@ struct ContentView: View {
   }
 
   private var sessionSectionBadge: String {
+    if viewModel.activeTemporaryUnlock != nil {
+      return "Open"
+    }
+
     if viewModel.canReleaseActiveSession {
       return "Live"
     }
@@ -1016,6 +1217,10 @@ struct ContentView: View {
   private var sessionDetail: String {
     switch viewModel.snapshot.activeSession?.state {
     case .armed:
+      if let activeTemporaryUnlock = viewModel.activeTemporaryUnlock {
+        return "\"\(activeTemporaryUnlock.reason)\" is open for \(viewModel.temporaryUnlockRemainingSeconds) more seconds. The block returns automatically when that timer ends."
+      }
+
       return sessionWaitingDetail
     case .mismatchedTag:
       if viewModel.currentModeIsStrict {
@@ -1033,12 +1238,40 @@ struct ContentView: View {
   private var sessionAccent: Color {
     switch viewModel.snapshot.activeSession?.state {
     case .armed, .mismatchedTag:
-      return AnclaTheme.warningText
+      return viewModel.activeTemporaryUnlock == nil ? AnclaTheme.warningText : AnclaTheme.successText
     case .released:
       return AnclaTheme.successText
     default:
       return AnclaTheme.primaryText
     }
+  }
+
+  private var lockScreenEmergencyTitle: String {
+    if viewModel.canUseEmergencyUnbrick {
+      return "Failsafe"
+    }
+
+    if viewModel.canUseParagraphChallenge {
+      return "Failsafe challenge"
+    }
+
+    return "Failsafe unavailable"
+  }
+
+  private var lockScreenEmergencyDetail: String {
+    if viewModel.canUseEmergencyUnbrick {
+      return emergencyUnbrickBadge
+    }
+
+    if viewModel.canUseParagraphChallenge {
+      return "Type the passage exactly"
+    }
+
+    return "No release path ready"
+  }
+
+  private var lockScreenEmergencyEnabled: Bool {
+    viewModel.canUseEmergencyUnbrick || viewModel.canUseParagraphChallenge
   }
 
   private var repoURL: URL? {
@@ -1159,6 +1392,20 @@ struct ContentView: View {
     }
   }
 
+  private func handleLockScreenEmergencyAction() {
+    if viewModel.canUseEmergencyUnbrick {
+      Task { await viewModel.useEmergencyUnbrick() }
+      isUnlockMenuPresented = false
+      return
+    }
+
+    if viewModel.canUseParagraphChallenge {
+      viewModel.prepareParagraphChallenge()
+      isParagraphChallengePresented = true
+      isUnlockMenuPresented = false
+    }
+  }
+
   private var nextStep: NextStep {
     if !viewModel.snapshot.isAuthorized {
       return .authorize
@@ -1234,6 +1481,8 @@ struct ContentView: View {
       return "Released via \(entry.pairedTagName)"
     case .emergencyUnbrick:
       return "Emergency unbrick for \(entry.pairedTagName)"
+    case .paragraphChallenge:
+      return "Failsafe challenge for \(entry.pairedTagName)"
     case .schedule:
       return "Ended on schedule for \(entry.pairedTagName)"
     }
@@ -1251,6 +1500,10 @@ struct ContentView: View {
 
   private var emergencyUnbrickDetail: String {
     if viewModel.snapshot.emergencyUnbricksRemaining == 0 {
+      if viewModel.canUseParagraphChallenge {
+        return "All normal failsafes are gone. The paragraph challenge is now the only non-anchor release path."
+      }
+
       return "All emergency unbricks have been spent. Active sessions now require the paired anchor."
     }
 
@@ -1268,10 +1521,10 @@ struct ContentView: View {
   private var emergencyCountSentence: String {
     let count = viewModel.snapshot.emergencyUnbricksRemaining
     if count == 1 {
-      return "1 emergency unbrick remains."
+      return "1 failsafe remains."
     }
 
-    return "\(count) emergency unbricks remain."
+    return "\(count) failsafes remain."
   }
 
   private var sessionWaitingDetail: String {
@@ -1288,6 +1541,18 @@ struct ContentView: View {
     }
 
     return "The current session remains active until the release anchor is scanned. \(emergencyCountSentence)"
+  }
+
+  private var paragraphChallengeDetail: String {
+    if !viewModel.paragraphChallengeEnabled {
+      return "Turn this on if you want an exact-typing fallback after the normal failsafes run out."
+    }
+
+    if viewModel.canUseParagraphChallenge {
+      return "The normal failsafes are empty. Type the stored passage exactly to release the current session."
+    }
+
+    return "This stays ready in the background and only appears after the normal failsafes reach zero."
   }
 
   private var renameAnchorPresented: Binding<Bool> {

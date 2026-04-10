@@ -468,6 +468,121 @@ final class AppViewModelTests: XCTestCase {
     XCTAssertEqual(shielding.clearCallCount, 0)
   }
 
+  func testParagraphChallengeReleasesSessionWhenFailsafesAreExhausted() async throws {
+    let mode = BlockMode(name: "Focus", selectionData: Data(), isDefault: true)
+    let pairedTag = PairedTag(uidHash: "paired-hash", displayName: "Desk anchor")
+    let activeSession = AnchorSession(
+      pairedTagId: pairedTag.id,
+      modeId: mode.id,
+      state: .armed
+    )
+    let snapshot = AppSnapshot(
+      isAuthorized: true,
+      pairedTags: [pairedTag],
+      modes: [mode],
+      activeSession: activeSession,
+      emergencyUnbricksRemaining: 0
+    )
+    let shielding = FakeShieldingService()
+    let viewModel = AppViewModel(
+      buildVariant: .sideloadLite,
+      store: InMemorySnapshotStore(snapshot: snapshot),
+      shieldingService: shielding,
+      stickerPairingService: FakeStickerPairingService()
+    )
+
+    XCTAssertTrue(viewModel.canUseParagraphChallenge)
+
+    viewModel.prepareParagraphChallenge()
+    let passage = try XCTUnwrap(viewModel.activeParagraphChallenge?.passage)
+    await viewModel.submitParagraphChallenge(passage)
+
+    XCTAssertNil(viewModel.lastError)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .released)
+    XCTAssertEqual(viewModel.snapshot.sessionHistory.last?.releaseMethod, .paragraphChallenge)
+    XCTAssertEqual(shielding.clearCallCount, 1)
+  }
+
+  func testParagraphChallengeRejectsInexactText() async throws {
+    let mode = BlockMode(name: "Focus", selectionData: Data(), isDefault: true)
+    let pairedTag = PairedTag(uidHash: "paired-hash", displayName: "Desk anchor")
+    let activeSession = AnchorSession(
+      pairedTagId: pairedTag.id,
+      modeId: mode.id,
+      state: .armed
+    )
+    let viewModel = AppViewModel(
+      buildVariant: .sideloadLite,
+      store: InMemorySnapshotStore(
+        snapshot: AppSnapshot(
+          isAuthorized: true,
+          pairedTags: [pairedTag],
+          modes: [mode],
+          activeSession: activeSession,
+          emergencyUnbricksRemaining: 0
+        )
+      ),
+      shieldingService: FakeShieldingService(),
+      stickerPairingService: FakeStickerPairingService()
+    )
+
+    viewModel.prepareParagraphChallenge()
+    let incorrectPassage = (try XCTUnwrap(viewModel.activeParagraphChallenge?.passage)) + " "
+    await viewModel.submitParagraphChallenge(incorrectPassage)
+
+    XCTAssertEqual(viewModel.lastError, ValidationError.paragraphChallengeMismatch.errorDescription)
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .armed)
+    XCTAssertTrue(viewModel.snapshot.sessionHistory.isEmpty)
+  }
+
+  func testPresetUnlockClearsShieldingAndRestoresItAfterExpiry() async throws {
+    var currentTime = Date(timeIntervalSince1970: 1_710_150_000)
+    let mode = BlockMode(name: "Focus", selectionData: Data(), isDefault: true)
+    let pairedTag = PairedTag(uidHash: "paired-hash", displayName: "Desk anchor")
+    let activeSession = AnchorSession(
+      pairedTagId: pairedTag.id,
+      modeId: mode.id,
+      state: .armed
+    )
+    let preset = UnlockPreset(
+      title: "Check 2FA",
+      detail: "Open Messages long enough to read a code.",
+      durationSeconds: 10
+    )
+    let shielding = FakeShieldingService()
+    let viewModel = AppViewModel(
+      buildVariant: .sideloadLite,
+      store: InMemorySnapshotStore(
+        snapshot: AppSnapshot(
+          isAuthorized: true,
+          pairedTags: [pairedTag],
+          modes: [mode],
+          activeSession: activeSession,
+          unlockPresets: [preset]
+        )
+      ),
+      shieldingService: shielding,
+      stickerPairingService: FakeStickerPairingService(),
+      nowProvider: { currentTime }
+    )
+
+    await viewModel.activateUnlockPreset(preset.id)
+
+    XCTAssertNil(viewModel.lastError)
+    XCTAssertTrue(viewModel.isTemporaryUnlockActive)
+    XCTAssertEqual(viewModel.activeTemporaryUnlock?.presetID, preset.id)
+    XCTAssertEqual(shielding.clearCallCount, 1)
+    XCTAssertTrue(shielding.appliedModeIDs.isEmpty)
+
+    currentTime = currentTime.addingTimeInterval(11)
+    let changed = viewModel.syncScheduledSessions()
+
+    XCTAssertTrue(changed)
+    XCTAssertFalse(viewModel.isTemporaryUnlockActive)
+    XCTAssertEqual(shielding.appliedModeIDs, [mode.id])
+    XCTAssertEqual(viewModel.snapshot.activeSession?.state, .armed)
+  }
+
   func testRemovingActiveSessionAnchorClearsSessionAndShielding() async throws {
     let selection = FamilyActivitySelection()
     let mode = try BlockMode(name: "Work", selection: selection, isDefault: true)

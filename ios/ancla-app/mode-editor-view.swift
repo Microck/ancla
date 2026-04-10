@@ -8,29 +8,25 @@ struct ModeEditorView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var isShortcutGuidesPresented = false
 
-  private var isWarningThemeActive: Bool {
-    viewModel.activeSessionIsBlocking
-  }
-
   private var chromePanelInteractive: Color {
-    isWarningThemeActive ? AnclaTheme.livePanelInteractive : AnclaTheme.panelInteractive
+    AnclaTheme.panelInteractive
   }
 
   private var chromePanelRaised: Color {
-    isWarningThemeActive ? AnclaTheme.livePanelRaised : AnclaTheme.panelRaised
+    AnclaTheme.panelRaised
   }
 
   private var chromePanelStroke: Color {
-    isWarningThemeActive ? AnclaTheme.livePanelStroke : AnclaTheme.panelStroke
+    AnclaTheme.panelStroke
   }
 
   private var chromeCtaFill: Color {
-    isWarningThemeActive ? AnclaTheme.liveTint : AnclaTheme.ctaFill
+    AnclaTheme.ctaFill
   }
 
   var body: some View {
     ZStack(alignment: .top) {
-      AnclaBackgroundSurface(isWarningTinted: isWarningThemeActive)
+      AnclaBackgroundSurface(isWarningTinted: false)
         .ignoresSafeArea()
 
       VStack(spacing: 0) {

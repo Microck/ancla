@@ -29,6 +29,16 @@ enum AnclaCore {
     snapshot.modes.first(where: \.isDefault) ?? snapshot.modes.first
   }
 
+  static func sortedUnlockPresets(_ presets: [UnlockPreset]) -> [UnlockPreset] {
+    presets.sorted { lhs, rhs in
+      if lhs.createdAt != rhs.createdAt {
+        return lhs.createdAt < rhs.createdAt
+      }
+
+      return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+    }
+  }
+
   static func sortedScheduledPlans(
     _ plans: [ScheduledSessionPlan],
     at date: Date = .now,
@@ -75,16 +85,16 @@ enum AnclaCore {
   }
 
   static func repairedSnapshot(_ snapshot: AppSnapshot) -> AppSnapshot {
-    guard !snapshot.modes.isEmpty else {
-      return snapshot
-    }
-
-    guard !snapshot.modes.contains(where: \.isDefault) else {
-      return snapshot
-    }
-
     var repaired = snapshot
-    repaired.modes[0].isDefault = true
+
+    if repaired.paragraphChallenges.isEmpty {
+      repaired.paragraphChallenges = AppSnapshot.defaultParagraphChallenges
+    }
+
+    if !repaired.modes.isEmpty, !repaired.modes.contains(where: \.isDefault) {
+      repaired.modes[0].isDefault = true
+    }
+
     return repaired
   }
 
@@ -103,6 +113,25 @@ enum AnclaCore {
 
   static func canUseEmergencyUnbrick(_ snapshot: AppSnapshot) -> Bool {
     activeSessionIsBlocking(snapshot) && snapshot.emergencyUnbricksRemaining > 0
+  }
+
+  static func canUseParagraphChallenge(_ snapshot: AppSnapshot) -> Bool {
+    activeSessionIsBlocking(snapshot)
+      && snapshot.emergencyUnbricksRemaining == 0
+      && snapshot.paragraphChallengeEnabled
+      && !snapshot.paragraphChallenges.isEmpty
+  }
+
+  static func temporaryUnlockIsActive(_ snapshot: AppSnapshot, at date: Date) -> Bool {
+    guard let temporaryUnlock = snapshot.temporaryUnlock else {
+      return false
+    }
+
+    return activeSessionIsBlocking(snapshot) && temporaryUnlock.expiresAt > date
+  }
+
+  static func blockedPresentationIsActive(_ snapshot: AppSnapshot, at date: Date) -> Bool {
+    activeSessionIsBlocking(snapshot) && !temporaryUnlockIsActive(snapshot, at: date)
   }
 
   static func canArmSelectedMode(_ snapshot: AppSnapshot) -> Bool {

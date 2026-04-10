@@ -92,6 +92,66 @@ struct ScheduledSessionPlan: Codable, Equatable, Identifiable {
   }
 }
 
+struct UnlockPreset: Codable, Equatable, Identifiable {
+  let id: UUID
+  var title: String
+  var detail: String
+  var durationSeconds: Int
+  let createdAt: Date
+
+  init(
+    id: UUID = UUID(),
+    title: String,
+    detail: String,
+    durationSeconds: Int,
+    createdAt: Date = .now
+  ) {
+    self.id = id
+    self.title = title
+    self.detail = detail
+    self.durationSeconds = durationSeconds
+    self.createdAt = createdAt
+  }
+}
+
+struct ParagraphChallengePassage: Codable, Equatable, Identifiable {
+  let id: UUID
+  var title: String
+  var passage: String
+  let createdAt: Date
+
+  init(
+    id: UUID = UUID(),
+    title: String,
+    passage: String,
+    createdAt: Date = .now
+  ) {
+    self.id = id
+    self.title = title
+    self.passage = passage
+    self.createdAt = createdAt
+  }
+}
+
+struct TemporaryUnlockState: Codable, Equatable {
+  var presetID: UUID?
+  var reason: String
+  var startedAt: Date
+  var expiresAt: Date
+
+  init(
+    presetID: UUID? = nil,
+    reason: String,
+    startedAt: Date = .now,
+    expiresAt: Date
+  ) {
+    self.presetID = presetID
+    self.reason = reason
+    self.startedAt = startedAt
+    self.expiresAt = expiresAt
+  }
+}
+
 enum AnchorSessionState: String, Codable {
   case idle
   case armed
@@ -151,6 +211,7 @@ struct AnchorSession: Codable, Equatable, Identifiable {
 enum SessionReleaseMethod: String, Codable {
   case anchor
   case emergencyUnbrick
+  case paragraphChallenge
   case schedule
 }
 
@@ -202,6 +263,10 @@ struct AppSnapshot: Codable, Equatable {
     case sessionHistory
     case emergencyUnbricksRemaining
     case scheduledPlans
+    case paragraphChallengeEnabled
+    case paragraphChallenges
+    case unlockPresets
+    case temporaryUnlock
   }
 
   var isAuthorized = false
@@ -211,6 +276,10 @@ struct AppSnapshot: Codable, Equatable {
   var sessionHistory: [SessionHistoryEntry] = []
   var emergencyUnbricksRemaining = 5
   var scheduledPlans: [ScheduledSessionPlan] = []
+  var paragraphChallengeEnabled = true
+  var paragraphChallenges = AppSnapshot.defaultParagraphChallenges
+  var unlockPresets: [UnlockPreset] = []
+  var temporaryUnlock: TemporaryUnlockState?
 
   init(
     isAuthorized: Bool = false,
@@ -220,7 +289,11 @@ struct AppSnapshot: Codable, Equatable {
     activeSession: AnchorSession? = nil,
     sessionHistory: [SessionHistoryEntry] = [],
     emergencyUnbricksRemaining: Int = 5,
-    scheduledPlans: [ScheduledSessionPlan] = []
+    scheduledPlans: [ScheduledSessionPlan] = [],
+    paragraphChallengeEnabled: Bool = true,
+    paragraphChallenges: [ParagraphChallengePassage] = AppSnapshot.defaultParagraphChallenges,
+    unlockPresets: [UnlockPreset] = [],
+    temporaryUnlock: TemporaryUnlockState? = nil
   ) {
     self.isAuthorized = isAuthorized
     self.pairedTags = pairedTags.isEmpty ? (pairedTag.map { [$0] } ?? []) : pairedTags
@@ -229,6 +302,10 @@ struct AppSnapshot: Codable, Equatable {
     self.sessionHistory = sessionHistory
     self.emergencyUnbricksRemaining = emergencyUnbricksRemaining
     self.scheduledPlans = scheduledPlans
+    self.paragraphChallengeEnabled = paragraphChallengeEnabled
+    self.paragraphChallenges = paragraphChallenges
+    self.unlockPresets = unlockPresets
+    self.temporaryUnlock = temporaryUnlock
   }
 
   init(from decoder: any Decoder) throws {
@@ -247,6 +324,12 @@ struct AppSnapshot: Codable, Equatable {
     sessionHistory = try container.decodeIfPresent([SessionHistoryEntry].self, forKey: .sessionHistory) ?? []
     emergencyUnbricksRemaining = try container.decodeIfPresent(Int.self, forKey: .emergencyUnbricksRemaining) ?? 5
     scheduledPlans = try container.decodeIfPresent([ScheduledSessionPlan].self, forKey: .scheduledPlans) ?? []
+    paragraphChallengeEnabled = try container.decodeIfPresent(Bool.self, forKey: .paragraphChallengeEnabled) ?? true
+    paragraphChallenges =
+      try container.decodeIfPresent([ParagraphChallengePassage].self, forKey: .paragraphChallenges)
+      ?? AppSnapshot.defaultParagraphChallenges
+    unlockPresets = try container.decodeIfPresent([UnlockPreset].self, forKey: .unlockPresets) ?? []
+    temporaryUnlock = try container.decodeIfPresent(TemporaryUnlockState.self, forKey: .temporaryUnlock)
   }
 
   func encode(to encoder: any Encoder) throws {
@@ -258,6 +341,10 @@ struct AppSnapshot: Codable, Equatable {
     try container.encode(sessionHistory, forKey: .sessionHistory)
     try container.encode(emergencyUnbricksRemaining, forKey: .emergencyUnbricksRemaining)
     try container.encode(scheduledPlans, forKey: .scheduledPlans)
+    try container.encode(paragraphChallengeEnabled, forKey: .paragraphChallengeEnabled)
+    try container.encode(paragraphChallenges, forKey: .paragraphChallenges)
+    try container.encode(unlockPresets, forKey: .unlockPresets)
+    try container.encodeIfPresent(temporaryUnlock, forKey: .temporaryUnlock)
   }
 
   var pairedTag: PairedTag? {
@@ -274,4 +361,17 @@ struct AppSnapshot: Codable, Equatable {
       }
     }
   }
+
+  static let defaultParagraphChallenges: [ParagraphChallengePassage] = [
+    ParagraphChallengePassage(
+      title: "Deliberate focus",
+      passage:
+        "Attention drifts toward the nearest open door, even when the work in front of you is the work you chose. A locked boundary is not punishment. It is a promise that the next impulse does not get to outrank the longer intention."
+    ),
+    ParagraphChallengePassage(
+      title: "Convenience is not freedom",
+      passage:
+        "The fastest option is rarely the most deliberate one. Real freedom is the ability to keep a commitment after the novelty has burned off, the message can wait, and the mind starts bargaining for an easier hour than the one it already asked for."
+    ),
+  ]
 }
