@@ -52,13 +52,9 @@ struct ContentView: View {
   @Bindable var viewModel: AppViewModel
   @Environment(\.scenePhase) private var scenePhase
 
-  private let bottomActionBarClearance: CGFloat = 144
-  private let sectionColumns = [
-    GridItem(.flexible(), spacing: 14),
-    GridItem(.flexible(), spacing: 14),
-  ]
+  private let bottomActionBarClearance: CGFloat = 196
 
-  @State private var activeSection: HomeSection?
+  @State private var selectedSection: HomeSection = .modes
   @State private var isModeEditorPresented = false
   @State private var isScheduleEditorPresented = false
   @State private var isShortcutGuidesPresented = false
@@ -75,13 +71,12 @@ struct ContentView: View {
           VStack(alignment: .leading, spacing: 20) {
             header
             headlineSection
-            overviewStrip
 
             if let feedback = viewModel.feedback {
               feedbackRow(feedback)
             }
 
-            sectionGrid
+            selectedSectionPanel
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.horizontal, 24)
@@ -90,14 +85,10 @@ struct ContentView: View {
         }
       }
       .safeAreaInset(edge: .bottom, spacing: 0) {
-        bottomActionBar
+        bottomDock
       }
       .toolbar(.hidden, for: .navigationBar)
       .preferredColorScheme(.dark)
-      .sheet(item: $activeSection) { section in
-        sectionSheet(section)
-          .presentationBackground(.clear)
-      }
       .sheet(isPresented: $isModeEditorPresented) {
         ModeEditorView(
           viewModel: viewModel,
@@ -225,168 +216,59 @@ struct ContentView: View {
     }
   }
 
-  private var overviewStrip: some View {
-    ViewThatFits(in: .horizontal) {
-      HStack(spacing: 12) {
-        overviewTile(
-          label: "Mode",
-          value: currentMode?.name ?? "None",
-          detail: modeOverviewDetail,
-          accentColor: viewModel.currentModeIsStrict ? AnclaTheme.warningText : AnclaTheme.primaryText,
-          highlight: currentMode != nil
-        )
+  private var selectedSectionPanel: some View {
+    VStack(alignment: .leading, spacing: 20) {
+      HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
+          Text(selectedSection.title)
+            .font(.ancla(24, weight: .medium))
+            .foregroundStyle(AnclaTheme.primaryText)
 
-        overviewTile(
-          label: "Anchor",
-          value: anchorValue,
-          detail: anchorOverviewDetail,
-          accentColor: activePairedTag == nil ? AnclaTheme.primaryText : AnclaTheme.warningText,
-          highlight: !viewModel.snapshot.pairedTags.isEmpty
-        )
-
-        overviewTile(
-          label: "Session",
-          value: sessionValue,
-          detail: sessionOverviewDetail,
-          accentColor: sessionAccent,
-          highlight: viewModel.activeSessionIsBlocking
-        )
-      }
-
-      VStack(spacing: 12) {
-        overviewTile(
-          label: "Mode",
-          value: currentMode?.name ?? "None",
-          detail: modeOverviewDetail,
-          accentColor: viewModel.currentModeIsStrict ? AnclaTheme.warningText : AnclaTheme.primaryText,
-          highlight: currentMode != nil
-        )
-
-        overviewTile(
-          label: "Anchor",
-          value: anchorValue,
-          detail: anchorOverviewDetail,
-          accentColor: activePairedTag == nil ? AnclaTheme.primaryText : AnclaTheme.warningText,
-          highlight: !viewModel.snapshot.pairedTags.isEmpty
-        )
-
-        overviewTile(
-          label: "Session",
-          value: sessionValue,
-          detail: sessionOverviewDetail,
-          accentColor: sessionAccent,
-          highlight: viewModel.activeSessionIsBlocking
-        )
-      }
-    }
-  }
-
-  private var sectionGrid: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      Text("Sections")
-        .font(.ancla(11, weight: .medium))
-        .foregroundStyle(AnclaTheme.tertiaryText)
-        .tracking(1.2)
-
-      LazyVGrid(columns: sectionColumns, spacing: 14) {
-        ForEach(HomeSection.allCases) { section in
-          Button {
-            activeSection = section
-          } label: {
-            VStack(alignment: .leading, spacing: 14) {
-              HStack(alignment: .top) {
-                ZStack {
-                  Circle()
-                    .fill(sectionAccent(for: section).opacity(0.16))
-                    .frame(width: 40, height: 40)
-
-                  Image(systemName: section.symbol)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(sectionAccent(for: section))
-                }
-
-                Spacer(minLength: 10)
-
-                Text(sectionBadge(for: section))
-                  .font(.ancla(11, weight: .medium))
-                  .foregroundStyle(sectionBadgeColor(for: section))
-                  .multilineTextAlignment(.trailing)
-                  .lineLimit(2)
-              }
-
-              Spacer(minLength: 0)
-
-              VStack(alignment: .leading, spacing: 6) {
-                Text(section.title)
-                  .font(.ancla(18, weight: .medium))
-                  .foregroundStyle(AnclaTheme.primaryText)
-
-                Text(sectionSummary(for: section))
-                  .font(.ancla(13))
-                  .foregroundStyle(AnclaTheme.secondaryText)
-                  .frame(maxWidth: .infinity, alignment: .leading)
-                  .lineLimit(3)
-              }
-            }
-            .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
-            .padding(18)
-          }
-          .buttonStyle(
-            AnclaPressableButtonStyle(
-              background: sectionBackground(for: section),
-              pressedBackground: sectionPressedBackground(for: section),
-              stroke: sectionStroke(for: section),
-              cornerRadius: 24,
-              scale: 0.992
-            )
-          )
+          Text(sectionSummary(for: selectedSection))
+            .font(.ancla(14))
+            .foregroundStyle(AnclaTheme.secondaryText)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+
+        Spacer(minLength: 12)
+
+        Text(sectionBadge(for: selectedSection).uppercased())
+          .font(.ancla(11, weight: .medium))
+          .foregroundStyle(sectionAccent(for: selectedSection))
+          .padding(.horizontal, 12)
+          .padding(.vertical, 8)
+          .background(
+            Capsule(style: .continuous)
+              .fill(sectionAccent(for: selectedSection).opacity(0.12))
+          )
       }
+
+      surfaceDivider
+
+      selectedSectionContent
     }
+    .padding(24)
+    .background(
+      RoundedRectangle(cornerRadius: 30, style: .continuous)
+        .fill(AnclaTheme.panel)
+        .overlay(
+          RoundedRectangle(cornerRadius: 30, style: .continuous)
+            .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
+        )
+    )
   }
 
   @ViewBuilder
-  private func sectionSheet(_ section: HomeSection) -> some View {
-    switch section {
+  private var selectedSectionContent: some View {
+    switch selectedSection {
     case .modes:
-      HomeSectionSheet(
-        title: "Modes",
-        subtitle: "Choose what the next block should do."
-      ) {
-        sectionFeedback
-        modesSectionContent
-      }
+      modesSectionContent
     case .anchors:
-      HomeSectionSheet(
-        title: "Anchors",
-        subtitle: "Manage the NFC anchors tied to this iPhone."
-      ) {
-        sectionFeedback
-        anchorsSectionContent
-      }
+      anchorsSectionContent
     case .schedules:
-      HomeSectionSheet(
-        title: "Schedules",
-        subtitle: "Start saved modes on a recurring window."
-      ) {
-        sectionFeedback
-        schedulesSectionContent
-      }
+      schedulesSectionContent
     case .sessions:
-      HomeSectionSheet(
-        title: "Sessions",
-        subtitle: "Check live state, history, and the emergency failsafe."
-      ) {
-        sectionFeedback
-        sessionsSectionContent
-      }
-    }
-  }
-
-  @ViewBuilder
-  private var sectionFeedback: some View {
-    if let feedback = viewModel.feedback {
-      feedbackRow(feedback)
+      sessionsSectionContent
     }
   }
 
@@ -585,44 +467,6 @@ struct ContentView: View {
         }
       }
     }
-  }
-
-  private func overviewTile(
-    label: String,
-    value: String,
-    detail: String,
-    accentColor: Color,
-    highlight: Bool
-  ) -> some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Text(label)
-        .font(.ancla(11, weight: .medium))
-        .foregroundStyle(AnclaTheme.tertiaryText)
-        .tracking(1.1)
-
-      Text(value)
-        .font(.ancla(18, weight: .medium))
-        .foregroundStyle(accentColor)
-        .lineLimit(1)
-
-      Text(detail)
-        .font(.ancla(12))
-        .foregroundStyle(AnclaTheme.secondaryText)
-        .lineLimit(1)
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(16)
-    .background(
-      RoundedRectangle(cornerRadius: 20, style: .continuous)
-        .fill(highlight ? AnclaTheme.panelRaised : AnclaTheme.panel)
-        .overlay(
-          RoundedRectangle(cornerRadius: 20, style: .continuous)
-            .stroke(
-              highlight ? accentColor.opacity(0.28) : AnclaTheme.panelStroke.opacity(0.75),
-              lineWidth: 1
-            )
-        )
-    )
   }
 
   private func statusBadge(_ title: String, color: Color) -> some View {
@@ -938,60 +782,94 @@ struct ContentView: View {
     )
   }
 
-  private var bottomActionBar: some View {
-    VStack(spacing: 0) {
+  private var bottomDock: some View {
+    ZStack(alignment: .top) {
+      RoundedRectangle(cornerRadius: 34, style: .continuous)
+        .fill(Color(red: 0.94, green: 0.92, blue: 0.88))
+        .frame(height: 94)
+        .overlay(
+          RoundedRectangle(cornerRadius: 34, style: .continuous)
+            .stroke(Color.black.opacity(0.06), lineWidth: 1)
+        )
+
+      HStack(alignment: .bottom, spacing: 8) {
+        sectionTabButton(.modes)
+        sectionTabButton(.anchors)
+
+        Spacer(minLength: 104)
+
+        sectionTabButton(.schedules)
+        sectionTabButton(.sessions)
+      }
+      .padding(.horizontal, 18)
+      .padding(.top, 20)
+
       Button(action: primaryAction) {
-        VStack(alignment: .leading, spacing: 10) {
-          HStack(alignment: .firstTextBaseline) {
-            Text("Ancla")
-              .font(.ancla(28, weight: .semibold))
-
-            Spacer(minLength: 12)
-
+        VStack(spacing: 7) {
+          Group {
             if viewModel.isActionInProgress(primaryActionID) {
               ProgressView()
-                .tint(AnclaTheme.ctaText)
+                .tint(Color.white)
             } else {
               Image(systemName: primaryActionSymbol)
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: 22, weight: .semibold))
             }
           }
+          .frame(height: 24)
 
-          VStack(alignment: .leading, spacing: 4) {
-            Text(primaryActionTitle)
-              .font(.ancla(15, weight: .semibold))
+          Text("Ancla")
+            .font(.ancla(16, weight: .semibold))
 
-            Text(primaryActionDetail)
-              .font(.ancla(12, weight: .medium))
-              .foregroundStyle(AnclaTheme.ctaText.opacity(0.72))
-              .lineLimit(2)
-          }
+          Text(primaryActionTitle)
+            .font(.ancla(10, weight: .medium))
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
         }
-        .foregroundStyle(AnclaTheme.ctaText)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(minHeight: 94)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 18)
+        .foregroundStyle(Color.white)
+        .frame(width: 108, height: 122)
         .background(
-          RoundedRectangle(cornerRadius: 28, style: .continuous)
-            .fill(AnclaTheme.ctaFill)
+          RoundedRectangle(cornerRadius: 34, style: .continuous)
+            .fill(Color.black)
         )
+        .overlay(
+          RoundedRectangle(cornerRadius: 34, style: .continuous)
+            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.35), radius: 24, y: 16)
       }
       .buttonStyle(.plain)
       .disabled(primaryActionDisabled || viewModel.isBusy)
-      .opacity(primaryActionDisabled || viewModel.isBusy ? 0.6 : 1)
+      .opacity(primaryActionDisabled || viewModel.isBusy ? 0.55 : 1)
+      .offset(y: -34)
       .accessibilityLabel(primaryActionTitle)
       .accessibilityHint(primaryActionDetail)
     }
-    .padding(.horizontal, 24)
-    .padding(.top, 12)
+    .padding(.horizontal, 16)
+    .padding(.top, 16)
     .padding(.bottom, 18)
     .background(AnclaTheme.background)
-    .overlay(alignment: .top) {
-      Rectangle()
-        .fill(AnclaTheme.panelStroke.opacity(0.4))
-        .frame(height: 1)
+  }
+
+  private func sectionTabButton(_ section: HomeSection) -> some View {
+    let isSelected = selectedSection == section
+
+    return Button {
+      selectedSection = section
+    } label: {
+      VStack(spacing: 7) {
+        Image(systemName: section.symbol)
+          .font(.system(size: 18, weight: .semibold))
+          .frame(height: 20)
+
+        Text(section.title)
+          .font(.ancla(11, weight: isSelected ? .semibold : .medium))
+          .lineLimit(1)
+      }
+      .foregroundStyle(isSelected ? Color.black : Color.black.opacity(0.55))
+      .frame(maxWidth: .infinity)
+      .padding(.vertical, 10)
     }
+    .buttonStyle(.plain)
   }
 
   private var renameAnchorSheet: some View {
@@ -1092,42 +970,6 @@ struct ContentView: View {
 
   private var currentMode: BlockMode? {
     viewModel.selectedMode() ?? viewModel.preferredMode()
-  }
-
-  private var modeOverviewDetail: String {
-    guard let currentMode else {
-      return "Save one mode"
-    }
-
-    return viewModel.selectionSummary(for: currentMode)
-  }
-
-  private var anchorOverviewDetail: String {
-    if let activePairedTag {
-      return "\(activePairedTag.displayName) releases"
-    }
-
-    switch viewModel.snapshot.pairedTags.count {
-    case 0:
-      return "Pair one anchor"
-    case 1:
-      return "1 paired"
-    default:
-      return "\(viewModel.snapshot.pairedTags.count) paired"
-    }
-  }
-
-  private var sessionOverviewDetail: String {
-    switch viewModel.snapshot.activeSession?.state {
-    case .armed:
-      return "Anchor required"
-    case .mismatchedTag:
-      return "Wrong anchor scanned"
-    case .released:
-      return "Recently ended"
-    case .idle, nil:
-      return "Nothing live"
-    }
   }
 
   private var compactMessage: String {
@@ -1235,19 +1077,6 @@ struct ContentView: View {
     }
   }
 
-  private func sectionBadgeColor(for section: HomeSection) -> Color {
-    switch section {
-    case .modes:
-      return viewModel.currentModeIsStrict ? AnclaTheme.warningText : AnclaTheme.secondaryText
-    case .anchors:
-      return activePairedTag == nil ? AnclaTheme.secondaryText : AnclaTheme.warningText
-    case .schedules:
-      return activeScheduledPlan == nil ? AnclaTheme.secondaryText : AnclaTheme.warningText
-    case .sessions:
-      return viewModel.canReleaseActiveSession ? AnclaTheme.warningText : AnclaTheme.secondaryText
-    }
-  }
-
   private func sectionAccent(for section: HomeSection) -> Color {
     switch section {
     case .modes:
@@ -1258,44 +1087,6 @@ struct ContentView: View {
       return activeScheduledPlan == nil ? AnclaTheme.accentFill : AnclaTheme.warningText
     case .sessions:
       return viewModel.activeSessionIsBlocking ? sessionAccent : AnclaTheme.accentFill
-    }
-  }
-
-  private func sectionBackground(for section: HomeSection) -> Color {
-    switch section {
-    case .modes:
-      return currentMode == nil ? AnclaTheme.panel : AnclaTheme.panelRaised
-    case .anchors:
-      return activePairedTag == nil ? AnclaTheme.panel : AnclaTheme.panelRaised
-    case .schedules:
-      return activeScheduledPlan == nil ? AnclaTheme.panel : AnclaTheme.panelRaised
-    case .sessions:
-      return viewModel.activeSessionIsBlocking ? AnclaTheme.panelRaised : AnclaTheme.panel
-    }
-  }
-
-  private func sectionPressedBackground(for section: HomeSection) -> Color {
-    switch section {
-    case .sessions where viewModel.activeSessionIsBlocking:
-      return AnclaTheme.panelInteractive
-    default:
-      return AnclaTheme.panelRaised
-    }
-  }
-
-  private func sectionStroke(for section: HomeSection) -> Color {
-    let accent = sectionAccent(for: section)
-    switch section {
-    case .modes where currentMode != nil:
-      return accent.opacity(0.28)
-    case .anchors where activePairedTag != nil:
-      return accent.opacity(0.28)
-    case .schedules where activeScheduledPlan != nil:
-      return accent.opacity(0.28)
-    case .sessions where viewModel.activeSessionIsBlocking:
-      return accent.opacity(0.28)
-    default:
-      return AnclaTheme.panelStroke.opacity(0.75)
     }
   }
 
@@ -1836,81 +1627,6 @@ struct ContentView: View {
     }
 
     return nil
-  }
-}
-
-private struct HomeSectionSheet<Content: View>: View {
-  let title: String
-  let subtitle: String
-  let content: Content
-
-  @Environment(\.dismiss) private var dismiss
-
-  init(
-    title: String,
-    subtitle: String,
-    @ViewBuilder content: () -> Content
-  ) {
-    self.title = title
-    self.subtitle = subtitle
-    self.content = content()
-  }
-
-  var body: some View {
-    ZStack(alignment: .top) {
-      AnclaTheme.background
-        .ignoresSafeArea()
-
-      ScrollView(showsIndicators: false) {
-        VStack(alignment: .leading, spacing: 20) {
-          Capsule(style: .continuous)
-            .fill(AnclaTheme.tertiaryText.opacity(0.6))
-            .frame(width: 40, height: 4)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 8)
-
-          HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 8) {
-              Text(title)
-                .font(.ancla(30, weight: .medium))
-                .foregroundStyle(AnclaTheme.primaryText)
-
-              Text(subtitle)
-                .font(.ancla(14))
-                .foregroundStyle(AnclaTheme.secondaryText)
-            }
-
-            Spacer(minLength: 16)
-
-            Button {
-              dismiss()
-            } label: {
-              Image(systemName: "xmark")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(AnclaTheme.secondaryText)
-                .frame(width: 36, height: 36)
-                .background(
-                  Circle()
-                    .fill(AnclaTheme.panelInteractive)
-                    .overlay(
-                      Circle()
-                        .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
-                    )
-                )
-            }
-            .buttonStyle(.plain)
-          }
-
-          content
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 16)
-        .padding(.bottom, 32)
-      }
-    }
-    .preferredColorScheme(.dark)
-    .presentationDetents([.large])
-    .presentationDragIndicator(.hidden)
   }
 }
 
