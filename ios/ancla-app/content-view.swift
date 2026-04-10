@@ -77,20 +77,16 @@ struct ContentView: View {
     isWarningThemeActive ? AnclaTheme.livePanelStroke : AnclaTheme.panelStroke
   }
 
-  private var dockShellFill: Color {
-    isWarningThemeActive ? AnclaTheme.livePanel : Color.black.opacity(0.96)
-  }
-
-  private var dockShellStroke: Color {
-    isWarningThemeActive ? AnclaTheme.liveTint.opacity(0.22) : Color.white.opacity(0.08)
-  }
-
   private var primaryActionFill: Color {
     isWarningThemeActive ? AnclaTheme.liveTint : Color.black
   }
 
   private var primaryActionShadow: Color {
     isWarningThemeActive ? AnclaTheme.liveTint.opacity(0.42) : Color.black.opacity(0.35)
+  }
+
+  private var primaryActionBlocksTapThrough: Bool {
+    primaryActionDisabled || viewModel.isBusy
   }
 
   var body: some View {
@@ -249,37 +245,9 @@ struct ContentView: View {
   }
 
   private var selectedSectionPanel: some View {
-    VStack(alignment: .leading, spacing: 20) {
-      HStack(alignment: .top, spacing: 12) {
-        VStack(alignment: .leading, spacing: 8) {
-          Text(selectedSection.title)
-            .font(.ancla(24, weight: .medium))
-            .foregroundStyle(AnclaTheme.primaryText)
-
-          Text(sectionSummary(for: selectedSection))
-            .font(.ancla(14))
-            .foregroundStyle(AnclaTheme.secondaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-
-        Spacer(minLength: 12)
-
-        Text(sectionBadge(for: selectedSection).uppercased())
-          .font(.ancla(11, weight: .medium))
-          .foregroundStyle(sectionAccent(for: selectedSection))
-          .padding(.horizontal, 12)
-          .padding(.vertical, 8)
-          .background(
-            Capsule(style: .continuous)
-              .fill(sectionAccent(for: selectedSection).opacity(0.12))
-          )
-      }
-
-      surfaceDivider
-
+    VStack(alignment: .leading, spacing: 0) {
       selectedSectionContent
     }
-    .padding(.top, 8)
   }
 
   @ViewBuilder
@@ -761,11 +729,11 @@ struct ContentView: View {
   private var bottomDock: some View {
     ZStack(alignment: .top) {
       RoundedRectangle(cornerRadius: 34, style: .continuous)
-        .fill(dockShellFill)
+        .fill(Color.black.opacity(0.96))
         .frame(height: 94)
         .overlay(
           RoundedRectangle(cornerRadius: 34, style: .continuous)
-            .stroke(dockShellStroke, lineWidth: 1)
+            .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
 
       HStack(alignment: .bottom, spacing: 8) {
@@ -780,39 +748,50 @@ struct ContentView: View {
       .padding(.horizontal, 18)
       .padding(.top, 20)
 
-      Button(action: primaryAction) {
-        Group {
-          if viewModel.isActionInProgress(primaryActionID) {
-            ProgressView()
-              .tint(Color.white)
-          } else {
-            Image(systemName: "plus")
-              .font(.system(size: 28, weight: .semibold))
+      ZStack {
+        Button(action: primaryAction) {
+          Group {
+            if viewModel.isActionInProgress(primaryActionID) {
+              ProgressView()
+                .tint(Color.white)
+            } else {
+              Image(systemName: "plus")
+                .font(.system(size: 28, weight: .semibold))
+            }
           }
+          .foregroundStyle(Color.white)
+          .frame(width: 84, height: 84)
+          .background(
+            Circle()
+              .fill(primaryActionFill)
+          )
+          .overlay(
+            Circle()
+              .stroke(Color.white.opacity(0.08), lineWidth: 1)
+          )
+          .shadow(color: primaryActionShadow, radius: 24, y: 16)
         }
-        .foregroundStyle(Color.white)
-        .frame(width: 84, height: 84)
-        .background(
+        .buttonStyle(.plain)
+        .disabled(primaryActionDisabled || viewModel.isBusy)
+        .opacity(primaryActionDisabled || viewModel.isBusy ? 0.55 : 1)
+        .accessibilityLabel(primaryActionTitle)
+        .accessibilityHint(primaryActionDetail)
+
+        if primaryActionBlocksTapThrough {
           Circle()
-            .fill(primaryActionFill)
-        )
-        .overlay(
-          Circle()
-            .stroke(dockShellStroke, lineWidth: 1)
-        )
-        .shadow(color: primaryActionShadow, radius: 24, y: 16)
+            .fill(Color.black.opacity(0.001))
+            .frame(width: 84, height: 84)
+            .contentShape(Circle())
+            .accessibilityHidden(true)
+            .onTapGesture {}
+        }
       }
-      .buttonStyle(.plain)
-      .disabled(primaryActionDisabled || viewModel.isBusy)
-      .opacity(primaryActionDisabled || viewModel.isBusy ? 0.55 : 1)
       .offset(y: -18)
-      .accessibilityLabel(primaryActionTitle)
-      .accessibilityHint(primaryActionDetail)
     }
     .padding(.horizontal, 16)
     .padding(.top, 16)
     .padding(.bottom, 18)
-    .background(AnclaBackgroundSurface(isWarningTinted: isWarningThemeActive))
+    .background(AnclaTheme.background)
   }
 
   private func sectionTabButton(_ section: HomeSection) -> some View {
@@ -978,80 +957,6 @@ struct ContentView: View {
       return "READY"
     case .rearm:
       return "READY AGAIN"
-    }
-  }
-
-  private func sectionSummary(for section: HomeSection) -> String {
-    switch section {
-    case .modes:
-      if let currentMode {
-        return viewModel.selectionSummary(for: currentMode)
-      }
-      return "Choose and edit the block you want ready next."
-    case .anchors:
-      if let activePairedTag {
-        return "\(activePairedTag.displayName) is the active release anchor."
-      }
-      if viewModel.snapshot.pairedTags.isEmpty {
-        return "Pair the first NFC anchor for this iPhone."
-      }
-      return "Rename, remove, or add paired anchors."
-    case .schedules:
-      if let activePlan = activeScheduledPlan {
-        return scheduledPlanDetail(for: activePlan)
-      }
-      if let nextPlan = viewModel.scheduledPlansForDisplay.first {
-        return scheduledPlanDetail(for: nextPlan)
-      }
-      return "Auto-start saved modes on chosen weekdays."
-    case .sessions:
-      if viewModel.activeSessionIsBlocking {
-        return sessionDetail
-      }
-      if let recentEntry = viewModel.recentSessionHistory.first {
-        return historySubtitle(for: recentEntry)
-      }
-      return "See live state, past blocks, and the emergency failsafe."
-    }
-  }
-
-  private func sectionBadge(for section: HomeSection) -> String {
-    switch section {
-    case .modes:
-      if viewModel.currentModeIsStrict {
-        return "Strict"
-      }
-      return currentMode == nil ? "Setup" : "Ready"
-    case .anchors:
-      if activePairedTag != nil {
-        return "Active"
-      }
-      let count = viewModel.snapshot.pairedTags.count
-      return count == 0 ? "None" : "\(count)"
-    case .schedules:
-      if activeScheduledPlan != nil {
-        return "Active"
-      }
-      let count = viewModel.scheduledPlansForDisplay.count
-      return count == 0 ? "Off" : "\(count)"
-    case .sessions:
-      if viewModel.canReleaseActiveSession {
-        return "Blocking"
-      }
-      return viewModel.recentSessionHistory.isEmpty ? "Idle" : "Recent"
-    }
-  }
-
-  private func sectionAccent(for section: HomeSection) -> Color {
-    switch section {
-    case .modes:
-      return viewModel.currentModeIsStrict ? AnclaTheme.warningText : AnclaTheme.accentFill
-    case .anchors:
-      return activePairedTag == nil ? AnclaTheme.accentFill : AnclaTheme.warningText
-    case .schedules:
-      return activeScheduledPlan == nil ? AnclaTheme.accentFill : AnclaTheme.warningText
-    case .sessions:
-      return viewModel.activeSessionIsBlocking ? sessionAccent : AnclaTheme.accentFill
     }
   }
 
