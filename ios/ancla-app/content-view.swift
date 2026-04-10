@@ -247,15 +247,7 @@ struct ContentView: View {
 
       selectedSectionContent
     }
-    .padding(24)
-    .background(
-      RoundedRectangle(cornerRadius: 30, style: .continuous)
-        .fill(AnclaTheme.panel)
-        .overlay(
-          RoundedRectangle(cornerRadius: 30, style: .continuous)
-            .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
-        )
-    )
+    .padding(.top, 8)
   }
 
   @ViewBuilder
@@ -762,7 +754,7 @@ struct ContentView: View {
             ProgressView()
               .tint(Color.white)
           } else {
-            Image(systemName: primaryActionSymbol)
+            Image(systemName: "plus")
               .font(.system(size: 28, weight: .semibold))
           }
         }
