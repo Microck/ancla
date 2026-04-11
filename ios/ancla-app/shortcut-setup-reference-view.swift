@@ -62,6 +62,7 @@ struct ShortcutSetupReferenceView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 14)
+            .contentShape(Rectangle())
             .overlay(alignment: .bottom) {
               Rectangle()
                 .fill(AnclaTheme.panelStroke.opacity(0.6))

@@ -636,6 +636,8 @@ struct ContentView: View {
       .disabled(viewModel.isBusy)
     }
     .padding(.vertical, 14)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .contentShape(Rectangle())
     .overlay(alignment: .bottom) {
       surfaceDivider
     }
