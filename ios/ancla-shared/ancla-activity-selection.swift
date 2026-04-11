@@ -17,15 +17,13 @@ extension BlockMode {
     id: UUID = UUID(),
     name: String,
     selection: FamilyActivitySelection,
-    isDefault: Bool = false,
-    isStrict: Bool = false
+    isDefault: Bool = false
   ) throws {
     self.init(
       id: id,
       name: name,
       selectionData: try JSONEncoder().encode(selection),
-      isDefault: isDefault,
-      isStrict: isStrict
+      isDefault: isDefault
     )
   }
 

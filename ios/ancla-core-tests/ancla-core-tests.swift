@@ -2,15 +2,7 @@ import XCTest
 @testable import AnclaCore
 
 final class AnclaCoreTests: XCTestCase {
-  func testBlockModeDefaultsToNonStrictAndCanOptIn() {
-    let defaultMode = BlockMode(name: "Work", selectionData: Data(), isDefault: true)
-    let strictMode = BlockMode(name: "Locked down", selectionData: Data(), isDefault: false, isStrict: true)
-
-    XCTAssertFalse(defaultMode.isStrict)
-    XCTAssertTrue(strictMode.isStrict)
-  }
-
-  func testBlockModeDecodeDefaultsStrictFlagWhenMissing() throws {
+  func testBlockModeDecodeStillWorksWithoutLegacyStrictFlag() throws {
     let encoded = """
     {
       "id": "00000000-0000-0000-0000-000000000001",
@@ -22,8 +14,22 @@ final class AnclaCoreTests: XCTestCase {
 
     let decoded = try JSONDecoder().decode(BlockMode.self, from: encoded)
 
-    XCTAssertFalse(decoded.isStrict)
     XCTAssertEqual(decoded.name, "Work")
+    XCTAssertTrue(decoded.isDefault)
+  }
+
+  func testAppSnapshotDecodeDefaultsShortcutSetupFlagWhenMissing() throws {
+    let encoded = """
+    {
+      "isAuthorized": true,
+      "pairedTags": [],
+      "modes": []
+    }
+    """.data(using: .utf8)!
+
+    let decoded = try JSONDecoder().decode(AppSnapshot.self, from: encoded)
+
+    XCTAssertFalse(decoded.hasConfirmedShortcutSetup)
   }
 
   func testSortedModesPlacesDefaultFirstThenAlphabetical() {

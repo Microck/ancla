@@ -25,27 +25,23 @@ struct BlockMode: Codable, Equatable, Identifiable {
     case name
     case selectionData
     case isDefault
-    case isStrict
   }
 
   let id: UUID
   var name: String
   var selectionData: Data
   var isDefault: Bool
-  var isStrict: Bool
 
   init(
     id: UUID = UUID(),
     name: String,
     selectionData: Data = Data(),
-    isDefault: Bool = false,
-    isStrict: Bool = false
+    isDefault: Bool = false
   ) {
     self.id = id
     self.name = name
     self.selectionData = selectionData
     self.isDefault = isDefault
-    self.isStrict = isStrict
   }
 
   init(from decoder: any Decoder) throws {
@@ -54,7 +50,6 @@ struct BlockMode: Codable, Equatable, Identifiable {
     name = try container.decode(String.self, forKey: .name)
     selectionData = try container.decode(Data.self, forKey: .selectionData)
     isDefault = try container.decode(Bool.self, forKey: .isDefault)
-    isStrict = try container.decodeIfPresent(Bool.self, forKey: .isStrict) ?? false
   }
 }
 
@@ -256,6 +251,7 @@ struct SessionHistoryEntry: Codable, Equatable, Identifiable {
 struct AppSnapshot: Codable, Equatable {
   private enum CodingKeys: String, CodingKey {
     case isAuthorized
+    case hasConfirmedShortcutSetup
     case pairedTag
     case pairedTags
     case modes
@@ -270,6 +266,7 @@ struct AppSnapshot: Codable, Equatable {
   }
 
   var isAuthorized = false
+  var hasConfirmedShortcutSetup = false
   var pairedTags: [PairedTag] = []
   var modes: [BlockMode] = []
   var activeSession: AnchorSession?
@@ -283,6 +280,7 @@ struct AppSnapshot: Codable, Equatable {
 
   init(
     isAuthorized: Bool = false,
+    hasConfirmedShortcutSetup: Bool = false,
     pairedTag: PairedTag? = nil,
     pairedTags: [PairedTag] = [],
     modes: [BlockMode] = [],
@@ -296,6 +294,7 @@ struct AppSnapshot: Codable, Equatable {
     temporaryUnlock: TemporaryUnlockState? = nil
   ) {
     self.isAuthorized = isAuthorized
+    self.hasConfirmedShortcutSetup = hasConfirmedShortcutSetup
     self.pairedTags = pairedTags.isEmpty ? (pairedTag.map { [$0] } ?? []) : pairedTags
     self.modes = modes
     self.activeSession = activeSession
@@ -311,6 +310,8 @@ struct AppSnapshot: Codable, Equatable {
   init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     isAuthorized = try container.decodeIfPresent(Bool.self, forKey: .isAuthorized) ?? false
+    hasConfirmedShortcutSetup =
+      try container.decodeIfPresent(Bool.self, forKey: .hasConfirmedShortcutSetup) ?? false
     let decodedPairedTags = try container.decodeIfPresent([PairedTag].self, forKey: .pairedTags)
     if let decodedPairedTags, !decodedPairedTags.isEmpty {
       pairedTags = decodedPairedTags
@@ -335,6 +336,7 @@ struct AppSnapshot: Codable, Equatable {
   func encode(to encoder: any Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(isAuthorized, forKey: .isAuthorized)
+    try container.encode(hasConfirmedShortcutSetup, forKey: .hasConfirmedShortcutSetup)
     try container.encode(pairedTags, forKey: .pairedTags)
     try container.encode(modes, forKey: .modes)
     try container.encodeIfPresent(activeSession, forKey: .activeSession)

@@ -26,21 +26,40 @@ final class AppViewModelTests: XCTestCase {
     XCTAssertTrue(viewModel.snapshot.modes[1].isDefault)
   }
 
-  func testSaveModePersistsStrictFlagForSideloadMode() async throws {
+  func testConfirmShortcutSetupPersistsFlag() async throws {
     let viewModel = AppViewModel(
       buildVariant: .sideloadLite,
       store: InMemorySnapshotStore(),
       stickerPairingService: FakeStickerPairingService()
     )
 
-    viewModel.draftModeName = "Locked down"
-    viewModel.draftModeIsStrict = true
-    await viewModel.saveMode()
+    XCTAssertFalse(viewModel.hasCompletedShortcutSetup)
 
-    let savedMode = try XCTUnwrap(viewModel.snapshot.modes.first)
-    XCTAssertTrue(savedMode.isStrict)
-    XCTAssertTrue(viewModel.currentModeIsStrict)
-    XCTAssertFalse(viewModel.draftModeIsStrict)
+    await viewModel.confirmShortcutSetup()
+
+    XCTAssertTrue(viewModel.snapshot.hasConfirmedShortcutSetup)
+    XCTAssertTrue(viewModel.hasCompletedShortcutSetup)
+  }
+
+  func testRequiredSetupNeedsShortcutAnchorAndModeInSideloadLite() async throws {
+    let viewModel = AppViewModel(
+      buildVariant: .sideloadLite,
+      store: InMemorySnapshotStore(),
+      stickerPairingService: FakeStickerPairingService(nextHashes: ["desk-anchor"])
+    )
+
+    XCTAssertFalse(viewModel.hasCompletedRequiredSetup)
+
+    await viewModel.confirmShortcutSetup()
+    XCTAssertFalse(viewModel.hasCompletedRequiredSetup)
+
+    viewModel.draftTagName = "Desk anchor"
+    await viewModel.pairSticker()
+    XCTAssertFalse(viewModel.hasCompletedRequiredSetup)
+
+    viewModel.draftModeName = "Phone break"
+    await viewModel.saveMode()
+    XCTAssertTrue(viewModel.hasCompletedRequiredSetup)
   }
 
   func testDeleteModeClearsArmedSessionAndReassignsDefault() async throws {
@@ -219,18 +238,17 @@ final class AppViewModelTests: XCTestCase {
     XCTAssertEqual(shielding.appliedModeIDs, [secondMode.id])
   }
 
-  func testPrepareDraftForEditingModeLoadsAndUpdatesStrictFlag() async throws {
-    let strictMode = BlockMode(
+  func testPrepareDraftForEditingModeLoadsSavedModeName() async throws {
+    let savedMode = BlockMode(
       name: "Locked down",
       selectionData: Data(),
-      isDefault: true,
-      isStrict: true
+      isDefault: true
     )
     let store = InMemorySnapshotStore(
       snapshot: AppSnapshot(
         isAuthorized: true,
         pairedTag: nil,
-        modes: [strictMode],
+        modes: [savedMode],
         activeSession: nil
       )
     )
@@ -240,16 +258,15 @@ final class AppViewModelTests: XCTestCase {
       stickerPairingService: FakeStickerPairingService()
     )
 
-    viewModel.prepareDraftForEditingMode(strictMode.id)
-    XCTAssertTrue(viewModel.draftModeIsStrict)
-    XCTAssertTrue(viewModel.currentModeIsStrict)
+    viewModel.prepareDraftForEditingMode(savedMode.id)
+    XCTAssertEqual(viewModel.draftModeName, "Locked down")
+    XCTAssertEqual(viewModel.draftModeID, savedMode.id)
 
-    viewModel.draftModeIsStrict = false
+    viewModel.draftModeName = "Locked down later"
     await viewModel.saveMode()
 
     let updatedMode = try XCTUnwrap(viewModel.snapshot.modes.first)
-    XCTAssertFalse(updatedMode.isStrict)
-    XCTAssertFalse(viewModel.currentModeIsStrict)
+    XCTAssertEqual(updatedMode.name, "Locked down later")
   }
 
   func testWrongStickerKeepsSessionArmedAndAllowsRetry() async throws {
@@ -687,7 +704,7 @@ final class AppViewModelTests: XCTestCase {
   }
 
   func testSaveScheduledPlanPersistsModeAnchorDaysAndWindow() async throws {
-    let mode = BlockMode(name: "Locked down", selectionData: Data(), isDefault: true, isStrict: true)
+    let mode = BlockMode(name: "Locked down", selectionData: Data(), isDefault: true)
     let pairedTag = PairedTag(uidHash: "desk-hash", displayName: "Desk anchor")
     let viewModel = AppViewModel(
       buildVariant: .sideloadLite,

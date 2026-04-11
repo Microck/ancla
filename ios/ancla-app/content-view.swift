@@ -88,13 +88,32 @@ struct ContentView: View {
     primaryActionDisabled || viewModel.isBusy
   }
 
+  private var shouldShowSetupFlow: Bool {
+    viewModel.isSideloadLiteBuild
+      && !viewModel.hasCompletedRequiredSetup
+      && !viewModel.shouldShowLockedScreen
+  }
+
   var body: some View {
     NavigationStack {
       ZStack {
         AnclaBackgroundSurface(isWarningTinted: false)
           .ignoresSafeArea()
 
-        if !viewModel.shouldShowLockedScreen {
+        if shouldShowSetupFlow {
+          SetupFlowView(
+            viewModel: viewModel,
+            showsDismissButton: false,
+            onDismiss: nil,
+            onPairAnchor: {
+              Task { await viewModel.pairSticker() }
+            },
+            onCreateMode: {
+              viewModel.prepareDraftForNewMode()
+              isModeEditorPresented = true
+            }
+          )
+        } else if !viewModel.shouldShowLockedScreen {
           ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 20) {
               header
@@ -126,6 +145,13 @@ struct ContentView: View {
             presets: viewModel.unlockPresetsForDisplay,
             feedback: viewModel.feedback,
             isBusy: viewModel.isBusy,
+            onLockedSurfaceTap: {
+              isUnlockMenuPresented = false
+              guard !viewModel.isBusy else {
+                return
+              }
+              Task { await viewModel.releaseActiveSession() }
+            },
             onToggleUnlockMenu: {
               isUnlockMenuPresented.toggle()
             },
@@ -138,7 +164,7 @@ struct ContentView: View {
         }
       }
       .safeAreaInset(edge: .bottom, spacing: 0) {
-        if !viewModel.shouldShowLockedScreen {
+        if !viewModel.shouldShowLockedScreen && !shouldShowSetupFlow {
           bottomDock
         }
       }
@@ -271,24 +297,19 @@ struct ContentView: View {
   }
 
   private var headlineSection: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: 10) {
       HStack(spacing: 8) {
-        if viewModel.currentModeIsStrict {
-          statusBadge("STRICT", color: AnclaTheme.warningText)
-        }
-
         statusBadge(nextStepLabel, color: sessionAccent)
+
+        if let currentMode {
+          statusBadge(currentMode.name, color: AnclaTheme.secondaryText)
+        }
       }
 
       Text(viewModel.diagnostics.headline)
-        .font(.ancla(38, weight: .medium))
+        .font(.ancla(34, weight: .medium))
         .foregroundStyle(AnclaTheme.primaryText)
         .lineLimit(2)
-
-      Text(compactMessage)
-        .font(.ancla(15))
-        .foregroundStyle(AnclaTheme.secondaryText)
-        .frame(maxWidth: 360, alignment: .leading)
     }
   }
 
@@ -430,7 +451,7 @@ struct ContentView: View {
   }
 
   private var sessionsSectionContent: some View {
-    VStack(spacing: 12) {
+    VStack(alignment: .leading, spacing: 18) {
       informativeRow(
         title: sessionSectionTitle,
         detail: sessionDetail,
@@ -438,6 +459,8 @@ struct ContentView: View {
         highlight: viewModel.activeSessionIsBlocking,
         trailingText: sessionSectionBadge
       )
+
+      compactSectionTitle("Failsafe")
 
       informativeRow(
         title: emergencyUnbrickTitle,
@@ -447,6 +470,14 @@ struct ContentView: View {
         trailingText: emergencyUnbrickBadge
       )
 
+      informativeRow(
+        title: "Typing fallback",
+        detail: paragraphChallengeDetail,
+        accentColor: viewModel.paragraphChallengeEnabled ? AnclaTheme.primaryText : AnclaTheme.secondaryText,
+        highlight: viewModel.canUseParagraphChallenge,
+        trailingText: viewModel.paragraphChallengeEnabled ? "On" : "Off"
+      )
+
       if viewModel.canUseEmergencyUnbrick {
         Button {
           Task { await viewModel.useEmergencyUnbrick() }
@@ -454,7 +485,7 @@ struct ContentView: View {
           actionRow(
             icon: "bolt.horizontal.circle",
             title: "Use failsafe",
-            detail: "Release the current session without scanning the paired anchor.",
+            detail: "Release without the anchor.",
             isLoading: viewModel.isActionInProgress(.emergencyUnbrick),
             isDestructive: true
           )
@@ -463,21 +494,13 @@ struct ContentView: View {
         .disabled(viewModel.isBusy)
       }
 
-      informativeRow(
-        title: "Failsafe challenge",
-        detail: paragraphChallengeDetail,
-        accentColor: viewModel.paragraphChallengeEnabled ? AnclaTheme.primaryText : AnclaTheme.secondaryText,
-        highlight: viewModel.canUseParagraphChallenge,
-        trailingText: viewModel.paragraphChallengeEnabled ? "On" : "Off"
-      )
-
       Button {
         Task { await viewModel.setParagraphChallengeEnabled(!viewModel.paragraphChallengeEnabled) }
       } label: {
         actionRow(
           icon: viewModel.paragraphChallengeEnabled ? "checkmark.circle" : "circle",
           title: viewModel.paragraphChallengeEnabled ? "Disable failsafe challenge" : "Enable failsafe challenge",
-          detail: "Keep the paragraph fallback ready after the normal failsafes run out.",
+          detail: "Use exact typing after normal failsafes run out.",
           isLoading: false
         )
       }
@@ -492,7 +515,7 @@ struct ContentView: View {
           actionRow(
             icon: "text.alignleft",
             title: "Start failsafe challenge",
-            detail: "Type the full passage exactly to release the current session.",
+            detail: "Type the full passage exactly.",
             isLoading: false,
             isDestructive: true
           )
@@ -501,10 +524,12 @@ struct ContentView: View {
         .disabled(viewModel.isBusy)
       }
 
+      compactSectionTitle("Presets")
+
       if viewModel.unlockPresetsForDisplay.isEmpty {
         informativeRow(
           title: "No presets saved",
-          detail: "Save a quick unlock for short tasks like checking a 2FA code.",
+          detail: "Save a short unlock like checking 2FA.",
           accentColor: AnclaTheme.primaryText,
           highlight: false,
           trailingSymbol: "plus"
@@ -522,7 +547,7 @@ struct ContentView: View {
         actionRow(
           icon: "plus",
           title: "Create preset",
-          detail: "Add a short timed unlock for a specific task.",
+          detail: "Add a short timed unlock.",
           isLoading: false
         )
       }
@@ -539,28 +564,23 @@ struct ContentView: View {
         )
       }
 
-      if viewModel.currentModeIsStrict {
-        informativeRow(
-          title: strictModeTitle,
-          detail: strictModeDetail,
-          accentColor: AnclaTheme.warningText,
-          highlight: viewModel.canReleaseActiveSession,
-          trailingText: "Strict"
-        )
-
+      if viewModel.isSideloadLiteBuild {
+        compactSectionTitle("Shortcut")
         Button {
           isShortcutGuidesPresented = true
         } label: {
           actionRow(
             icon: "bolt.horizontal.circle",
-          title: "Review Shortcut setup",
-          detail: "Finish the Shortcut automation that covers the apps you want Ancla to gate.",
+            title: viewModel.hasCompletedShortcutSetup ? "Review Shortcut setup" : "Finish Shortcut setup",
+            detail: "Include every app you want blocked.",
             isLoading: false
           )
         }
         .buttonStyle(.plain)
         .disabled(viewModel.isBusy)
       }
+
+      compactSectionTitle("Recent")
 
       if viewModel.recentSessionHistory.isEmpty {
         informativeRow(
@@ -589,6 +609,14 @@ struct ContentView: View {
         Capsule(style: .continuous)
           .fill(color.opacity(0.12))
       )
+  }
+
+  private func compactSectionTitle(_ title: String) -> some View {
+    Text(title)
+      .font(.ancla(11, weight: .semibold))
+      .tracking(1.2)
+      .foregroundStyle(AnclaTheme.tertiaryText)
+      .padding(.top, 4)
   }
 
   private func pairedAnchorCard(_ pairedTag: PairedTag) -> some View {
@@ -808,12 +836,6 @@ struct ContentView: View {
       }
 
       Spacer(minLength: 0)
-
-      if mode.isStrict {
-        Text("Strict")
-          .font(.ancla(12, weight: .medium))
-          .foregroundStyle(AnclaTheme.warningText)
-      }
 
       if isArmed {
         Text("Active")
@@ -1113,31 +1135,6 @@ struct ContentView: View {
     viewModel.selectedMode() ?? viewModel.preferredMode()
   }
 
-  private var compactMessage: String {
-    switch nextStep {
-    case .authorize:
-      return "Grant App Controls once, then save a mode and pair an anchor."
-    case .unavailable:
-      return "This device cannot scan NFC anchors, so pairing and release stay unavailable here."
-    case .modeRequired:
-      return "Save a mode in the Mode section. The center action stays reserved for pairing and block control."
-    case .pairAnchor:
-      return "Pair one anchor to move the release path off the screen and into the room."
-    case .release:
-      if let activePairedTag {
-        return "\(activePairedTag.displayName) is the only anchor that can end this live block."
-      }
-      return "Use the same paired anchor to end the live block."
-    case .arm:
-      if let currentMode {
-        return "\"\(currentMode.name)\" is ready. Start it when you want the block to go live."
-      }
-      return "Choose a mode, then start the block."
-    case .rearm:
-      return "The last block ended cleanly. Start the next one when you are ready."
-    }
-  }
-
   private var nextStepLabel: String {
     switch nextStep {
     case .authorize:
@@ -1223,10 +1220,6 @@ struct ContentView: View {
 
       return sessionWaitingDetail
     case .mismatchedTag:
-      if viewModel.currentModeIsStrict {
-        return "A different anchor was scanned. Strict mode stays active until the right anchor is used. \(emergencyCountSentence)"
-      }
-
       return "A different anchor was scanned. The session remains active. \(emergencyCountSentence)"
     case .released:
       return "The most recent session was released successfully."
@@ -1533,10 +1526,6 @@ struct ContentView: View {
         return "This scheduled session is active now. \(activePairedTag.displayName) is still the early release path. \(emergencyCountSentence)"
       }
 
-      if viewModel.currentModeIsStrict {
-        return "Strict mode is active. \(activePairedTag.displayName) is the only release path. \(emergencyCountSentence)"
-      }
-
       return "The current session remains active until \(activePairedTag.displayName) is scanned. \(emergencyCountSentence)"
     }
 
@@ -1545,14 +1534,14 @@ struct ContentView: View {
 
   private var paragraphChallengeDetail: String {
     if !viewModel.paragraphChallengeEnabled {
-      return "Turn this on if you want an exact-typing fallback after the normal failsafes run out."
+      return "Turn this on to keep the exact-typing fallback ready."
     }
 
     if viewModel.canUseParagraphChallenge {
-      return "The normal failsafes are empty. Type the stored passage exactly to release the current session."
+      return "The normal failsafes are empty. Type the stored passage exactly."
     }
 
-    return "This stays ready in the background and only appears after the normal failsafes reach zero."
+    return "This only appears after the normal failsafes hit zero."
   }
 
   private var renameAnchorPresented: Binding<Bool> {
@@ -1600,18 +1589,6 @@ struct ContentView: View {
     }
 
     return "Remove this paired anchor from this iPhone."
-  }
-
-  private var strictModeTitle: String {
-    viewModel.canReleaseActiveSession ? "Strict mode is active" : "Strict mode is ready"
-  }
-
-  private var strictModeDetail: String {
-    if viewModel.canReleaseActiveSession {
-      return "This session is meant to feel harder to bypass. Close obvious loopholes with the Shortcut setup before you rely on it."
-    }
-
-    return "This mode uses stronger, more committed copy and a native-Apple-app checklist so the easy bypasses are harder to ignore."
   }
 
   private var canCreateScheduledPlan: Bool {

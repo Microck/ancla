@@ -8,6 +8,7 @@ struct LockScreenView: View {
   let presets: [UnlockPreset]
   let feedback: ActionFeedback?
   let isBusy: Bool
+  let onLockedSurfaceTap: () -> Void
   let onToggleUnlockMenu: () -> Void
   let onEmergencyAction: () -> Void
   let onPreset: (UnlockPreset) -> Void
@@ -16,6 +17,14 @@ struct LockScreenView: View {
     ZStack(alignment: .topLeading) {
       AnclaTheme.background
         .ignoresSafeArea()
+
+      Button(action: onLockedSurfaceTap) {
+        Color.clear
+          .contentShape(Rectangle())
+          .ignoresSafeArea()
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("Scan anchor")
 
       VStack {
         Spacer(minLength: 0)

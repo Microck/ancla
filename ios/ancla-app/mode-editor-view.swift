@@ -6,7 +6,6 @@ struct ModeEditorView: View {
   let onChooseSelection: () -> Void
 
   @Environment(\.dismiss) private var dismiss
-  @State private var isShortcutGuidesPresented = false
 
   private var chromePanelInteractive: Color {
     AnclaTheme.panelInteractive
@@ -90,31 +89,22 @@ struct ModeEditorView: View {
 
         ScrollView(showsIndicators: false) {
           VStack(alignment: .leading, spacing: 0) {
-            sectionLabel("IDENTITY")
-              .padding(.top, 48)
-
             TextField("", text: $viewModel.draftModeName)
               .textInputAutocapitalization(.words)
               .font(.ancla(28))
               .foregroundStyle(AnclaTheme.primaryText)
-              .padding(.top, 30)
+              .padding(.top, 48)
 
             divider
               .padding(.top, 12)
 
             if viewModel.isSideloadLiteBuild {
-              sectionLabel("RELEASE")
-                .padding(.top, 60)
-
-              Text("This mode uses the paired anchor and keeps its session state on this iPhone. Turn on strict mode if you want the harder-to-bypass version of this ritual.")
-                .font(.ancla(16))
+              Text("Names the block you want ready next.")
+                .font(.ancla(15))
                 .foregroundStyle(AnclaTheme.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 26)
+                .padding(.top, 24)
             } else {
-              sectionLabel("TARGETS")
-                .padding(.top, 60)
-
               Button {
                 onChooseSelection()
               } label: {
@@ -137,7 +127,7 @@ struct ModeEditorView: View {
                 .frame(height: 54)
               }
               .buttonStyle(AnclaPressableButtonStyle())
-              .padding(.top, 26)
+              .padding(.top, 24)
 
               if !viewModel.canSaveDraftMode {
                 Text("Choose at least one app, category, or domain.")
@@ -149,9 +139,6 @@ struct ModeEditorView: View {
 
             divider
               .padding(.top, 24)
-
-            strictModePanel
-              .padding(.top, 40)
 
             HStack(alignment: .center) {
               VStack(alignment: .leading, spacing: 6) {
@@ -216,88 +203,11 @@ struct ModeEditorView: View {
     .preferredColorScheme(.dark)
     .presentationDetents([.medium, .large])
     .presentationDragIndicator(.hidden)
-    .sheet(isPresented: $isShortcutGuidesPresented) {
-      ShortcutGuidesSheet()
-        .presentationBackground(.clear)
-    }
-  }
-
-  private func sectionLabel(_ title: String) -> some View {
-    Text(title)
-      .font(.ancla(10, weight: .semibold))
-      .tracking(2)
-      .foregroundStyle(AnclaTheme.tertiaryText)
   }
 
   private var divider: some View {
     Rectangle()
       .fill(AnclaTheme.panelStroke.opacity(0.6))
       .frame(height: 1)
-  }
-
-  private var strictModePanel: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      sectionLabel("STRICT MODE")
-
-      VStack(alignment: .leading, spacing: 14) {
-        HStack(alignment: .center) {
-          VStack(alignment: .leading, spacing: 6) {
-            Text("Use stricter mode copy")
-              .font(.ancla(16))
-              .foregroundStyle(AnclaTheme.primaryText)
-
-            Text("Highlight the stricter version of this mode and surface the Shortcut setup that closes easy loopholes.")
-              .font(.ancla(12))
-              .foregroundStyle(AnclaTheme.tertiaryText)
-              .frame(maxWidth: .infinity, alignment: .leading)
-          }
-
-          Spacer()
-
-          Toggle("", isOn: $viewModel.draftModeIsStrict)
-            .labelsHidden()
-            .tint(AnclaTheme.ctaFill)
-        }
-
-        if viewModel.draftModeIsStrict {
-          Text("Apps like Safari, Settings, Messages, and Mail still need the Shortcut automation because iOS does not let Ancla hard-block every built-in app directly.")
-            .font(.ancla(13))
-            .foregroundStyle(AnclaTheme.secondaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-          Button {
-            isShortcutGuidesPresented = true
-          } label: {
-            HStack {
-              Image(systemName: "bolt.horizontal.circle")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(AnclaTheme.primaryText)
-
-              Text("Review Shortcut setup")
-                .font(.ancla(15, weight: .medium))
-                .foregroundStyle(AnclaTheme.primaryText)
-
-              Spacer()
-
-              Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(AnclaTheme.tertiaryText)
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 52)
-          }
-          .buttonStyle(AnclaPressableButtonStyle())
-        }
-      }
-      .padding(16)
-      .background(
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
-          .fill(chromePanelInteractive)
-          .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-              .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
-          )
-      )
-    }
   }
 }

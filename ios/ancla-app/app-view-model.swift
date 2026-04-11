@@ -10,6 +10,7 @@ import UIKit
 enum AppActionID: Equatable {
   case refresh
   case authorize
+  case confirmShortcutSetup
   case pairAnchor
   case armSession
   case releaseSession
@@ -47,7 +48,6 @@ final class AppViewModel {
   var draftSelection = FamilyActivitySelection()
   var draftModeName = "Work block"
   var draftModeShouldBeDefault = false
-  var draftModeIsStrict = false
   var draftScheduleID: UUID?
   var draftScheduleModeID: UUID?
   var draftSchedulePairedTagID: UUID?
@@ -183,16 +183,29 @@ final class AppViewModel {
     AnclaCore.canReleaseActiveSession(snapshot)
   }
 
+  var hasCompletedShortcutSetup: Bool {
+    snapshot.hasConfirmedShortcutSetup
+  }
+
+  var hasCompletedAnchorSetup: Bool {
+    !snapshot.pairedTags.isEmpty
+  }
+
+  var hasCompletedModeSetup: Bool {
+    !snapshot.modes.isEmpty
+  }
+
+  var hasCompletedRequiredSetup: Bool {
+    !isSideloadLiteBuild
+      || (hasCompletedShortcutSetup && hasCompletedAnchorSetup && hasCompletedModeSetup)
+  }
+
   var canUseEmergencyUnbrick: Bool {
     AnclaCore.canUseEmergencyUnbrick(snapshot)
   }
 
   var canArmSelectedMode: Bool {
     AnclaCore.canArmSelectedMode(snapshot)
-  }
-
-  var currentModeIsStrict: Bool {
-    (selectedMode() ?? preferredMode())?.isStrict == true
   }
 
   var scheduledPlansForDisplay: [ScheduledSessionPlan] {
@@ -302,7 +315,6 @@ final class AppViewModel {
           clearDefaultFlag()
         }
         mode.isDefault = shouldBeDefault
-        mode.isStrict = draftModeIsStrict
         snapshot.modes[index] = mode
         ensureDefaultMode()
 
@@ -317,15 +329,13 @@ final class AppViewModel {
           mode = BlockMode(
             name: modeName,
             selectionData: Data(),
-            isDefault: snapshot.modes.isEmpty || draftModeShouldBeDefault,
-            isStrict: draftModeIsStrict
+            isDefault: snapshot.modes.isEmpty || draftModeShouldBeDefault
           )
         } else {
           mode = try BlockMode(
             name: modeName,
             selection: draftSelection,
-            isDefault: snapshot.modes.isEmpty || draftModeShouldBeDefault,
-            isStrict: draftModeIsStrict
+            isDefault: snapshot.modes.isEmpty || draftModeShouldBeDefault
           )
         }
 
@@ -383,7 +393,6 @@ final class AppViewModel {
     draftModeName = "Work block"
     draftSelection = FamilyActivitySelection()
     draftModeShouldBeDefault = snapshot.modes.isEmpty
-    draftModeIsStrict = false
   }
 
   func prepareDraftForNewSchedule() {
@@ -415,7 +424,6 @@ final class AppViewModel {
     draftModeID = mode.id
     draftModeName = mode.name
     draftModeShouldBeDefault = mode.isDefault
-    draftModeIsStrict = mode.isStrict
 
     if isSideloadLiteBuild && mode.selectionData.isEmpty {
       draftSelection = FamilyActivitySelection()
@@ -537,6 +545,14 @@ final class AppViewModel {
       try persist()
       prepareDraftForNewPreset()
       feedback = ActionFeedback(message: "\"\(preset.title)\" preset saved.", tone: .success)
+    }
+  }
+
+  func confirmShortcutSetup() async {
+    await runTask(action: .confirmShortcutSetup) { [self] in
+      snapshot.hasConfirmedShortcutSetup = true
+      try persist()
+      feedback = ActionFeedback(message: "Shortcut setup marked done.", tone: .success)
     }
   }
 
