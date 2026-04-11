@@ -15,6 +15,7 @@ enum AppActionID: Equatable {
   case armSession
   case releaseSession
   case emergencyUnbrick
+  case adjustFailsafes
   case paragraphChallenge
   case presetUnlock
   case renameAnchor
@@ -32,9 +33,16 @@ enum ActionFeedbackTone {
   case error
 }
 
-struct ActionFeedback: Equatable {
+struct ActionFeedback: Equatable, Identifiable {
+  let id: UUID
   let message: String
   let tone: ActionFeedbackTone
+
+  init(id: UUID = UUID(), message: String, tone: ActionFeedbackTone) {
+    self.id = id
+    self.message = message
+    self.tone = tone
+  }
 }
 
 @MainActor
@@ -573,11 +581,27 @@ final class AppViewModel {
   }
 
   func setParagraphChallengeEnabled(_ isEnabled: Bool) async {
-    await runTask(action: .savePreset) { [self] in
+    await runTask(action: .paragraphChallenge) { [self] in
       snapshot.paragraphChallengeEnabled = isEnabled
       try persist()
       feedback = ActionFeedback(
-        message: isEnabled ? "Failsafe challenge enabled." : "Failsafe challenge disabled.",
+        message: isEnabled ? "Typing challenge enabled." : "Typing challenge disabled.",
+        tone: .success
+      )
+    }
+  }
+
+  func adjustEmergencyUnbricks(by delta: Int) async {
+    await runTask(action: .adjustFailsafes) { [self] in
+      let nextValue = max(0, min(snapshot.emergencyUnbricksRemaining + delta, 99))
+      guard nextValue != snapshot.emergencyUnbricksRemaining else {
+        return
+      }
+
+      snapshot.emergencyUnbricksRemaining = nextValue
+      try persist()
+      feedback = ActionFeedback(
+        message: nextValue == 1 ? "Failsafes set to 1." : "Failsafes set to \(nextValue).",
         tone: .success
       )
     }

@@ -48,6 +48,18 @@ struct SetupFlowView: View {
         }
       }
     }
+    .onAppear {
+      syncSelectedSection(force: true)
+    }
+    .onChange(of: viewModel.hasCompletedShortcutSetup) { _, _ in
+      syncSelectedSection()
+    }
+    .onChange(of: viewModel.hasCompletedAnchorSetup) { _, _ in
+      syncSelectedSection()
+    }
+    .onChange(of: viewModel.hasCompletedModeSetup) { _, _ in
+      syncSelectedSection()
+    }
     .preferredColorScheme(.dark)
   }
 
@@ -144,15 +156,13 @@ struct SetupFlowView: View {
   }
 
   private var shortcutContent: some View {
-    VStack(alignment: .leading, spacing: 18) {
-      ShortcutSetupReferenceView(
-        showsCompletionState: true,
-        isComplete: viewModel.hasCompletedShortcutSetup,
-        onConfirm: {
-          Task { await viewModel.confirmShortcutSetup() }
-        }
-      )
-    }
+    ShortcutSetupReferenceView(
+      showsCompletionState: true,
+      isComplete: viewModel.hasCompletedShortcutSetup,
+      onConfirm: {
+        Task { await viewModel.confirmShortcutSetup() }
+      }
+    )
   }
 
   private var anchorContent: some View {
@@ -254,6 +264,28 @@ struct SetupFlowView: View {
         .fill(AnclaTheme.panelStroke.opacity(0.55))
         .frame(height: 1)
     }
+  }
+
+  private func syncSelectedSection(force: Bool = false) {
+    guard let nextSection = firstIncompleteSection else {
+      return
+    }
+
+    guard force || isSectionComplete(selectedSection) else {
+      return
+    }
+
+    guard nextSection != selectedSection else {
+      return
+    }
+
+    withAnimation(.easeInOut(duration: 0.22)) {
+      selectedSection = nextSection
+    }
+  }
+
+  private var firstIncompleteSection: SetupSection? {
+    SetupSection.allCases.first { !isSectionComplete($0) }
   }
 
   private func isSectionComplete(_ section: SetupSection) -> Bool {

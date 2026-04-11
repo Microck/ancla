@@ -14,9 +14,10 @@ struct ShortcutSetupReferenceView: View {
       Image("shortcut-automation-reference")
         .resizable()
         .aspectRatio(contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
         .overlay {
-          RoundedRectangle(cornerRadius: 24, style: .continuous)
+          Rectangle()
             .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
         }
 
@@ -35,11 +36,11 @@ struct ShortcutSetupReferenceView: View {
         )
         shortcutStep(
           number: 4,
-          text: "Add action \"Get Block Status\". Add action \"If Get Block Status\". Add action \"Open Anchor\" inside If block. Add Else block. Add End If."
+          text: "Add action \"Get Block Status\". Add action \"If Get Block Status\". Add action \"Open Ancla\" inside If block. Add Else block. Add End If."
         )
       }
 
-      Text("This creates iOS shortcut automation conditionally opening Anchor app based on block status.")
+      Text("This creates iOS shortcut automation that opens Ancla only when block status is on.")
         .font(.ancla(13))
         .foregroundStyle(AnclaTheme.secondaryText)
         .frame(maxWidth: .infinity, alignment: .leading)

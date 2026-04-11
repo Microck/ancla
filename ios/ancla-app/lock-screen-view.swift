@@ -6,7 +6,6 @@ struct LockScreenView: View {
   let emergencyDetail: String
   let emergencyEnabled: Bool
   let presets: [UnlockPreset]
-  let feedback: ActionFeedback?
   let isBusy: Bool
   let onLockedSurfaceTap: () -> Void
   let onToggleUnlockMenu: () -> Void
@@ -26,33 +25,14 @@ struct LockScreenView: View {
       .buttonStyle(.plain)
       .accessibilityLabel("Scan anchor")
 
-      VStack {
-        Spacer(minLength: 0)
+      centerContent
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .padding(.horizontal, 32)
 
-        VStack(spacing: 18) {
-          AnclaMark(color: Color.white.opacity(0.94), size: 128)
-
-          VStack(spacing: 8) {
-            Text("You're anchored")
-              .font(.ancla(34, weight: .semibold))
-              .foregroundStyle(Color.white)
-
-            Text("Hold your iPhone near your anchor to unlock")
-              .font(.ancla(20, weight: .medium))
-              .foregroundStyle(Color.white.opacity(0.82))
-              .multilineTextAlignment(.center)
-              .frame(maxWidth: 280)
-          }
-        }
-
-        Spacer(minLength: 0)
-
-        if let feedback {
-          lockFeedback(feedback)
-            .padding(.horizontal, 28)
-            .padding(.bottom, 28)
-        }
-      }
+      bottomInstruction
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .padding(.horizontal, 28)
+        .padding(.bottom, 44)
 
       VStack(alignment: .leading, spacing: 12) {
         Button(action: onToggleUnlockMenu) {
@@ -81,6 +61,31 @@ struct LockScreenView: View {
       .padding(.leading, 18)
     }
     .preferredColorScheme(.dark)
+  }
+
+  private var centerContent: some View {
+    VStack(spacing: 18) {
+      AnclaMark(color: Color.white.opacity(0.94), size: 128)
+
+      VStack(spacing: 8) {
+        Text("You're anchored")
+          .font(.ancla(34, weight: .semibold))
+          .foregroundStyle(Color.white)
+
+        Text("Tap anywhere, then hold your iPhone near your anchor to unlock.")
+          .font(.ancla(20, weight: .medium))
+          .foregroundStyle(Color.white.opacity(0.82))
+          .multilineTextAlignment(.center)
+          .frame(maxWidth: 320)
+      }
+    }
+  }
+
+  private var bottomInstruction: some View {
+    Text("Unlock options stay on the top left.")
+      .font(.ancla(13, weight: .medium))
+      .foregroundStyle(Color.white.opacity(0.44))
+      .multilineTextAlignment(.center)
   }
 
   private var unlockMenu: some View {
@@ -122,7 +127,7 @@ struct LockScreenView: View {
     .padding(10)
     .background(
       RoundedRectangle(cornerRadius: 24, style: .continuous)
-        .fill(Color(red: 0.15, green: 0.15, blue: 0.15))
+        .fill(AnclaTheme.panelRaised)
         .overlay(
           RoundedRectangle(cornerRadius: 24, style: .continuous)
             .stroke(Color.white.opacity(0.06), lineWidth: 1)
@@ -147,33 +152,5 @@ struct LockScreenView: View {
     .padding(.horizontal, 14)
     .padding(.vertical, 10)
     .contentShape(Rectangle())
-  }
-
-  private func lockFeedback(_ feedback: ActionFeedback) -> some View {
-    let color: Color
-    switch feedback.tone {
-    case .neutral:
-      color = Color.white.opacity(0.72)
-    case .success:
-      color = AnclaTheme.successText
-    case .error:
-      color = AnclaTheme.errorText
-    }
-
-    return Text(feedback.message)
-      .font(.ancla(13, weight: .medium))
-      .foregroundStyle(color)
-      .multilineTextAlignment(.center)
-      .padding(.horizontal, 16)
-      .padding(.vertical, 14)
-      .frame(maxWidth: .infinity)
-      .background(
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
-          .fill(Color.white.opacity(0.04))
-          .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-              .stroke(Color.white.opacity(0.06), lineWidth: 1)
-          )
-      )
   }
 }

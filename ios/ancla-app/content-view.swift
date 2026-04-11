@@ -63,6 +63,8 @@ struct ContentView: View {
   @State private var isUnlockMenuPresented = false
   @State private var renamingAnchorID: UUID?
   @State private var anchorNameDraft = ""
+  @State private var visibleFeedback: ActionFeedback?
+  @State private var feedbackDismissTask: Task<Void, Never>?
 
   private var chromePanelRaised: Color {
     AnclaTheme.panelRaised
@@ -77,11 +79,11 @@ struct ContentView: View {
   }
 
   private var primaryActionFill: Color {
-    Color.black
+    AnclaTheme.panelRaised
   }
 
   private var primaryActionShadow: Color {
-    Color.black.opacity(0.35)
+    AnclaTheme.background.opacity(0.52)
   }
 
   private var primaryActionBlocksTapThrough: Bool {
@@ -123,10 +125,6 @@ struct ContentView: View {
                 temporaryUnlockBanner(temporaryUnlock)
               }
 
-              if let feedback = viewModel.feedback {
-                feedbackRow(feedback)
-              }
-
               selectedSectionPanel
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -143,7 +141,6 @@ struct ContentView: View {
             emergencyDetail: lockScreenEmergencyDetail,
             emergencyEnabled: lockScreenEmergencyEnabled,
             presets: viewModel.unlockPresetsForDisplay,
-            feedback: viewModel.feedback,
             isBusy: viewModel.isBusy,
             onLockedSurfaceTap: {
               isUnlockMenuPresented = false
@@ -166,6 +163,17 @@ struct ContentView: View {
       .safeAreaInset(edge: .bottom, spacing: 0) {
         if !viewModel.shouldShowLockedScreen && !shouldShowSetupFlow {
           bottomDock
+        }
+      }
+      .overlay(alignment: .bottom) {
+        if let visibleFeedback {
+          feedbackRow(visibleFeedback)
+            .frame(maxWidth: 420)
+            .padding(.horizontal, 20)
+            .padding(.bottom, toastBottomPadding)
+            .shadow(color: Color.black.opacity(0.28), radius: 18, y: 12)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .allowsHitTesting(false)
         }
       }
       .toolbar(.hidden, for: .navigationBar)
@@ -236,6 +244,12 @@ struct ContentView: View {
         if isTemporaryUnlockActive {
           isUnlockMenuPresented = false
         }
+      }
+      .onChange(of: viewModel.feedback?.id) { _, _ in
+        showToast(viewModel.feedback)
+      }
+      .onDisappear {
+        feedbackDismissTask?.cancel()
       }
     }
   }
@@ -440,67 +454,8 @@ struct ContentView: View {
 
       compactSectionTitle("Failsafe")
 
-      informativeRow(
-        title: emergencyUnbrickTitle,
-        detail: emergencyUnbrickDetail,
-        accentColor: emergencyUnbrickAccent,
-        highlight: viewModel.snapshot.emergencyUnbricksRemaining > 0,
-        trailingText: emergencyUnbrickBadge
-      )
-
-      informativeRow(
-        title: "Typing challenge",
-        detail: paragraphChallengeDetail,
-        accentColor: viewModel.paragraphChallengeEnabled ? AnclaTheme.primaryText : AnclaTheme.secondaryText,
-        highlight: viewModel.canUseParagraphChallenge,
-        trailingText: viewModel.paragraphChallengeEnabled ? "On" : "Off"
-      )
-
-      Button {
-        Task { await viewModel.setParagraphChallengeEnabled(!viewModel.paragraphChallengeEnabled) }
-      } label: {
-        actionRow(
-          icon: viewModel.paragraphChallengeEnabled ? "checkmark.circle" : "circle",
-          title: viewModel.paragraphChallengeEnabled ? "Disable typing challenge" : "Enable typing challenge",
-          detail: "Keep the last-resort typing unlock ready.",
-          isLoading: false
-        )
-      }
-      .buttonStyle(.plain)
-      .disabled(viewModel.isBusy)
-
-      if viewModel.canUseEmergencyUnbrick {
-        Button {
-          Task { await viewModel.useEmergencyUnbrick() }
-        } label: {
-          actionRow(
-            icon: "bolt.horizontal.circle",
-            title: "Use failsafe",
-            detail: "Release without the anchor.",
-            isLoading: viewModel.isActionInProgress(.emergencyUnbrick),
-            isDestructive: true
-          )
-        }
-        .buttonStyle(.plain)
-        .disabled(viewModel.isBusy)
-      }
-
-      if viewModel.canUseParagraphChallenge {
-        Button {
-          viewModel.prepareParagraphChallenge()
-          isParagraphChallengePresented = true
-        } label: {
-          actionRow(
-            icon: "text.alignleft",
-            title: "Start typing challenge",
-            detail: "Type the full passage exactly.",
-            isLoading: false,
-            isDestructive: true
-          )
-        }
-        .buttonStyle(.plain)
-        .disabled(viewModel.isBusy)
-      }
+      failsafeCountRow
+      paragraphChallengeToggleRow
 
       compactSectionTitle("Presets")
 
@@ -551,7 +506,7 @@ struct ContentView: View {
           actionRow(
             icon: "bolt.horizontal.circle",
             title: viewModel.hasCompletedShortcutSetup ? "Review Shortcut setup" : "Finish Shortcut setup",
-            detail: "Include every app you want blocked.",
+            detail: "Include every app you want blocked. Open Ancla only when block status is on.",
             isLoading: false
           )
         }
@@ -897,6 +852,18 @@ struct ContentView: View {
 
   private var feedbackRowPadding: CGFloat { 14 }
 
+  private var toastBottomPadding: CGFloat {
+    if viewModel.shouldShowLockedScreen {
+      return 34
+    }
+
+    if shouldShowSetupFlow {
+      return 28
+    }
+
+    return 126
+  }
+
   private func feedbackRow(_ feedback: ActionFeedback) -> some View {
     let color: Color
     switch feedback.tone {
@@ -934,6 +901,32 @@ struct ContentView: View {
     )
   }
 
+  private func showToast(_ feedback: ActionFeedback?) {
+    feedbackDismissTask?.cancel()
+
+    guard let feedback else {
+      withAnimation(.easeInOut(duration: 0.2)) {
+        visibleFeedback = nil
+      }
+      return
+    }
+
+    withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+      visibleFeedback = feedback
+    }
+
+    feedbackDismissTask = Task { @MainActor in
+      try? await Task.sleep(nanoseconds: 4_000_000_000)
+      guard !Task.isCancelled, visibleFeedback?.id == feedback.id else {
+        return
+      }
+
+      withAnimation(.easeInOut(duration: 0.22)) {
+        visibleFeedback = nil
+      }
+    }
+  }
+
   private func temporaryUnlockBanner(_ temporaryUnlock: TemporaryUnlockState) -> some View {
     HStack(spacing: 10) {
       Circle()
@@ -968,14 +961,105 @@ struct ContentView: View {
     )
   }
 
+  private var failsafeCountRow: some View {
+    HStack(spacing: 14) {
+      VStack(alignment: .leading, spacing: 6) {
+        Text("Failsafes")
+          .font(.ancla(15, weight: .medium))
+          .foregroundStyle(emergencyUnbrickAccent)
+
+        Text(emergencyUnbrickDetail)
+          .font(.ancla(12))
+          .foregroundStyle(AnclaTheme.secondaryText)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+
+      Spacer(minLength: 0)
+
+      HStack(spacing: 8) {
+        failsafeCountButton(
+          symbol: "minus",
+          isEnabled: viewModel.snapshot.emergencyUnbricksRemaining > 0
+        ) {
+          Task { await viewModel.adjustEmergencyUnbricks(by: -1) }
+        }
+
+        Text("\(viewModel.snapshot.emergencyUnbricksRemaining)")
+          .font(.anclaMono(14, weight: .semibold))
+          .foregroundStyle(AnclaTheme.primaryText)
+          .frame(minWidth: 24)
+
+        failsafeCountButton(symbol: "plus", isEnabled: viewModel.snapshot.emergencyUnbricksRemaining < 99) {
+          Task { await viewModel.adjustEmergencyUnbricks(by: 1) }
+        }
+      }
+    }
+    .padding(.vertical, 14)
+    .overlay(alignment: .bottom) {
+      surfaceDivider
+    }
+  }
+
+  private var paragraphChallengeToggleRow: some View {
+    Toggle(
+      isOn: Binding(
+        get: { viewModel.paragraphChallengeEnabled },
+        set: { isEnabled in
+          Task { await viewModel.setParagraphChallengeEnabled(isEnabled) }
+        }
+      )
+    ) {
+      VStack(alignment: .leading, spacing: 6) {
+        Text("Typing challenge")
+          .font(.ancla(15, weight: .medium))
+          .foregroundStyle(viewModel.paragraphChallengeEnabled ? AnclaTheme.primaryText : AnclaTheme.secondaryText)
+
+        Text(paragraphChallengeDetail)
+          .font(.ancla(12))
+          .foregroundStyle(AnclaTheme.secondaryText)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+    }
+    .tint(AnclaTheme.accentFill)
+    .disabled(viewModel.isBusy)
+    .padding(.vertical, 14)
+    .overlay(alignment: .bottom) {
+      surfaceDivider
+    }
+  }
+
+  private func failsafeCountButton(
+    symbol: String,
+    isEnabled: Bool,
+    action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      Image(systemName: symbol)
+        .font(.system(size: 12, weight: .bold))
+        .foregroundStyle(isEnabled ? AnclaTheme.primaryText : AnclaTheme.tertiaryText)
+        .frame(width: 30, height: 30)
+        .background(
+          RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(AnclaTheme.panelInteractive)
+            .overlay(
+              RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(AnclaTheme.panelStroke.opacity(0.72), lineWidth: 1)
+            )
+        )
+    }
+    .buttonStyle(.plain)
+    .disabled(!isEnabled || viewModel.isBusy)
+    .opacity(!isEnabled || viewModel.isBusy ? 0.5 : 1)
+  }
+
   private var bottomDock: some View {
     ZStack(alignment: .top) {
       RoundedRectangle(cornerRadius: 34, style: .continuous)
-        .fill(Color.black.opacity(0.96))
+        .fill(AnclaTheme.panel.opacity(0.98))
         .frame(height: 94)
         .overlay(
           RoundedRectangle(cornerRadius: 34, style: .continuous)
-            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
         )
 
       HStack(alignment: .bottom, spacing: 8) {
@@ -1009,7 +1093,7 @@ struct ContentView: View {
           )
           .overlay(
             Circle()
-              .stroke(Color.white.opacity(0.08), lineWidth: 1)
+              .stroke(AnclaTheme.panelStroke.opacity(0.82), lineWidth: 1)
           )
           .shadow(color: primaryActionShadow, radius: 24, y: 16)
         }
