@@ -119,7 +119,6 @@ struct ContentView: View {
           ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 20) {
               header
-              headlineSection
 
               if let temporaryUnlock = viewModel.activeTemporaryUnlock {
                 temporaryUnlockBanner(temporaryUnlock)
@@ -307,23 +306,6 @@ struct ContentView: View {
         }
         .accessibilityLabel("Open GitHub repository")
       }
-    }
-  }
-
-  private var headlineSection: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      HStack(spacing: 8) {
-        statusBadge(nextStepLabel, color: sessionAccent)
-
-        if let currentMode {
-          statusBadge(currentMode.name, color: AnclaTheme.secondaryText)
-        }
-      }
-
-      Text(viewModel.diagnostics.headline)
-        .font(.ancla(34, weight: .medium))
-        .foregroundStyle(AnclaTheme.primaryText)
-        .lineLimit(2)
     }
   }
 
@@ -530,19 +512,6 @@ struct ContentView: View {
         }
       }
     }
-  }
-
-  private func statusBadge(_ title: String, color: Color) -> some View {
-    Text(title)
-      .font(.ancla(11, weight: .semibold))
-      .foregroundStyle(color)
-      .tracking(1.4)
-      .padding(.horizontal, 10)
-      .padding(.vertical, 6)
-      .background(
-        Capsule(style: .continuous)
-          .fill(color.opacity(0.12))
-      )
   }
 
   private func compactSectionTitle(_ title: String) -> some View {
@@ -916,7 +885,7 @@ struct ContentView: View {
     }
 
     feedbackDismissTask = Task { @MainActor in
-      try? await Task.sleep(nanoseconds: 4_000_000_000)
+      try? await Task.sleep(nanoseconds: 2_500_000_000)
       guard !Task.isCancelled, visibleFeedback?.id == feedback.id else {
         return
       }
@@ -1240,25 +1209,6 @@ struct ContentView: View {
 
   private var currentMode: BlockMode? {
     viewModel.selectedMode() ?? viewModel.preferredMode()
-  }
-
-  private var nextStepLabel: String {
-    switch nextStep {
-    case .authorize:
-      return "SETUP"
-    case .unavailable:
-      return "UNAVAILABLE"
-    case .modeRequired:
-      return "MODE"
-    case .pairAnchor:
-      return "PAIR"
-    case .release:
-      return "LIVE"
-    case .arm:
-      return "READY"
-    case .rearm:
-      return "READY AGAIN"
-    }
   }
 
   private var activeScheduledPlan: ScheduledSessionPlan? {
