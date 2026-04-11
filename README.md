@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img src=".github/assets/ancla-readme-banner.jpg" alt="ancla banner" width="800">
+  <img src=".github/assets/ancla-readme-banner.png" alt="ancla banner" width="800">
 </p>
 
 ---
