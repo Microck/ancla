@@ -35,17 +35,15 @@ struct CheckBlockStatusIntent: AppIntent {
 
 struct AnclaAppShortcuts: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
-    [
-      AppShortcut(
-        intent: CheckBlockStatusIntent(),
-        phrases: [
-          "Get \(.applicationName) block status",
-          "Is \(.applicationName) blocking this iPhone",
-          "Check whether \(.applicationName) is blocking"
-        ],
-        shortTitle: "Block Status",
-        systemImageName: "lock"
-      )
-    ]
+    AppShortcut(
+      intent: CheckBlockStatusIntent(),
+      phrases: [
+        "Get \(.applicationName) block status",
+        "Is \(.applicationName) blocking this iPhone",
+        "Check whether \(.applicationName) is blocking"
+      ],
+      shortTitle: "Block Status",
+      systemImageName: "lock"
+    )
   }
 }
