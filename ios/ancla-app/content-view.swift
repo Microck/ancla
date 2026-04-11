@@ -334,41 +334,19 @@ struct ContentView: View {
   }
 
   private var modesSectionContent: some View {
-    VStack(spacing: 12) {
+    VStack(spacing: 0) {
       if viewModel.modesForDisplay.isEmpty {
         informativeRow(
           title: "No modes saved",
-          detail: "Create the first mode you want ready before starting a block.",
+          detail: "Create one block setup first.",
           accentColor: AnclaTheme.primaryText,
           highlight: false,
           trailingSymbol: "plus"
         )
       } else {
         ForEach(viewModel.modesForDisplay) { mode in
-          Button {
-            viewModel.selectMode(mode.id)
-          } label: {
-            modeRow(mode)
-          }
-          .buttonStyle(.plain)
-          .disabled(viewModel.isBusy)
+          modeRow(mode)
         }
-      }
-
-      if let currentMode {
-        Button {
-          viewModel.prepareDraftForEditingMode(currentMode.id)
-          isModeEditorPresented = true
-        } label: {
-          actionRow(
-            icon: "square.and.pencil",
-            title: "Edit selected mode",
-            detail: "Adjust the mode that will start next.",
-            isLoading: false
-          )
-        }
-        .buttonStyle(.plain)
-        .disabled(viewModel.isBusy)
       }
 
       Button {
@@ -378,7 +356,7 @@ struct ContentView: View {
         actionRow(
           icon: "plus",
           title: "Create mode",
-          detail: "Add another saved mode for a different blocking setup.",
+          detail: "Add another saved block setup.",
           isLoading: false
         )
       }
@@ -388,17 +366,17 @@ struct ContentView: View {
   }
 
   private var anchorsSectionContent: some View {
-    VStack(spacing: 12) {
+    VStack(spacing: 0) {
       if viewModel.pairedTagsForDisplay.isEmpty {
         informativeRow(
           title: "No anchor paired",
-          detail: "Pair one NFC anchor to set the physical release key for this iPhone.",
+          detail: "Pair one NFC anchor for this iPhone.",
           accentColor: AnclaTheme.primaryText,
           highlight: false
         )
       } else {
         ForEach(viewModel.pairedTagsForDisplay) { pairedTag in
-          pairedAnchorCard(pairedTag)
+          pairedAnchorRow(pairedTag)
         }
       }
 
@@ -408,7 +386,7 @@ struct ContentView: View {
         actionRow(
           icon: "plus",
           title: viewModel.pairedTagsForDisplay.isEmpty ? "Pair anchor" : "Pair another anchor",
-          detail: "Scan an NFC anchor that can start or release blocks on this iPhone.",
+          detail: "Scan an NFC anchor on this iPhone.",
           isLoading: viewModel.isActionInProgress(.pairAnchor)
         )
       }
@@ -418,7 +396,7 @@ struct ContentView: View {
   }
 
   private var schedulesSectionContent: some View {
-    VStack(spacing: 12) {
+    VStack(spacing: 0) {
       if viewModel.scheduledPlansForDisplay.isEmpty {
         informativeRow(
           title: "No schedules saved",
@@ -429,7 +407,7 @@ struct ContentView: View {
         )
       } else {
         ForEach(viewModel.scheduledPlansForDisplay) { plan in
-          scheduledPlanCard(plan)
+          scheduledPlanRow(plan)
         }
       }
 
@@ -440,7 +418,7 @@ struct ContentView: View {
         actionRow(
           icon: "calendar.badge.plus",
           title: "Create schedule",
-          detail: "Auto-start a saved mode on selected weekdays.",
+          detail: "Auto-start a saved mode on selected days.",
           isLoading: false
         )
       }
@@ -451,7 +429,7 @@ struct ContentView: View {
   }
 
   private var sessionsSectionContent: some View {
-    VStack(alignment: .leading, spacing: 18) {
+    VStack(alignment: .leading, spacing: 0) {
       informativeRow(
         title: sessionSectionTitle,
         detail: sessionDetail,
@@ -471,12 +449,25 @@ struct ContentView: View {
       )
 
       informativeRow(
-        title: "Typing fallback",
+        title: "Typing challenge",
         detail: paragraphChallengeDetail,
         accentColor: viewModel.paragraphChallengeEnabled ? AnclaTheme.primaryText : AnclaTheme.secondaryText,
         highlight: viewModel.canUseParagraphChallenge,
         trailingText: viewModel.paragraphChallengeEnabled ? "On" : "Off"
       )
+
+      Button {
+        Task { await viewModel.setParagraphChallengeEnabled(!viewModel.paragraphChallengeEnabled) }
+      } label: {
+        actionRow(
+          icon: viewModel.paragraphChallengeEnabled ? "checkmark.circle" : "circle",
+          title: viewModel.paragraphChallengeEnabled ? "Disable typing challenge" : "Enable typing challenge",
+          detail: "Keep the last-resort typing unlock ready.",
+          isLoading: false
+        )
+      }
+      .buttonStyle(.plain)
+      .disabled(viewModel.isBusy)
 
       if viewModel.canUseEmergencyUnbrick {
         Button {
@@ -494,19 +485,6 @@ struct ContentView: View {
         .disabled(viewModel.isBusy)
       }
 
-      Button {
-        Task { await viewModel.setParagraphChallengeEnabled(!viewModel.paragraphChallengeEnabled) }
-      } label: {
-        actionRow(
-          icon: viewModel.paragraphChallengeEnabled ? "checkmark.circle" : "circle",
-          title: viewModel.paragraphChallengeEnabled ? "Disable failsafe challenge" : "Enable failsafe challenge",
-          detail: "Use exact typing after normal failsafes run out.",
-          isLoading: false
-        )
-      }
-      .buttonStyle(.plain)
-      .disabled(viewModel.isBusy)
-
       if viewModel.canUseParagraphChallenge {
         Button {
           viewModel.prepareParagraphChallenge()
@@ -514,7 +492,7 @@ struct ContentView: View {
         } label: {
           actionRow(
             icon: "text.alignleft",
-            title: "Start failsafe challenge",
+            title: "Start typing challenge",
             detail: "Type the full passage exactly.",
             isLoading: false,
             isDestructive: true
@@ -536,7 +514,7 @@ struct ContentView: View {
         )
       } else {
         ForEach(viewModel.unlockPresetsForDisplay) { preset in
-          unlockPresetCard(preset)
+          unlockPresetRow(preset)
         }
       }
 
@@ -566,6 +544,7 @@ struct ContentView: View {
 
       if viewModel.isSideloadLiteBuild {
         compactSectionTitle("Shortcut")
+
         Button {
           isShortcutGuidesPresented = true
         } label: {
@@ -616,125 +595,135 @@ struct ContentView: View {
       .font(.ancla(11, weight: .semibold))
       .tracking(1.2)
       .foregroundStyle(AnclaTheme.tertiaryText)
-      .padding(.top, 4)
+      .padding(.top, 18)
+      .padding(.bottom, 6)
   }
 
-  private func pairedAnchorCard(_ pairedTag: PairedTag) -> some View {
-    VStack(spacing: 12) {
-      informativeRow(
-        title: pairedTag.displayName,
-        detail: pairedAnchorDetail(for: pairedTag),
-        accentColor: isActiveAnchor(pairedTag.id) ? AnclaTheme.warningText : AnclaTheme.primaryText,
-        highlight: isActiveAnchor(pairedTag.id),
-        trailingText: pairedAnchorBadge(for: pairedTag)
-      )
+  private func pairedAnchorRow(_ pairedTag: PairedTag) -> some View {
+    HStack(alignment: .top, spacing: 14) {
+      VStack(alignment: .leading, spacing: 6) {
+        Text(pairedTag.displayName)
+          .font(.ancla(15, weight: .medium))
+          .foregroundStyle(isActiveAnchor(pairedTag.id) ? AnclaTheme.warningText : AnclaTheme.primaryText)
 
-      Button {
-        renamingAnchorID = pairedTag.id
-      } label: {
-        actionRow(
-          icon: "pencil.line",
-          title: "Rename \(pairedTag.displayName)",
-          detail: "Update the visible label for this paired anchor.",
-          isLoading: false
-        )
+        Text(pairedAnchorDetail(for: pairedTag))
+          .font(.ancla(12))
+          .foregroundStyle(AnclaTheme.secondaryText)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
-      .buttonStyle(.plain)
-      .disabled(viewModel.isBusy)
 
-      Button {
-        Task { await viewModel.unpairSticker(pairedTag.id) }
+      Spacer(minLength: 0)
+
+      Text(pairedAnchorBadge(for: pairedTag))
+        .font(.ancla(12, weight: .medium))
+        .foregroundStyle(isActiveAnchor(pairedTag.id) ? AnclaTheme.warningText : AnclaTheme.secondaryText)
+
+      Menu {
+        Button {
+          renamingAnchorID = pairedTag.id
+        } label: {
+          Label("Rename anchor", systemImage: "pencil.line")
+        }
+
+        Button(role: .destructive) {
+          Task { await viewModel.unpairSticker(pairedTag.id) }
+        } label: {
+          Label("Remove anchor", systemImage: "trash")
+        }
       } label: {
-        actionRow(
-          icon: "trash",
-          title: "Remove \(pairedTag.displayName)",
-          detail: removeAnchorDetail(for: pairedTag),
-          isLoading: viewModel.isActionInProgress(.removeAnchor),
-          isDestructive: true
-        )
+        rowMenuLabel()
       }
-      .buttonStyle(.plain)
       .disabled(viewModel.isBusy)
+    }
+    .padding(.vertical, 14)
+    .overlay(alignment: .bottom) {
+      surfaceDivider
     }
   }
 
-  private func scheduledPlanCard(_ plan: ScheduledSessionPlan) -> some View {
-    VStack(spacing: 12) {
-      informativeRow(
-        title: scheduledPlanTitle(for: plan),
-        detail: scheduledPlanDetail(for: plan),
-        accentColor: scheduledPlanAccent(for: plan),
-        highlight: isScheduledPlanActive(plan),
-        trailingText: scheduledPlanBadge(for: plan)
-      )
+  private func scheduledPlanRow(_ plan: ScheduledSessionPlan) -> some View {
+    HStack(alignment: .top, spacing: 14) {
+      VStack(alignment: .leading, spacing: 6) {
+        Text(scheduledPlanTitle(for: plan))
+          .font(.ancla(15, weight: .medium))
+          .foregroundStyle(scheduledPlanAccent(for: plan))
 
-      Button {
-        viewModel.prepareDraftForEditingScheduledPlan(plan.id)
-        isScheduleEditorPresented = true
-      } label: {
-        actionRow(
-          icon: "square.and.pencil",
-          title: "Edit schedule",
-          detail: "Adjust the weekdays, window, mode, or release anchor.",
-          isLoading: false
-        )
+        Text(scheduledPlanDetail(for: plan))
+          .font(.ancla(12))
+          .foregroundStyle(AnclaTheme.secondaryText)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
-      .buttonStyle(.plain)
-      .disabled(viewModel.isBusy)
 
-      Button {
-        Task { await viewModel.deleteScheduledPlan(plan.id) }
+      Spacer(minLength: 0)
+
+      Text(scheduledPlanBadge(for: plan))
+        .font(.ancla(12, weight: .medium))
+        .foregroundStyle(isScheduledPlanActive(plan) ? AnclaTheme.warningText : AnclaTheme.secondaryText)
+
+      Menu {
+        Button {
+          viewModel.prepareDraftForEditingScheduledPlan(plan.id)
+          isScheduleEditorPresented = true
+        } label: {
+          Label("Edit schedule", systemImage: "square.and.pencil")
+        }
+
+        Button(role: .destructive) {
+          Task { await viewModel.deleteScheduledPlan(plan.id) }
+        } label: {
+          Label("Remove schedule", systemImage: "trash")
+        }
       } label: {
-        actionRow(
-          icon: "trash",
-          title: "Remove schedule",
-          detail: removeScheduleDetail(for: plan),
-          isLoading: viewModel.isActionInProgress(.removeSchedule),
-          isDestructive: true
-        )
+        rowMenuLabel()
       }
-      .buttonStyle(.plain)
       .disabled(viewModel.isBusy)
+    }
+    .padding(.vertical, 14)
+    .overlay(alignment: .bottom) {
+      surfaceDivider
     }
   }
 
-  private func unlockPresetCard(_ preset: UnlockPreset) -> some View {
-    VStack(spacing: 12) {
-      informativeRow(
-        title: preset.title,
-        detail: preset.detail,
-        accentColor: AnclaTheme.primaryText,
-        highlight: viewModel.activeTemporaryUnlock?.presetID == preset.id,
-        trailingText: "\(preset.durationSeconds)s"
-      )
+  private func unlockPresetRow(_ preset: UnlockPreset) -> some View {
+    HStack(alignment: .top, spacing: 14) {
+      VStack(alignment: .leading, spacing: 6) {
+        Text(preset.title)
+          .font(.ancla(15, weight: .medium))
+          .foregroundStyle(AnclaTheme.primaryText)
 
-      Button {
-        viewModel.prepareDraftForEditingPreset(preset.id)
-        isPresetEditorPresented = true
-      } label: {
-        actionRow(
-          icon: "square.and.pencil",
-          title: "Edit preset",
-          detail: "Rename it, rewrite the note, or change the unlock duration.",
-          isLoading: false
-        )
+        Text(preset.detail)
+          .font(.ancla(12))
+          .foregroundStyle(AnclaTheme.secondaryText)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
-      .buttonStyle(.plain)
-      .disabled(viewModel.isBusy)
 
-      Button {
-        Task { await viewModel.deleteUnlockPreset(preset.id) }
+      Spacer(minLength: 0)
+
+      Text("\(preset.durationSeconds)s")
+        .font(.ancla(12, weight: .medium))
+        .foregroundStyle(viewModel.activeTemporaryUnlock?.presetID == preset.id ? AnclaTheme.successText : AnclaTheme.secondaryText)
+
+      Menu {
+        Button {
+          viewModel.prepareDraftForEditingPreset(preset.id)
+          isPresetEditorPresented = true
+        } label: {
+          Label("Edit preset", systemImage: "square.and.pencil")
+        }
+
+        Button(role: .destructive) {
+          Task { await viewModel.deleteUnlockPreset(preset.id) }
+        } label: {
+          Label("Remove preset", systemImage: "trash")
+        }
       } label: {
-        actionRow(
-          icon: "trash",
-          title: "Remove preset",
-          detail: "Delete this timed unlock from the app.",
-          isLoading: viewModel.isActionInProgress(.removePreset),
-          isDestructive: true
-        )
+        rowMenuLabel()
       }
-      .buttonStyle(.plain)
       .disabled(viewModel.isBusy)
+    }
+    .padding(.vertical, 14)
+    .overlay(alignment: .bottom) {
+      surfaceDivider
     }
   }
 
@@ -773,6 +762,9 @@ struct ContentView: View {
       }
     }
     .padding(.vertical, 14)
+    .overlay(alignment: .bottom) {
+      surfaceDivider
+    }
   }
 
   private func actionRow(
@@ -782,12 +774,8 @@ struct ContentView: View {
     isLoading: Bool,
     isDestructive: Bool = false
   ) -> some View {
-    HStack(alignment: .center, spacing: 14) {
-      ZStack {
-        Circle()
-          .fill((isDestructive ? AnclaTheme.errorText : AnclaTheme.accentFill).opacity(0.14))
-          .frame(width: 34, height: 34)
-
+    HStack(alignment: .center, spacing: 12) {
+      Group {
         if isLoading {
           ProgressView()
             .tint(isDestructive ? AnclaTheme.errorText : AnclaTheme.primaryText)
@@ -798,6 +786,7 @@ struct ContentView: View {
             .foregroundStyle(isDestructive ? AnclaTheme.errorText : AnclaTheme.primaryText)
         }
       }
+      .frame(width: 18, height: 18)
 
       VStack(alignment: .leading, spacing: 6) {
         Text(title)
@@ -817,37 +806,64 @@ struct ContentView: View {
         .foregroundStyle(AnclaTheme.tertiaryText)
     }
     .padding(.vertical, 14)
+    .overlay(alignment: .bottom) {
+      surfaceDivider
+    }
   }
 
   private func modeRow(_ mode: BlockMode) -> some View {
     let isSelected = mode.id == currentMode?.id
     let isArmed = viewModel.isModeArmed(mode.id)
 
-    return HStack(alignment: .center, spacing: 14) {
-      VStack(alignment: .leading, spacing: 6) {
-        Text(mode.name)
-          .font(.ancla(15, weight: .medium))
-          .foregroundStyle(AnclaTheme.primaryText)
+    return HStack(alignment: .top, spacing: 12) {
+      Button {
+        viewModel.selectMode(mode.id)
+      } label: {
+        HStack(alignment: .top, spacing: 12) {
+          VStack(alignment: .leading, spacing: 6) {
+            Text(mode.name)
+              .font(.ancla(15, weight: .medium))
+              .foregroundStyle(AnclaTheme.primaryText)
 
-        Text(viewModel.selectionSummary(for: mode))
-          .font(.ancla(12))
-          .foregroundStyle(AnclaTheme.secondaryText)
-          .frame(maxWidth: .infinity, alignment: .leading)
+            Text(viewModel.selectionSummary(for: mode))
+              .font(.ancla(12))
+              .foregroundStyle(AnclaTheme.secondaryText)
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
+
+          Spacer(minLength: 0)
+
+          if isArmed {
+            Text("Active")
+              .font(.ancla(12, weight: .medium))
+              .foregroundStyle(AnclaTheme.warningText)
+          }
+
+          Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundStyle(isSelected ? AnclaTheme.accentFill : AnclaTheme.tertiaryText)
+        }
+        .contentShape(Rectangle())
       }
+      .buttonStyle(.plain)
+      .disabled(viewModel.isBusy)
 
-      Spacer(minLength: 0)
-
-      if isArmed {
-        Text("Active")
-          .font(.ancla(12, weight: .medium))
-          .foregroundStyle(AnclaTheme.warningText)
+      Menu {
+        Button {
+          viewModel.prepareDraftForEditingMode(mode.id)
+          isModeEditorPresented = true
+        } label: {
+          Label("Edit mode", systemImage: "square.and.pencil")
+        }
+      } label: {
+        rowMenuLabel()
       }
-
-      Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-        .font(.system(size: 16, weight: .semibold))
-        .foregroundStyle(isSelected ? AnclaTheme.accentFill : AnclaTheme.tertiaryText)
+      .disabled(viewModel.isBusy)
     }
     .padding(.vertical, 14)
+    .overlay(alignment: .bottom) {
+      surfaceDivider
+    }
   }
 
   private func historyRow(_ entry: SessionHistoryEntry) -> some View {
@@ -870,6 +886,9 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(.vertical, 14)
+    .overlay(alignment: .bottom) {
+      surfaceDivider
+    }
   }
 
   private var feedbackRowPadding: CGFloat { 14 }
@@ -1433,6 +1452,14 @@ struct ContentView: View {
       .frame(height: 1)
   }
 
+  private func rowMenuLabel() -> some View {
+    Image(systemName: "ellipsis")
+      .font(.system(size: 14, weight: .semibold))
+      .foregroundStyle(AnclaTheme.tertiaryText)
+      .frame(width: 28, height: 28)
+      .contentShape(Rectangle())
+  }
+
   private func feedbackIcon(_ tone: ActionFeedbackTone) -> String {
     switch tone {
     case .neutral:
@@ -1494,17 +1521,17 @@ struct ContentView: View {
   private var emergencyUnbrickDetail: String {
     if viewModel.snapshot.emergencyUnbricksRemaining == 0 {
       if viewModel.canUseParagraphChallenge {
-        return "All normal failsafes are gone. The paragraph challenge is now the only non-anchor release path."
+        return "Normal failsafes are empty. The typing challenge is the only non-anchor release path."
       }
 
-      return "All emergency unbricks have been spent. Active sessions now require the paired anchor."
+      return "Normal failsafes are empty. The paired anchor is now required."
     }
 
     if viewModel.canUseEmergencyUnbrick {
-      return "Use one if you need to end the current session without your paired anchor."
+      return "Use one to end the current session without the paired anchor."
     }
 
-    return "Keep these in reserve for moments when you cannot reach the paired anchor."
+    return "Keep these for moments when you cannot reach the paired anchor."
   }
 
   private var emergencyUnbrickAccent: Color {
@@ -1534,14 +1561,14 @@ struct ContentView: View {
 
   private var paragraphChallengeDetail: String {
     if !viewModel.paragraphChallengeEnabled {
-      return "Turn this on to keep the exact-typing fallback ready."
+      return "Turn this on to keep the typing unlock ready."
     }
 
     if viewModel.canUseParagraphChallenge {
-      return "The normal failsafes are empty. Type the stored passage exactly."
+      return "Failsafes are empty. Type the stored passage exactly."
     }
 
-    return "This only appears after the normal failsafes hit zero."
+    return "This appears only after failsafes hit zero."
   }
 
   private var renameAnchorPresented: Binding<Bool> {
@@ -1573,10 +1600,10 @@ struct ContentView: View {
 
   private func pairedAnchorDetail(for pairedTag: PairedTag) -> String {
     if isActiveAnchor(pairedTag.id) {
-      return "This anchor started the current session and is the only one that can release it."
+      return "This anchor releases the current block."
     }
 
-    return "This anchor can start a new session on this iPhone."
+    return "Ready to start or release blocks on this iPhone."
   }
 
   private func pairedAnchorBadge(for pairedTag: PairedTag) -> String {
@@ -1597,10 +1624,10 @@ struct ContentView: View {
 
   private var scheduledSessionsEmptyDetail: String {
     if !canCreateScheduledPlan {
-      return "Pair at least one anchor and save at least one mode before adding a schedule."
+      return "Pair an anchor and save a mode first."
     }
 
-    return "Schedules can auto-start saved modes on chosen weekdays and still keep a paired anchor as the manual release key."
+    return "Auto-start a saved mode on chosen days."
   }
 
   private func scheduledPlanTitle(for plan: ScheduledSessionPlan) -> String {

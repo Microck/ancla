@@ -66,12 +66,12 @@ struct SetupFlowView: View {
 
       Spacer()
 
-      VStack(spacing: 4) {
+      VStack(spacing: 2) {
         Text("Finish setup")
           .font(.ancla(22, weight: .semibold))
           .foregroundStyle(AnclaTheme.primaryText)
 
-        Text("Do this once.")
+        Text("Three steps.")
           .font(.ancla(12))
           .foregroundStyle(AnclaTheme.tertiaryText)
       }
@@ -102,15 +102,12 @@ struct SetupFlowView: View {
               .foregroundStyle(selectedSection == section ? AnclaTheme.primaryText : AnclaTheme.secondaryText)
           }
           .frame(maxWidth: .infinity)
-          .frame(height: 42)
-          .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-              .fill(selectedSection == section ? AnclaTheme.panelRaised : AnclaTheme.panelInteractive)
-              .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                  .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
-              )
-          )
+          .frame(height: 38)
+          .overlay(alignment: .bottom) {
+            Rectangle()
+              .fill((selectedSection == section ? AnclaTheme.primaryText : AnclaTheme.panelStroke).opacity(0.65))
+              .frame(height: 1)
+          }
         }
         .buttonStyle(.plain)
       }
@@ -160,7 +157,7 @@ struct SetupFlowView: View {
 
   private var anchorContent: some View {
     VStack(alignment: .leading, spacing: 16) {
-      setupStatusCard(
+      setupStatusLine(
         title: viewModel.hasCompletedAnchorSetup ? "\(viewModel.pairedTagsForDisplay.count) paired" : "No anchor yet",
         detail: viewModel.hasCompletedAnchorSetup
           ? viewModel.pairedTagsForDisplay.map(\.displayName).joined(separator: " • ")
@@ -182,7 +179,7 @@ struct SetupFlowView: View {
 
   private var modeContent: some View {
     VStack(alignment: .leading, spacing: 16) {
-      setupStatusCard(
+      setupStatusLine(
         title: viewModel.hasCompletedModeSetup ? "\(viewModel.modesForDisplay.count) ready" : "No mode yet",
         detail: viewModel.hasCompletedModeSetup
           ? viewModel.modesForDisplay.map(\.name).joined(separator: " • ")
@@ -202,7 +199,7 @@ struct SetupFlowView: View {
     }
   }
 
-  private func setupStatusCard(title: String, detail: String) -> some View {
+  private func setupStatusLine(title: String, detail: String) -> some View {
     VStack(alignment: .leading, spacing: 8) {
       Text(title)
         .font(.ancla(20, weight: .semibold))
@@ -213,15 +210,12 @@ struct SetupFlowView: View {
         .foregroundStyle(AnclaTheme.secondaryText)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-    .padding(18)
-    .background(
-      RoundedRectangle(cornerRadius: 24, style: .continuous)
-        .fill(AnclaTheme.panel)
-        .overlay(
-          RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .stroke(AnclaTheme.panelStroke.opacity(0.8), lineWidth: 1)
-        )
-    )
+    .padding(.bottom, 8)
+    .overlay(alignment: .bottom) {
+      Rectangle()
+        .fill(AnclaTheme.panelStroke.opacity(0.55))
+        .frame(height: 1)
+    }
   }
 
   private func setupActionRow(icon: String, title: String, detail: String) -> some View {
@@ -252,15 +246,12 @@ struct SetupFlowView: View {
         .font(.system(size: 12, weight: .semibold))
         .foregroundStyle(AnclaTheme.tertiaryText)
     }
-    .padding(18)
-    .background(
-      RoundedRectangle(cornerRadius: 20, style: .continuous)
-        .fill(AnclaTheme.panelInteractive)
-        .overlay(
-          RoundedRectangle(cornerRadius: 20, style: .continuous)
-            .stroke(AnclaTheme.panelStroke.opacity(0.7), lineWidth: 1)
-        )
-    )
+    .padding(.vertical, 14)
+    .overlay(alignment: .bottom) {
+      Rectangle()
+        .fill(AnclaTheme.panelStroke.opacity(0.55))
+        .frame(height: 1)
+    }
   }
 
   private func isSectionComplete(_ section: SetupSection) -> Bool {

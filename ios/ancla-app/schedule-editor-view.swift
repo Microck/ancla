@@ -101,7 +101,7 @@ struct ScheduleEditorView: View {
             sectionLabel("MODE")
               .padding(.top, 48)
 
-            Text("Pick the mode this schedule should start automatically on iPhone.")
+            Text("Pick the mode this schedule should start.")
               .font(.ancla(14))
               .foregroundStyle(AnclaTheme.secondaryText)
               .frame(maxWidth: .infinity, alignment: .leading)
@@ -126,7 +126,7 @@ struct ScheduleEditorView: View {
             sectionLabel("ANCHOR")
               .padding(.top, 40)
 
-            Text("Pick the paired anchor that can release this scheduled session early.")
+            Text("Pick the paired anchor that can release it early.")
               .font(.ancla(14))
               .foregroundStyle(AnclaTheme.secondaryText)
               .frame(maxWidth: .infinity, alignment: .leading)
@@ -151,7 +151,7 @@ struct ScheduleEditorView: View {
             sectionLabel("DAYS")
               .padding(.top, 40)
 
-            Text("Choose the weekdays when this schedule should run.")
+            Text("Choose the weekdays.")
               .font(.ancla(14))
               .foregroundStyle(AnclaTheme.secondaryText)
               .frame(maxWidth: .infinity, alignment: .leading)
@@ -198,7 +198,7 @@ struct ScheduleEditorView: View {
             sectionLabel("TIME")
               .padding(.top, 40)
 
-            Text("Set when the schedule should start and end. Use the current window shortcut if you want it active right away.")
+            Text("Set when the schedule should start and end.")
               .font(.ancla(14))
               .foregroundStyle(AnclaTheme.secondaryText)
               .frame(maxWidth: .infinity, alignment: .leading)
@@ -271,16 +271,10 @@ struct ScheduleEditorView: View {
                 .labelsHidden()
                 .tint(AnclaTheme.ctaFill)
             }
-            .padding(16)
-            .background(
-              RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(chromePanelInteractive)
-                .overlay(
-                  RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
-                )
-            )
             .padding(.top, 22)
+
+            divider
+              .padding(.top, 14)
 
             if let lastError = viewModel.lastError {
               Text(lastError)

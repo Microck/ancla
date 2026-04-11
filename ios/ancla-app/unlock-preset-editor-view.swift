@@ -121,8 +121,10 @@ struct UnlockPresetEditorView: View {
                   .font(.ancla(12, weight: .medium))
                   .foregroundStyle(AnclaTheme.secondaryText)
               }
-              .padding(16)
-              .background(cardBackground)
+
+              Rectangle()
+                .fill(AnclaTheme.panelStroke.opacity(0.6))
+                .frame(height: 1)
             }
 
             if let lastError = viewModel.lastError {
@@ -147,15 +149,6 @@ struct UnlockPresetEditorView: View {
       .fill(AnclaTheme.panelInteractive)
       .overlay(
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-          .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
-      )
-  }
-
-  private var cardBackground: some View {
-    RoundedRectangle(cornerRadius: 18, style: .continuous)
-      .fill(AnclaTheme.panelInteractive)
-      .overlay(
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
           .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
       )
   }

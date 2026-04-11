@@ -6,47 +6,67 @@ struct ShortcutSetupReferenceView: View {
   let onConfirm: (() -> Void)?
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 18) {
-      VStack(alignment: .leading, spacing: 8) {
-        Text("One automation")
-          .font(.ancla(28, weight: .semibold))
-          .foregroundStyle(AnclaTheme.primaryText)
-
-        Text("Include every app you want blocked.")
-          .font(.ancla(14))
-          .foregroundStyle(AnclaTheme.secondaryText)
-      }
+    VStack(alignment: .leading, spacing: 20) {
+      Text("Shortcut")
+        .font(.ancla(30, weight: .semibold))
+        .foregroundStyle(AnclaTheme.primaryText)
 
       Image("shortcut-automation-reference")
         .resizable()
         .aspectRatio(contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay {
-          RoundedRectangle(cornerRadius: 28, style: .continuous)
+          RoundedRectangle(cornerRadius: 24, style: .continuous)
             .stroke(AnclaTheme.panelStroke.opacity(0.75), lineWidth: 1)
         }
 
-      VStack(alignment: .leading, spacing: 10) {
-        shortcutStep("App", "Is Opened", "Run Immediately")
-        shortcutStep("Pick every blocked app")
-        shortcutStep("Add Get Block Status")
-        shortcutStep("If true", "Open App", "Ancla")
+      VStack(alignment: .leading, spacing: 0) {
+        shortcutStep(
+          number: 1,
+          text: "Tap \"+\" on the top right of the Automation screen."
+        )
+        shortcutStep(
+          number: 2,
+          text: "Select \"App\" under Personal Automation."
+        )
+        shortcutStep(
+          number: 3,
+          text: "Choose \"Is Opened\". Choose \"Run Immediately\". Toggle off \"Notify When Run\"."
+        )
+        shortcutStep(
+          number: 4,
+          text: "Add action \"Get Block Status\". Add action \"If Get Block Status\". Add action \"Open Anchor\" inside If block. Add Else block. Add End If."
+        )
       }
+
+      Text("This creates iOS shortcut automation conditionally opening Anchor app based on block status.")
+        .font(.ancla(13))
+        .foregroundStyle(AnclaTheme.secondaryText)
+        .frame(maxWidth: .infinity, alignment: .leading)
 
       if showsCompletionState {
         if isComplete {
           statusRow("Marked done")
         } else if let onConfirm {
           Button(action: onConfirm) {
-            Text("I've set this up")
-              .font(.ancla(15, weight: .semibold))
-              .foregroundStyle(AnclaTheme.ctaText)
-              .frame(maxWidth: .infinity)
-              .frame(height: 52)
-              .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                  .fill(AnclaTheme.ctaFill)
-              )
+            HStack {
+              Text("I've set this up")
+                .font(.ancla(15, weight: .semibold))
+                .foregroundStyle(AnclaTheme.primaryText)
+
+              Spacer()
+
+              Image(systemName: "arrow.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(AnclaTheme.tertiaryText)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 14)
+            .overlay(alignment: .bottom) {
+              Rectangle()
+                .fill(AnclaTheme.panelStroke.opacity(0.6))
+                .frame(height: 1)
+            }
           }
           .buttonStyle(.plain)
         }
@@ -54,17 +74,23 @@ struct ShortcutSetupReferenceView: View {
     }
   }
 
-  private func shortcutStep(_ pieces: String...) -> some View {
-    HStack(alignment: .top, spacing: 10) {
-      Circle()
-        .fill(AnclaTheme.accentFill)
-        .frame(width: 7, height: 7)
-        .padding(.top, 7)
+  private func shortcutStep(number: Int, text: String) -> some View {
+    HStack(alignment: .top, spacing: 14) {
+      Text("\(number).")
+        .font(.anclaMono(12, weight: .semibold))
+        .foregroundStyle(AnclaTheme.primaryText)
+        .frame(width: 20, alignment: .leading)
 
-      Text(pieces.joined(separator: "  •  "))
-        .font(.ancla(13, weight: .medium))
+      Text(text)
+        .font(.ancla(14, weight: .medium))
         .foregroundStyle(AnclaTheme.secondaryText)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .padding(.vertical, 12)
+    .overlay(alignment: .bottom) {
+      Rectangle()
+        .fill(AnclaTheme.panelStroke.opacity(0.45))
+        .frame(height: 1)
     }
   }
 
@@ -78,15 +104,6 @@ struct ShortcutSetupReferenceView: View {
         .font(.ancla(13, weight: .medium))
         .foregroundStyle(AnclaTheme.successText)
     }
-    .padding(.horizontal, 14)
-    .padding(.vertical, 12)
-    .background(
-      RoundedRectangle(cornerRadius: 16, style: .continuous)
-        .fill(AnclaTheme.panelInteractive)
-        .overlay(
-          RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .stroke(AnclaTheme.panelStroke.opacity(0.7), lineWidth: 1)
-        )
-    )
+    .padding(.vertical, 10)
   }
 }

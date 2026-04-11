@@ -99,7 +99,7 @@ struct ModeEditorView: View {
               .padding(.top, 12)
 
             if viewModel.isSideloadLiteBuild {
-              Text("Names the block you want ready next.")
+              Text("Name the block ready next.")
                 .font(.ancla(15))
                 .foregroundStyle(AnclaTheme.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -142,7 +142,7 @@ struct ModeEditorView: View {
 
             HStack(alignment: .center) {
               VStack(alignment: .leading, spacing: 6) {
-                Text("Set as Primary")
+                Text("Set as primary")
                   .font(.ancla(16))
                   .foregroundStyle(AnclaTheme.primaryText)
 
@@ -157,17 +157,10 @@ struct ModeEditorView: View {
                 .labelsHidden()
                 .tint(AnclaTheme.ctaFill)
             }
-            .padding(.horizontal, 16)
-            .frame(minHeight: 68)
-            .background(
-              RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(chromePanelInteractive)
-                .overlay(
-                  RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(chromePanelStroke.opacity(0.75), lineWidth: 1)
-                )
-            )
-            .padding(.top, 64)
+            .padding(.top, 40)
+
+            divider
+              .padding(.top, 14)
 
             if let lastError = viewModel.lastError {
               Text(lastError)
@@ -181,19 +174,7 @@ struct ModeEditorView: View {
                 .padding(.top, 18)
             }
 
-            HStack(spacing: 14) {
-              Rectangle()
-                .fill(AnclaTheme.panelStroke.opacity(0.4))
-                .frame(height: 1)
-
-              AnclaMark(color: AnclaTheme.tertiaryText.opacity(0.8), size: 10)
-                .opacity(0.55)
-
-              Rectangle()
-                .fill(AnclaTheme.panelStroke.opacity(0.4))
-                .frame(height: 1)
-            }
-            .padding(.top, 60)
+            Spacer(minLength: 12)
           }
           .padding(.horizontal, 32)
           .padding(.bottom, 36)
