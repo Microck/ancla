@@ -134,6 +134,10 @@ enum AnclaCore {
     activeSessionIsBlocking(snapshot) && !temporaryUnlockIsActive(snapshot, at: date)
   }
 
+  static func shortcutRedirectIsActive(_ snapshot: AppSnapshot, at date: Date) -> Bool {
+    blockedPresentationIsActive(snapshot, at: date)
+  }
+
   static func canArmSelectedMode(_ snapshot: AppSnapshot) -> Bool {
     snapshot.isAuthorized
       && !snapshot.pairedTags.isEmpty

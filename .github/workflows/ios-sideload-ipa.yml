@@ -19,7 +19,7 @@ jobs:
   build-unsigned-ipa:
     runs-on: macos-15
     env:
-      APP_SCHEME: Ancla
+      APP_SCHEME: AnclaSideload
       APP_BUNDLE_NAME: Ancla.app
       PROJECT_PATH: ios/Ancla.xcodeproj
     steps:
@@ -89,7 +89,6 @@ jobs:
         shell: bash
         run: |
           app_path="${{ steps.paths.outputs.archive }}/Products/Applications/$APP_BUNDLE_NAME"
-          extension_path="${{ steps.paths.outputs.archive }}/Products/Applications/$APP_BUNDLE_NAME/PlugIns/AnclaShieldExtension.appex"
           report_path="$RUNNER_TEMP/ancla-build-report.txt"
 
           if [ ! -d "$app_path" ]; then
@@ -97,13 +96,7 @@ jobs:
             exit 1
           fi
 
-          if [ ! -d "$extension_path" ]; then
-            echo "Missing shield extension at $extension_path" >&2
-            exit 1
-          fi
-
           app_bundle_id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$app_path/Info.plist")
-          extension_bundle_id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$extension_path/Info.plist")
 
           {
             echo "Ancla unsigned build report"
@@ -112,22 +105,18 @@ jobs:
             echo "App scheme: $APP_SCHEME"
             echo "Archive path: ${{ steps.paths.outputs.archive }}"
             echo "App bundle id: $app_bundle_id"
-            echo "Extension bundle id: $extension_bundle_id"
             echo
             echo "Expected experiment surface:"
-            echo "- Full Ancla app target"
-            echo "- Embedded shield extension"
-            echo "- Family Controls entitlement requested"
-            echo "- Unsigned archive only"
+            echo "- Sideload-safe app target"
+            echo "- Real NFC scanning path"
+            echo "- No embedded blocker extension"
+            echo "- No privileged Screen Time blocker entitlement requirement"
             echo
-            echo "App entitlements source:"
-            cat ios/ancla-app/ancla-app.entitlements
-            echo
-            echo "Extension entitlements source:"
-            cat ios/ancla-shield-extension/ancla-shield-extension.entitlements
+            echo "Sideload entitlement source:"
+            cat ios/ancla-lite/ancla-lite.entitlements
             echo
             echo "App bundle contents:"
-            find "$app_path" -maxdepth 3 | sort
+            find "$app_path" -maxdepth 2 | sort
           } | tee "$report_path"
 
           echo "report=$report_path" >> "$GITHUB_OUTPUT"

@@ -246,7 +246,7 @@ struct ModeEditorView: View {
               .font(.ancla(16))
               .foregroundStyle(AnclaTheme.primaryText)
 
-            Text("Highlight the stricter version of this mode and surface the Apple app shortcut guides that close easy loopholes.")
+            Text("Highlight the stricter version of this mode and surface the Shortcut setup that closes easy loopholes.")
               .font(.ancla(12))
               .foregroundStyle(AnclaTheme.tertiaryText)
               .frame(maxWidth: .infinity, alignment: .leading)
@@ -260,7 +260,7 @@ struct ModeEditorView: View {
         }
 
         if viewModel.draftModeIsStrict {
-          Text("Native Apple apps still need Shortcuts automations because iOS does not let Ancla hard-block every built-in app directly.")
+          Text("Apps like Safari, Settings, Messages, and Mail still need the Shortcut automation because iOS does not let Ancla hard-block every built-in app directly.")
             .font(.ancla(13))
             .foregroundStyle(AnclaTheme.secondaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -273,7 +273,7 @@ struct ModeEditorView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(AnclaTheme.primaryText)
 
-              Text("Review Apple app shortcut guides")
+              Text("Review Shortcut setup")
                 .font(.ancla(15, weight: .medium))
                 .foregroundStyle(AnclaTheme.primaryText)
 

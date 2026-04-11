@@ -553,8 +553,8 @@ struct ContentView: View {
         } label: {
           actionRow(
             icon: "bolt.horizontal.circle",
-            title: "Review Apple app guides",
-            detail: "Finish the Shortcuts automations that close the obvious loopholes.",
+          title: "Review Shortcut setup",
+          detail: "Finish the Shortcut automation that covers the apps you want Ancla to gate.",
             isLoading: false
           )
         }
@@ -1608,7 +1608,7 @@ struct ContentView: View {
 
   private var strictModeDetail: String {
     if viewModel.canReleaseActiveSession {
-      return "This session is meant to feel harder to bypass. Close obvious loopholes with the Apple app shortcut guides before you rely on it."
+      return "This session is meant to feel harder to bypass. Close obvious loopholes with the Shortcut setup before you rely on it."
     }
 
     return "This mode uses stronger, more committed copy and a native-Apple-app checklist so the easy bypasses are harder to ignore."

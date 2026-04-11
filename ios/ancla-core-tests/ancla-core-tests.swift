@@ -184,6 +184,57 @@ final class AnclaCoreTests: XCTestCase {
     XCTAssertFalse(AnclaCore.canArmSelectedMode(blockingSnapshot))
   }
 
+  func testShortcutRedirectIsActiveOnlyWhileBlockingSurfaceShouldBeVisible() {
+    let pairedTag = PairedTag(uidHash: "paired-hash", displayName: "Desk sticker")
+    let mode = BlockMode(name: "Work", selectionData: Data(), isDefault: true)
+    let now = Date(timeIntervalSince1970: 1_710_000_000)
+
+    let blockedSnapshot = AppSnapshot(
+      isAuthorized: true,
+      pairedTag: pairedTag,
+      modes: [mode],
+      activeSession: AnchorSession(
+        pairedTagId: pairedTag.id,
+        modeId: mode.id,
+        state: .armed,
+        armedAt: now.addingTimeInterval(-300)
+      )
+    )
+    XCTAssertTrue(AnclaCore.shortcutRedirectIsActive(blockedSnapshot, at: now))
+
+    let temporarilyUnlockedSnapshot = AppSnapshot(
+      isAuthorized: true,
+      pairedTag: pairedTag,
+      modes: [mode],
+      activeSession: AnchorSession(
+        pairedTagId: pairedTag.id,
+        modeId: mode.id,
+        state: .armed,
+        armedAt: now.addingTimeInterval(-300)
+      ),
+      temporaryUnlock: TemporaryUnlockState(
+        reason: "Check 2FA",
+        startedAt: now.addingTimeInterval(-1),
+        expiresAt: now.addingTimeInterval(9)
+      )
+    )
+    XCTAssertFalse(AnclaCore.shortcutRedirectIsActive(temporarilyUnlockedSnapshot, at: now))
+
+    let releasedSnapshot = AppSnapshot(
+      isAuthorized: true,
+      pairedTag: pairedTag,
+      modes: [mode],
+      activeSession: AnchorSession(
+        pairedTagId: pairedTag.id,
+        modeId: mode.id,
+        state: .released,
+        armedAt: now.addingTimeInterval(-300),
+        releasedAt: now
+      )
+    )
+    XCTAssertFalse(AnclaCore.shortcutRedirectIsActive(releasedSnapshot, at: now))
+  }
+
   func testRecordHistoryAppendsEntryAndRecentHistorySortsLatestFirst() {
     let pairedTag = PairedTag(uidHash: "paired-hash", displayName: "Desk sticker")
     let mode = BlockMode(name: "Work", selectionData: Data(), isDefault: true)

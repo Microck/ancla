@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ShortcutGuidesSheet: View {
   @Environment(\.dismiss) private var dismiss
+  private let guide = NativeAppleShortcutGuides.guide
 
   var body: some View {
     NavigationStack {
@@ -12,10 +13,7 @@ struct ShortcutGuidesSheet: View {
         ScrollView(showsIndicators: false) {
           VStack(alignment: .leading, spacing: 20) {
             hero
-
-            ForEach(NativeAppleShortcutGuides.guides) { guide in
-              guideCard(guide)
-            }
+            guideCard(guide)
           }
           .padding(.horizontal, 24)
           .padding(.top, 24)
@@ -42,7 +40,7 @@ struct ShortcutGuidesSheet: View {
 
           Spacer()
 
-          Text("Apple app guides")
+          Text("Shortcut setup")
             .font(.ancla(18, weight: .bold))
             .foregroundStyle(AnclaTheme.primaryText)
 
@@ -62,11 +60,11 @@ struct ShortcutGuidesSheet: View {
 
   private var hero: some View {
     VStack(alignment: .leading, spacing: 10) {
-      Text("Native Apple apps need extra friction.")
+      Text("Use one automation for every app you want Ancla to gate.")
         .font(.ancla(30, weight: .medium))
         .foregroundStyle(AnclaTheme.primaryText)
 
-      Text("Shortcuts automations cannot hard-block these apps, but they can bounce Safari, Settings, Messages, Mail, Phone, or Calendar straight back into Ancla while a strict session is active.")
+      Text("iOS still will not let Ancla hard-block those apps directly. The practical workaround is one personal automation that includes the full app list and only redirects into Ancla while a block is active.")
         .font(.ancla(14))
         .foregroundStyle(AnclaTheme.secondaryText)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -79,10 +77,6 @@ struct ShortcutGuidesSheet: View {
         Text(guide.title)
           .font(.ancla(18, weight: .semibold))
           .foregroundStyle(AnclaTheme.primaryText)
-
-        Text(guide.apps)
-          .font(.ancla(12, weight: .medium))
-          .foregroundStyle(AnclaTheme.tertiaryText)
 
         Text(guide.summary)
           .font(.ancla(13))
@@ -104,6 +98,26 @@ struct ShortcutGuidesSheet: View {
               .frame(maxWidth: .infinity, alignment: .leading)
           }
         }
+      }
+      .padding(14)
+      .background(
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+          .fill(AnclaTheme.panelInteractive)
+          .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+              .stroke(AnclaTheme.panelStroke.opacity(0.7), lineWidth: 1)
+          )
+      )
+
+      VStack(alignment: .leading, spacing: 10) {
+        Text("Common apps to add")
+          .font(.ancla(12, weight: .semibold))
+          .foregroundStyle(AnclaTheme.tertiaryText)
+
+        Text(guide.suggestedApps.joined(separator: " • "))
+          .font(.ancla(13))
+          .foregroundStyle(AnclaTheme.secondaryText)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
       .padding(14)
       .background(
