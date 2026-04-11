@@ -808,6 +808,8 @@ struct ContentView: View {
         .foregroundStyle(AnclaTheme.tertiaryText)
     }
     .padding(.vertical, 14)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .contentShape(Rectangle())
     .overlay(alignment: .bottom) {
       surfaceDivider
     }
