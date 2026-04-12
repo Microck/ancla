@@ -35,6 +35,10 @@ most blockers fail because the escape hatch is still living on the same piece of
 
 wrong tags do not release the session. the point is to tie the exit path to one object in the room, not another tap in the app.
 
+<p align="center">
+  <img src=".github/assets/ancla-showcase.gif" alt="ancla banner" width="1080">
+</p>
+
 ## what you need
 
 - an iphone with nfc support
