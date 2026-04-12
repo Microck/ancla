@@ -24,6 +24,20 @@
 
 the current product is intentionally narrow. it is not trying to be a generic productivity dashboard. it is a blocker with a physical exit path, a locked surface, shortcut-based redirecting on ios, unlock presets, and a fallback typing challenge.
 
+## table of contents
+
+- [what it does](#what-it-does)
+- [how it works](#how-it-works)
+- [current release path](#current-release-path)
+- [what you need](#what-you-need)
+- [sticker buying guide](#sticker-buying-guide)
+- [install the app](#install-the-app)
+- [architecture](#architecture)
+- [repo layout](#repo-layout)
+- [development](#development)
+- [troubleshooting](#troubleshooting)
+- [license](#license)
+
 ## what it does
 
 - pairs one physical nfc anchor to the device
@@ -32,6 +46,14 @@ the current product is intentionally narrow. it is not trying to be a generic pr
 - swaps the app into a locked surface while a block is active
 - supports unlock presets for short temporary release windows
 - supports a paragraph-accuracy failsafe challenge when the user enables it
+
+## how it works
+
+`ancla` uses apple's screen time api and ios shortcuts automation to enforce app and domain blocks. the block state lives entirely on-device — there is no cloud component or account system.
+
+the physical release mechanism works through nfc tag scanning. during setup, you pair a single `ntag213` sticker to the app. when a block is active, the app presents a locked surface. tapping it arms the nfc reader. scanning the previously paired anchor releases the session. an optional paragraph-typing challenge is available as a failsafe when you cannot reach the physical anchor.
+
+this is the honest current architecture. `ancla` relies on apple's screen time and shortcuts surfaces where needed instead of pretending it can silently take over the whole device.
 
 ## current release path
 
@@ -43,8 +65,6 @@ the current ios flow is:
 4. start a block from inside `ancla`
 5. when blocked, tapping the locked surface arms nfc scanning
 6. scan the paired anchor, or use an allowed failsafe path, to release
-
-this is the honest current architecture. `ancla` relies on apple's screen time and shortcuts surfaces where needed instead of pretending it can silently take over the whole device.
 
 <p align="center">
   <img src=".github/assets/ancla-showcase.gif" alt="ancla banner" width="1080">
@@ -90,6 +110,32 @@ the usual sideload path is:
 
 `ancla` releases are published as unsigned artifacts only. this repo does not distribute ipa builds signed with the maintainer's certificate.
 
+detailed sideloading instructions are in [docs/sideloading.md](docs/sideloading.md).
+
+## architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│                    ancla-app                         │
+│  content-view · schedule-editor · lock-screen-view   │
+│  app-view-model · ancla-theme · ancla-fonts         │
+├──────────────────────────────────────────────────────┤
+│                   ancla-shared                       │
+│  ancla-core · ancla-models · ancla-store            │
+│  ancla-services · ancla-dependencies                │
+├──────────────────────────────────────────────────────┤
+│               ancla-shield-extension                 │
+│            screen-time enforcement layer             │
+└──────────────────────────────────────────────────────┘
+```
+
+- **ancla-app** — swiftui interface layer. handles all user-facing views, theming, and view models.
+- **ancla-shared** — core logic, data models, storage, and dependency injection. shared between the app and extensions.
+- **ancla-shield-extension** — ios app extension that enforces screen-time based blocking.
+- **ancla-core** (spm target) — a subset of shared logic published as a swift package, testable independently of the full app.
+
+data flow: user action → view model → shared store (on-device) → shield extension enforcement. no network calls, no accounts, no cloud sync.
+
 ## repo layout
 
 ```text
@@ -108,6 +154,25 @@ ios app code lives under [ios](ios). the important targets are:
 - `ios/ancla-shared` for shared models and storage
 - `ios/ancla-shield-extension` for the shield extension
 - `ios/ancla-core-tests` and `ios/ancla-tests` for test coverage
+
+building requires xcode on macos. the project uses [xcodegen](https://github.com/yonaskolb/XcodeGen) — run `xcodegen generate` in the `ios/` directory to regenerate the `.xcodeproj` from `project.yml`.
+
+core unit tests can also be run via the swift package manager:
+
+```bash
+cd ios
+swift test  # runs AnclaCoreTests
+```
+
+## troubleshooting
+
+**nfc scanning does not trigger:** hold the phone closer to the sticker. `ntag213` tags have a short read range (~1-2 cm). remove any thick case material between the phone and the tag. the nfc reader is near the top of the iphone on most models.
+
+**tag not recognized after pairing:** make sure you are using the same physical sticker you paired during setup. `ancla` pairs exactly one tag — swapping stickers requires re-pairing.
+
+**shortcuts automation not firing:** confirm the shortcut was created through the in-app setup flow. manual shortcut creation may miss required parameters. re-run the setup flow if the automation stops working after an ios update.
+
+**sideloaded app loses permissions:** some sideloading methods revoke entitlements after the signing certificate expires. re-sign and reinstall the ipa with a valid certificate.
 
 ## license
 
