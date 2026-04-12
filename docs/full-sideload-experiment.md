@@ -61,7 +61,7 @@ mkdir -p tmp/full-sideload-artifacts
 gh run download --dir tmp/full-sideload-artifacts
 ```
 
-## 4. Check the build report before signing
+## 4. Check the build report before installing
 
 Open the downloaded `ancla-build-report-*` text file.
 
@@ -78,11 +78,11 @@ Bad:
 - wrong bundle ids
 - obviously incomplete app bundle layout
 
-If the report is already wrong, do not waste time signing that `.ipa`.
+If the report is already wrong, do not waste time installing that `.ipa`.
 
-## 5. Sign in Feather
+## 5. Install with your own sideload path
 
-In Feather:
+Use your own sideloading path. For example, in Feather:
 
 1. import your certificate material
 2. import the provisioning profile that matches the app
@@ -94,6 +94,8 @@ Bias:
 
 - prefer preserving the default bundle identifiers if Feather gives you that option
 - avoid aggressive rewrite options unless the app fails to sign otherwise
+
+This repo should only publish the unsigned artifact. Do not turn the maintainer release itself into a certificate-signed IPA.
 
 ## 6. First launch checklist on iPhone
 
@@ -109,9 +111,9 @@ What you want:
 What failure usually means:
 
 - generic icon
-  - the signed install is still invalid
+  - the sideload install is still invalid
 - immediate exit on open
-  - the signed install is still invalid
+  - the sideload install is still invalid
 - `NFC` = `Unavailable`
   - this phone cannot do the sticker scan path
 
@@ -130,7 +132,7 @@ Once diagnostics look good:
 
 If the app opens cleanly and NFC pairing/release works, the sideload path is good enough for the physical sticker experiment.
 
-If the app still installs with a generic icon or exits immediately, the signed install is still invalid and the next problem is Feather/certificate/profile behavior, not app UI code.
+If the app still installs with a generic icon or exits immediately, the sideload install is still invalid and the next problem is Feather/certificate/profile behavior, not app UI code.
 
 If you need the true blocker build later, you are back in one of these lanes:
 

@@ -78,11 +78,13 @@ recommended buys:
 
 the usual sideload path is:
 
-1. download the signed `.ipa`
-2. install it with your preferred sideloading method
+1. download the latest unsigned `.ipa` from the release page
+2. sign and install it with your own sideloading method
 3. grant the required ios permissions
 4. complete the shortcut setup inside the app
 5. pair your anchor and start a block
+
+`ancla` releases are published as unsigned artifacts only. this repo does not distribute ipa builds signed with the maintainer's certificate.
 
 ## repo layout
 
@@ -107,6 +109,13 @@ ios app code lives under [ios](ios). the important targets are:
 
 this repository is source-available, not open source.
 
-it is licensed under [PolyForm Strict 1.0.0](LICENSE). that means people can inspect and use the code for permitted noncommercial purposes, but they do not get rights to redistribute it, publish modified copies, ship it to app stores, or turn it into their own product.
+it is licensed under [PolyForm Strict 1.0.0](LICENSE).
+
+required notices:
+
+- copyright (c) 2026 Microck. all rights reserved.
+- no trademark rights are granted for `Ancla`, `Microck`, or any related names, logos, or branding.
+
+that means people can inspect and use the code for permitted noncommercial purposes, but they do not get rights to redistribute it, publish modified copies, ship it to app stores, or turn it into their own product.
 
 separately from the license, no trademark rights are granted to the `ancla` name, logo, or related branding. for commercial or distribution rights, contact contact@micr.dev.

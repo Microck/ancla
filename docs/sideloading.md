@@ -55,9 +55,11 @@ After the action finishes:
 
 1. download `ancla-unsigned-ipa-*`
 2. download `ancla-build-report-*`
-3. sign the `.ipa` in Feather with the certificate and provisioning material you bought
-4. install it on your iPhone
+3. inspect the build report before trusting the artifact
+4. sign and install the `.ipa` with your own sideloading path if you want it on-device
 5. open the app and check the diagnostics screen before trusting any blocker behavior
+
+The release path in this repo stops at the unsigned artifact. Do not expect a maintainer-signed IPA.
 
 What you want to see in the app:
 
