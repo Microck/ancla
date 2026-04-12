@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src=".github/assets/ancla-readme-banner.jpg" alt="ancla banner" width="800">
+  <img src=".github/assets/ancla-readme-banner.png" alt="ancla banner" width="800">
 </p>
 
 ---
@@ -45,6 +45,10 @@ the current ios flow is:
 6. scan the paired anchor, or use an allowed failsafe path, to release
 
 this is the honest current architecture. `ancla` relies on apple's screen time and shortcuts surfaces where needed instead of pretending it can silently take over the whole device.
+
+<p align="center">
+  <img src=".github/assets/ancla-showcase.gif" alt="ancla banner" width="1080">
+</p>
 
 ## what you need
 
