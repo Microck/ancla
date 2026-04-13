@@ -1,10 +1,1 @@
-<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="64" cy="19" r="9" stroke="currentColor" stroke-width="8"/>
-  <path d="M64 28V88" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
-  <path d="M40 50H88" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
-  <path d="M28 78C28 98.9868 44.1177 116 64 116C83.8823 116 100 98.9868 100 78" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
-  <path d="M28 78L14 64" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M28 78L42 64" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M100 78L86 64" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M100 78L114 64" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" fill="none" viewBox="0 0 128 128"><circle cx="64" cy="19" r="9" stroke="currentColor" stroke-width="8"/><path stroke="currentColor" stroke-linecap="round" stroke-width="8" d="M64 28V88"/><path stroke="currentColor" stroke-linecap="round" stroke-width="8" d="M40 50H88"/><path stroke="currentColor" stroke-linecap="round" stroke-width="8" d="M28 78C28 98.9868 44.1177 116 64 116C83.8823 116 100 98.9868 100 78"/><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="8" d="M28 78L14 64"/><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="8" d="M28 78L42 64"/><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="8" d="M100 78L86 64"/><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="8" d="M100 78L114 64"/></svg>
