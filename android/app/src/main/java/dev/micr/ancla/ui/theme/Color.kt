@@ -1,0 +1,27 @@
+package dev.micr.ancla.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+val Ink = Color(0xFF0C0E11)
+val Background = Color(0xFF0C0E11)
+val Panel = Color(0xFF15181D)
+val PanelRaised = Color(0xFF1A1D23)
+val PanelInteractive = Color(0xFF171A20)
+val PanelStroke = Color(0xFF252930)
+val PrimaryText = Color(0xFFE0E6F1)
+val HeaderText = Color(0xFFCCD0D3)
+val SecondaryText = Color(0xFF979EA8)
+val TertiaryText = Color(0xFF707680)
+val AccentFill = Color(0xFFB5C3D5)
+val AccentStroke = Color(0xFF919DAF)
+val CtaFill = Color(0xFFD1D6DB)
+val CtaText = Color(0xFF33383D)
+val SuccessText = Color(0xFFB2D9C2)
+val WarningText = Color(0xFFEE7D77)
+val ErrorText = Color(0xFFE66B6B)
+val LiveTint = Color(0xFFD54845)
+val LiveGlow = Color(0xFF6C1418)
+val LivePanel = Color(0xFF220E10)
+val LivePanelRaised = Color(0xFF2B1114)
+val LivePanelInteractive = Color(0xFF271014)
+val LivePanelStroke = Color(0xFF5D2326)

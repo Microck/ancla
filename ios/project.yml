@@ -1,0 +1,153 @@
+name: Ancla
+options:
+  minimumXcodeGenVersion: 2.39.0
+settings:
+  base:
+    SWIFT_VERSION: 5.10
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    TARGETED_DEVICE_FAMILY: "1"
+targets:
+  Ancla:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ancla-app
+      - path: ancla-shared
+      - path: ancla-lite
+    resources:
+      - path: fonts/google-sans-flex-400.ttf
+      - path: fonts/google-sans-flex-500.ttf
+      - path: fonts/google-sans-flex-600.ttf
+      - path: fonts/google-sans-flex-700.ttf
+    entitlements:
+      path: ancla-app/ancla-app.entitlements
+    postBuildScripts:
+      - name: Copy bundled fonts
+        basedOnDependencyAnalysis: false
+        showEnvVars: false
+        script: |
+          set -eu
+          resources_dir="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+          mkdir -p "${resources_dir}"
+          for font in google-sans-flex-400.ttf google-sans-flex-500.ttf google-sans-flex-600.ttf google-sans-flex-700.ttf; do
+            cp -f "${PROJECT_DIR}/fonts/${font}" "${resources_dir}/${font}"
+          done
+    settings:
+      base:
+        # Use the checked-in plist verbatim. XcodeGen's generated plist drops
+        # runtime keys this app needs, including fonts, launch screen, and NFC usage.
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ancla-app/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_CFBundleDisplayName: Ancla
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+    dependencies:
+      - target: AnclaShieldExtension
+  AnclaLite:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ancla-app
+      - path: ancla-shared
+      - path: ancla-lite
+    resources:
+      - path: fonts/google-sans-flex-400.ttf
+      - path: fonts/google-sans-flex-500.ttf
+      - path: fonts/google-sans-flex-600.ttf
+      - path: fonts/google-sans-flex-700.ttf
+    entitlements:
+      path: ancla-lite/ancla-lite.entitlements
+    postBuildScripts:
+      - name: Copy bundled fonts
+        basedOnDependencyAnalysis: false
+        showEnvVars: false
+        script: |
+          set -eu
+          resources_dir="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+          mkdir -p "${resources_dir}"
+          for font in google-sans-flex-400.ttf google-sans-flex-500.ttf google-sans-flex-600.ttf google-sans-flex-700.ttf; do
+            cp -f "${PROJECT_DIR}/fonts/${font}" "${resources_dir}/${font}"
+          done
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ancla-app/Info.plist
+        PRODUCT_NAME: AnclaLite
+        PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla.lite
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_CFBundleDisplayName: Ancla Lite
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) SIDELOAD_LITE"
+  AnclaSideload:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ancla-app
+      - path: ancla-shared
+      - path: ancla-lite
+    resources:
+      - path: fonts/google-sans-flex-400.ttf
+      - path: fonts/google-sans-flex-500.ttf
+      - path: fonts/google-sans-flex-600.ttf
+      - path: fonts/google-sans-flex-700.ttf
+    entitlements:
+      path: ancla-lite/ancla-lite.entitlements
+    postBuildScripts:
+      - name: Copy bundled fonts
+        basedOnDependencyAnalysis: false
+        showEnvVars: false
+        script: |
+          set -eu
+          resources_dir="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+          mkdir -p "${resources_dir}"
+          for font in google-sans-flex-400.ttf google-sans-flex-500.ttf google-sans-flex-600.ttf google-sans-flex-700.ttf; do
+            cp -f "${PROJECT_DIR}/fonts/${font}" "${resources_dir}/${font}"
+          done
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ancla-app/Info.plist
+        PRODUCT_NAME: Ancla
+        PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla.sideload
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_CFBundleDisplayName: Ancla
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) SIDELOAD_LITE"
+  AnclaShieldExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ancla-shield-extension
+      - path: ancla-shared
+      - path: ancla-lite
+    resources:
+      - path: ancla-app/assets.xcassets/brand-mark.imageset/brand-mark.png
+    entitlements:
+      path: ancla-shield-extension/ancla-shield-extension.entitlements
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ancla-shield-extension/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: dev.micr.ancla.shield
+        CODE_SIGN_STYLE: Automatic
+  AnclaTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ancla-tests
+      - path: ancla-shared
+      - path: ancla-lite
+    dependencies:
+      - target: Ancla

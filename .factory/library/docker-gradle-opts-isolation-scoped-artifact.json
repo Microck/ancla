@@ -1,0 +1,16 @@
+{
+  "featureId": "rerun-docker-gradle-opts-isolation-traceable",
+  "artifactType": "synthetic-feature-scoped-content",
+  "baseCommit": "429bac4",
+  "baseFile": "android/scripts/docker-gradle.sh",
+  "scope": "Only the docker run GRADLE_OPTS inheritance override block from the original GRADLE_OPTS isolation fix, with all later unrelated Docker-lane hardening omitted from the synthesized artifact.",
+  "artifact": {
+    "android/scripts/docker-gradle.sh#run_gradle-docker-run-block": "fd478e91df35acc082d49b4925a0a6f67ae9d2f40f36549a6ea20c451d838fb3",
+    "android/scripts/docker-gradle.sh#synthetic-file": "aa9e06561fed1e90e62a98f88c9a0d69f9cb960d08fc034ec27df1be7dc5ea04"
+  },
+  "synthesizedFromCurrentWorkspace": true,
+  "notes": [
+    "The live workspace script contains broader Docker lane hardening beyond GRADLE_OPTS isolation.",
+    "This synthesized artifact isolates only the behavior change that prevents inherited caller GRADLE_OPTS from reaching docker run."
+  ]
+}

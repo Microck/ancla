@@ -1,0 +1,23 @@
+{
+  "featureId": "rerun-foundation-setup-readiness-and-modes-traceable",
+  "scope": [
+    "setup gating",
+    "readiness diagnostics",
+    "manual setup acknowledgment persistence",
+    "mode CRUD/defaulting/selection",
+    "start gating",
+    "selected-vs-active mode presentation",
+    "active-mode deletion cleanup"
+  ],
+  "excludedScope": [
+    "schedules",
+    "unlock presets",
+    "failsafes",
+    "history",
+    "blocking lock-surface release flows"
+  ],
+  "validatorLane": {
+    "unitTests": "/home/ubuntu/workspace/ancla/android/scripts/docker-gradle.sh :app:testDebugUnitTest --tests '*Setup*' --tests '*Mode*' --tests '*BootstrapShell*'",
+    "compileAndLint": "/home/ubuntu/workspace/ancla/android/scripts/docker-gradle.sh :app:compileDebugKotlin :app:lintDebug"
+  }
+}

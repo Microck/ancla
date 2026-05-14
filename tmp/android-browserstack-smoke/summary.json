@@ -1,0 +1,234 @@
+{
+  "artifact": {
+    "apkPath": "/home/ubuntu/workspace/ancla/android/app/build/outputs/apk/release/app-release-unsigned.apk",
+    "apkSha256": "e2c2bbe8cd0b305addd3ec06a411aba15b65e773a2670f441a66917e815a8935",
+    "apkSize": 25846179,
+    "aabPath": "/home/ubuntu/workspace/ancla/android/app/build/outputs/bundle/release/app-release.aab",
+    "aabSha256": "d2d389a8818fa20694bddf15829fa043677ff69462cc6a3b23333ff8f5e7d835",
+    "aabSize": 9414957,
+    "apkOutputMetadata": {
+      "version": 3,
+      "artifactType": {
+        "type": "APK",
+        "kind": "Directory"
+      },
+      "applicationId": "dev.micr.ancla",
+      "variantName": "release",
+      "elements": [
+        {
+          "type": "SINGLE",
+          "filters": [],
+          "attributes": [],
+          "versionCode": 1,
+          "versionName": "0.1.0",
+          "outputFile": "app-release-unsigned.apk"
+        }
+      ],
+      "elementType": "File",
+      "baselineProfiles": [
+        {
+          "minApi": 28,
+          "maxApi": 30,
+          "baselineProfiles": [
+            "baselineProfiles/1/app-release-unsigned.dm"
+          ]
+        },
+        {
+          "minApi": 31,
+          "maxApi": 2147483647,
+          "baselineProfiles": [
+            "baselineProfiles/0/app-release-unsigned.dm"
+          ]
+        }
+      ],
+      "minSdkVersionForDexing": 28
+    },
+    "apkAppMetadata": {
+      "appMetadataVersion": "1.1",
+      "androidGradlePluginVersion": "8.8.0"
+    },
+    "aabAppMetadata": {
+      "appMetadataVersion": "1.1",
+      "androidGradlePluginVersion": "8.8.0"
+    }
+  },
+  "releaseCandidate": {
+    "commit": "18f309245c4aedf13b0a0b7b76728decf2410771",
+    "run": "local-18f309245c4a",
+    "builtAt": "2026-04-15T20:22:09Z",
+    "traceCommit": "18f309245c4aedf13b0a0b7b76728decf2410771",
+    "traceRun": "local-18f309245c4a",
+    "traceBuiltAt": "2026-04-15T20:22:09Z",
+    "applicationId": "dev.micr.ancla",
+    "variant": "release",
+    "versionCode": 1,
+    "versionName": "0.1.0"
+  },
+  "releaseCandidatePath": "/home/ubuntu/workspace/ancla/tmp/android-release/release-candidate.json",
+  "browserstackUpload": {
+    "app_url": "bs://cde876f622d41351f7614eb3b30b941db50b04ba",
+    "custom_id": "ancla-18f309245c4a-e2c2bbe8cd0b",
+    "shareable_id": "javiermilei_AgOEBI/ancla-18f309245c4a-e2c2bbe8cd0b"
+  },
+  "browserstackPreflight": {
+    "status": 200,
+    "bodyPreview": "[{\"app_name\":\"app-release-unsigned.apk\",\"app_version\":\"0.1.0\",\"app_url\":\"bs://db802ab9ca447c2ae7d3a34a38d251ef0f2818a4\",\"app_id\":\"db802ab9ca447c2ae7d3a34a38d251ef0f2818a4\",\"uploaded_at\":\"2026-04-15 12:00:59 UTC\",\"bypass_secure_screen_restriction\":\"false\",\"custom_id\":\"ancla-18f309245c4a-26101abe4541\",\"shareable_id\":\"javiermilei_AgOEBI/ancla-18f309245c4a-26101abe4541\"},{\"app_name\":\"app-release-unsig"
+  },
+  "browserstackCredentialDiagnostics": {
+    "BROWSERSTACK_USERNAME": {
+      "present": true,
+      "rawLength": 18,
+      "trimmedLength": 18,
+      "rawEqualsTrimmed": true,
+      "rawSha256": "65baa54d971b49c67f43ab40fb54bc1d7f2708b7327b83348dfca090620143d6",
+      "trimmedSha256": "65baa54d971b49c67f43ab40fb54bc1d7f2708b7327b83348dfca090620143d6",
+      "rawEdgeOrdinals": [
+        106,
+        73
+      ]
+    },
+    "BROWSERSTACK_ACCESS_KEY": {
+      "present": true,
+      "rawLength": 20,
+      "trimmedLength": 20,
+      "rawEqualsTrimmed": true,
+      "rawSha256": "b08144c1da4fc6ebef19764463eac60663c6bb72def53d471d242ddaabc91c4d",
+      "trimmedSha256": "b08144c1da4fc6ebef19764463eac60663c6bb72def53d471d242ddaabc91c4d",
+      "rawEdgeOrdinals": [
+        111,
+        112
+      ]
+    }
+  },
+  "browserstackRequestSite": {
+    "source": "trimmed canonical env vars",
+    "canonicalApiHost": "https://api-cloud.browserstack.com",
+    "canonicalAppiumHost": "https://hub-cloud.browserstack.com/wd/hub",
+    "usernameLength": 18,
+    "accessKeyLength": 20,
+    "usernameSha256": "65baa54d971b49c67f43ab40fb54bc1d7f2708b7327b83348dfca090620143d6",
+    "accessKeySha256": "b08144c1da4fc6ebef19764463eac60663c6bb72def53d471d242ddaabc91c4d",
+    "authorizationLength": 58,
+    "authorizationSha256": "4b46dc7c677cc4fa0f8cad68b8c7aa7b5bff6ecc032752bcaf9d9e6f8c480d2a",
+    "usernameExactMatchValidatedPair": true,
+    "accessKeyExactMatchValidatedPair": true,
+    "authorizationExactMatchValidatedPair": true
+  },
+  "proofBoundaries": {
+    "proves": [
+      "upload acceptance",
+      "install on one BrowserStack Android device",
+      "launch to expected first screen",
+      "post-launch setup/readiness interaction",
+      "recent history checkpoint render"
+    ],
+    "doesNotProve": [
+      "physical NFC anchor behavior",
+      "long-running accessibility enforcement reliability"
+    ]
+  },
+  "browserstackSession": {
+    "automation_session": {
+      "name": "packaged-smoke",
+      "duration": 24,
+      "os": "android",
+      "os_version": "13.0",
+      "browser_version": "app",
+      "browser": null,
+      "device": "Samsung Galaxy S23",
+      "status": "done",
+      "hashed_id": "81784dca7e6f7840c2be6749cf51b96631a1d858",
+      "reason": "CLIENT_STOPPED_SESSION",
+      "build_name": "ancla-android-release",
+      "project_name": "ancla-android",
+      "build_hashed_id": "26e5b4ffcf8b0b515a5121d9a84fef5ca538410a",
+      "logs": "https://app-automate.browserstack.com/builds/26e5b4ffcf8b0b515a5121d9a84fef5ca538410a/sessions/81784dca7e6f7840c2be6749cf51b96631a1d858/logs",
+      "browserstack_status": "done",
+      "created_at": "2026-04-15T20:22:12.000Z",
+      "browser_url": "https://app-automate.browserstack.com/builds/26e5b4ffcf8b0b515a5121d9a84fef5ca538410a/sessions/81784dca7e6f7840c2be6749cf51b96631a1d858",
+      "public_url": "https://app-automate.browserstack.com/builds/26e5b4ffcf8b0b515a5121d9a84fef5ca538410a/sessions/81784dca7e6f7840c2be6749cf51b96631a1d858?auth_token=aa2afb6b8c53f31caca9eb0e6dd158a1ff2f96e04e6065bdf1c5d97120bde537",
+      "video_url": "https://app-automate.browserstack.com/sessions/81784dca7e6f7840c2be6749cf51b96631a1d858/video?token=Q2NvcnNFS2l6U2lrNEl1YWpsMm9IdXBUYThFd3RCVHp4K0ZNS01zWk5uR0lXSEtDSjRUMzA1aHlkUEIySkdWVzNwR0JtQ3ZtZ3daWFJyYjRaejB2OVE9PS0tN0V6alE0L21NWDQ3MFFOM3ZyVW9YZz09--f01db946340910892f71a512b83abe6bb4306a4e&source=rest_api&diff=1.811832424",
+      "appium_logs_url": "https://api.browserstack.com/app-automate/builds/26e5b4ffcf8b0b515a5121d9a84fef5ca538410a/sessions/81784dca7e6f7840c2be6749cf51b96631a1d858/appiumlogs",
+      "device_logs_url": "https://api.browserstack.com/app-automate/builds/26e5b4ffcf8b0b515a5121d9a84fef5ca538410a/sessions/81784dca7e6f7840c2be6749cf51b96631a1d858/devicelogs",
+      "app_details": {
+        "app_url": "bs://cde876f622d41351f7614eb3b30b941db50b04ba",
+        "app_name": "dev.micr.ancla",
+        "app_version": "0.1.0",
+        "app_custom_id": "ancla-18f309245c4a-e2c2bbe8cd0b",
+        "uploaded_at": "2026-04-15T20:22:11.000Z",
+        "app_filename": "app-release-unsigned.apk"
+      },
+      "session_terminal_logs_url": "https://app-automate.browserstack.com/s3-upload/bs-selenium-logs-use/s3.us-east-1/data/26e5b4ffcf8b0b515a5121d9a84fef5ca538410a/81784dca7e6f7840c2be6749cf51b96631a1d858-terminal-logs.txt?response-content-type=text%2Fplain&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA2XUQHUQMKRBWUSN5%2F20260415%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260415T202237Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=c86c57baf1e502b3342800b553d716ae5d203350024a4fba5422387f6f784ac6",
+      "build_terminal_logs_url": "https://app-automate.browserstack.com/s3-upload/bs-selenium-logs-use/s3.us-east-1/data/26e5b4ffcf8b0b515a5121d9a84fef5ca538410a/terminal-logs.txt?response-content-type=text%2Fplain&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA2XUQHUQMKRBWUSN5%2F20260415%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260415T202237Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=8dd858ccf3f35f7b4dbbd04529656e3fa58e7887597d76d01803e84f37999bae",
+      "insights": {
+        "summary": {
+          "totals": {
+            "duration": 25,
+            "browserstack_time": 25,
+            "user_time": 0,
+            "browserstack_percentage": 100,
+            "user_percentage": 0
+          },
+          "time_breakdown": {
+            "browserstack_time": {
+              "optimize_url": "https://www.browserstack.com/docs/app-automate/appium/time-performance-optimisation#components-of-browserstack-time",
+              "components": {
+                "setup": {
+                  "duration": 19
+                },
+                "execution": {
+                  "duration": 6,
+                  "reason": "used for benchmarking by competitors"
+                }
+              }
+            },
+            "user_time": {
+              "optimize_url": "https://www.browserstack.com/docs/app-automate/appium/time-performance-optimisation#components-of-user-time",
+              "duration": 0
+            },
+            "capabilities_impact": {
+              "optimize_url": "https://www.browserstack.com/docs/app-automate/appium/time-performance-optimisation#capabilities-and-their-performance-impact",
+              "top_capabilities": [
+                {
+                  "name": "defaultVideo",
+                  "impact": "high"
+                },
+                {
+                  "name": "appiumLogs",
+                  "impact": "medium"
+                },
+                {
+                  "name": "deviceLogs",
+                  "impact": "medium"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "checkpoints": [
+    {
+      "checkpoint": "launch",
+      "observed": "Finish Android setup"
+    },
+    {
+      "checkpoint": "post-launch interaction",
+      "observed": "Acknowledged Android setup requirements"
+    },
+    {
+      "checkpoint": "setup progression",
+      "observed": "Pair sample anchor"
+    },
+    {
+      "checkpoint": "post-relaunch packaged flow",
+      "observed": "Finish Android setup"
+    }
+  ],
+  "screenshots": [
+    "/home/ubuntu/workspace/ancla/tmp/android-browserstack-smoke/01-launch-setup.png",
+    "/home/ubuntu/workspace/ancla/tmp/android-browserstack-smoke/02-after-ack.png",
+    "/home/ubuntu/workspace/ancla/tmp/android-browserstack-smoke/03-post-relaunch.png"
+  ]
+}

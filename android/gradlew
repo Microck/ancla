@@ -1,0 +1,51 @@
+#!/usr/bin/env sh
+set -e
+APP_HOME=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+WRAPPER_DIR="$APP_HOME/gradle/wrapper"
+DIST_URL=$(sed -n 's/^distributionUrl=//p' "$WRAPPER_DIR/gradle-wrapper.properties" | tail -n 1 | sed 's#\\:#:#g')
+DIST_CACHE_DIR="${GRADLE_USER_HOME_DIR:-${GRADLE_USER_HOME:-$HOME/.gradle}}/ancla-gradle-wrapper"
+DIST_ZIP="$DIST_CACHE_DIR/$(basename "$DIST_URL")"
+DIST_DIR="$DIST_CACHE_DIR/gradle-dist"
+GRADLE_BIN="$DIST_DIR/bin/gradle"
+
+GRADLE_USER_HOME_DIR="${GRADLE_USER_HOME:-$HOME/.gradle}"
+
+if [ -n "${JAVA_OPTS:-}" ]; then
+  JAVA_OPTS="$JAVA_OPTS -Djava.net.preferIPv6Addresses=true"
+else
+  JAVA_OPTS="-Djava.net.preferIPv6Addresses=true"
+fi
+export JAVA_OPTS
+
+if [ -z "${OPENSHIFT_IP:-}" ]; then
+  OPENSHIFT_IP=127.0.0.1
+  export OPENSHIFT_IP
+fi
+
+if [ -d "$GRADLE_USER_HOME_DIR/daemon" ]; then
+  find "$GRADLE_USER_HOME_DIR/daemon" -type f \( -name 'registry.bin' -o -name '*.lock' \) -delete 2>/dev/null || true
+fi
+
+if [ ! -x "$GRADLE_BIN" ]; then
+  mkdir -p "$DIST_CACHE_DIR"
+  if [ ! -f "$DIST_ZIP" ]; then
+    curl -L "$DIST_URL" -o "$DIST_ZIP"
+  fi
+  rm -rf "$DIST_DIR"
+  unzip -q "$DIST_ZIP" -d "$DIST_CACHE_DIR"
+  EXTRACTED_DIR=
+  for candidate in "$DIST_CACHE_DIR"/gradle-*; do
+    if [ -d "$candidate" ] && [ "$(basename "$candidate")" != "gradle-dist" ]; then
+      EXTRACTED_DIR="$candidate"
+      break
+    fi
+  done
+  if [ -z "$EXTRACTED_DIR" ]; then
+    echo "Extracted Gradle directory not found" >&2
+    exit 1
+  fi
+  mv "$EXTRACTED_DIR" "$DIST_DIR"
+  chmod 755 "$DIST_DIR/bin/"*
+fi
+
+exec "$GRADLE_BIN" "$@"

@@ -1,0 +1,48 @@
+{
+  "canonicalArtifacts": {
+    "apk": {
+      "path": "/canonical/fixture/app-release-unsigned.apk",
+      "sha256": "fixture-apk-sha",
+      "size": 222,
+      "outputFile": "app-release-unsigned.apk",
+      "appMetadata": {
+        "appMetadataVersion": "1.1",
+        "androidGradlePluginVersion": "8.8.0"
+      }
+    },
+    "aab": {
+      "path": "/canonical/fixture/app-release.aab",
+      "sha256": "fixture-aab-sha",
+      "size": 111
+    }
+  },
+  "releaseCandidate": {
+    "applicationId": "dev.micr.ancla",
+    "variant": "release",
+    "versionCode": 1,
+    "versionName": "0.1.0",
+    "commit": "fixture-source-commit",
+    "run": "fixture-trace-run",
+    "builtAt": "2026-04-15T00:00:00Z",
+    "traceCommit": "fixture-trace-commit",
+    "traceRun": "fixture-trace-run",
+    "traceBuiltAt": "2026-04-15T00:00:00Z"
+  },
+  "bundleAppMetadata": {
+    "appMetadataVersion": "1.1",
+    "androidGradlePluginVersion": "8.8.0"
+  },
+  "browserstack": {
+    "canonicalHost": "https://api-cloud.browserstack.com",
+    "status": "pending"
+  },
+  "proofBoundaries": {
+    "proves": [
+      "declared release APK and AAB exist"
+    ],
+    "doesNotProve": [
+      "physical NFC anchor behavior",
+      "long-running accessibility enforcement reliability"
+    ]
+  }
+}

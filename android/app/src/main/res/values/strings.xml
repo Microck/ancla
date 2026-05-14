@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Ancla</string>
+    <string name="accessibility_service_description">Intercept selected apps and browsers during an active Ancla session.</string>
+</resources>

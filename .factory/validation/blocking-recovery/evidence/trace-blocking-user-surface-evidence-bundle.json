@@ -1,0 +1,323 @@
+{
+  "featureId": "trace-blocking-user-surface-evidence-bundle",
+  "milestone": "blocking-recovery",
+  "status": "ready_for_review",
+  "generatedAt": "2026-04-16T02:15:00Z",
+  "scope": {
+    "assertionGroup": [
+      "VAL-BLOCK-001",
+      "VAL-BLOCK-002",
+      "VAL-BLOCK-003",
+      "VAL-BLOCK-004",
+      "VAL-BLOCK-005",
+      "VAL-BLOCK-006",
+      "VAL-BLOCK-007",
+      "VAL-BLOCK-008",
+      "VAL-BLOCK-009",
+      "VAL-BLOCK-010",
+      "VAL-BLOCK-011"
+    ],
+    "goal": "Package reviewed implementation/test evidence for blocking assertions without overstating packaged BrowserStack proof or missing user-surface captures.",
+    "truthBoundary": [
+      "This bundle records reviewed code/test evidence and proof gaps only.",
+      "It does not mark any VAL-BLOCK assertion passed.",
+      "Existing packaged BrowserStack evidence remains limited to setup/readiness smoke and is not blocking proof."
+    ]
+  },
+  "reviewedImplementationEvidence": {
+    "scrutiny": {
+      "round2": {
+        "path": ".factory/validation/blocking/scrutiny/synthesis-round2.json",
+        "status": "pass",
+        "summary": "Blocking milestone scrutiny round 2 passed after duplicate-suppression follow-up; targeted test/typecheck/lint validators were green and remain the reviewed implementation baseline for this evidence bundle.",
+        "validators": [
+          {
+            "command": "bash -lc ' . \"/home/ubuntu/workspace/ancla/.factory/init.sh\" && \"/home/ubuntu/workspace/ancla/android/scripts/docker-gradle.sh\" :app:testDebugUnitTest'",
+            "exitCode": 0
+          },
+          {
+            "command": "bash -lc ' . \"/home/ubuntu/workspace/ancla/.factory/init.sh\" && \"/home/ubuntu/workspace/ancla/android/scripts/docker-gradle.sh\" :app:compileDebugKotlin'",
+            "exitCode": 0
+          },
+          {
+            "command": "bash -lc ' . \"/home/ubuntu/workspace/ancla/.factory/init.sh\" && \"/home/ubuntu/workspace/ancla/android/scripts/docker-gradle.sh\" :app:lintDebug'",
+            "exitCode": 0
+          }
+        ]
+      },
+      "featureReviews": [
+        {
+          "featureId": "android-accessibility-blocking-and-lock-surface",
+          "path": ".factory/validation/blocking/scrutiny/reviews/android-accessibility-blocking-and-lock-surface.json",
+          "status": "fail",
+          "reason": "Initial blocking review found duplicate-suppression bug in accessibility interception flow."
+        },
+        {
+          "featureId": "fix-android-accessibility-service-state-persistence",
+          "path": ".factory/validation/blocking/scrutiny/reviews/fix-android-accessibility-service-state-persistence.json",
+          "status": "pass",
+          "reason": "Service now restores blocking state from durable storage and persistence-specific tests were accepted."
+        },
+        {
+          "featureId": "fix-blocking-duplicate-suppression-service-path",
+          "path": ".factory/validation/blocking-followup/scrutiny/reviews/fix-blocking-duplicate-suppression-service-path.json",
+          "status": "pass",
+          "reason": "Duplicate blocked-window events are suppressed on the real service path while interception remains active."
+        }
+      ]
+    },
+    "relevantTests": [
+      {
+        "file": "android/app/src/test/java/dev/micr/ancla/BlockingLockSurfaceTest.kt",
+        "coversAssertions": [
+          "VAL-BLOCK-001",
+          "VAL-BLOCK-004",
+          "VAL-BLOCK-005",
+          "VAL-BLOCK-006",
+          "VAL-BLOCK-007",
+          "VAL-BLOCK-010",
+          "VAL-BLOCK-011"
+        ],
+        "notes": [
+          "Covers selected-target interception, wrong-anchor persistence, release cleanup, and temporary unlock suppression/expiry in deterministic JVM tests.",
+          "Also preserves session identity in snapshot payloads used by the service."
+        ],
+        "verifiedCases": [
+          "interceptionOnlyTargetsSelectedPackagesAndStopsAfterRelease",
+          "temporaryUnlockSuppressesInterceptionOnlyInsideActiveWindow",
+          "blockedPresentationOnlyAppliesToSelectedTargetsAndSuppressesDuringTemporaryUnlock",
+          "temporaryUnlockExpiryAndOwningResourceCleanupClearBlockedSuppression",
+          "snapshotPayloadPreservesSessionStartForServiceRestoration"
+        ]
+      },
+      {
+        "file": "android/app/src/test/java/dev/micr/ancla/platform/AnclaAccessibilityServiceTest.kt",
+        "coversAssertions": [
+          "VAL-BLOCK-001",
+          "VAL-BLOCK-003",
+          "VAL-BLOCK-005",
+          "VAL-BLOCK-007",
+          "VAL-BLOCK-010",
+          "VAL-BLOCK-011"
+        ],
+        "notes": [
+          "Exercises service-path interception, repeated blocked launches, duplicate suppression, wrong-anchor session state, and cross-target matching.",
+          "Uses recording service coverage rather than BrowserStack to prove accessibility-path behavior deterministically."
+        ],
+        "verifiedCases": [
+          "serviceStartsLockSurfaceForSelectedPackageAndSuppressesDuplicatesUntilStateChanges",
+          "serviceKeepsInterceptingRepeatedBlockedLaunchesAfterReturningFromLockSurface",
+          "duplicateBlockedWindowEventsStaySuppressedOnRealServicePathWhileLockSurfaceRemainsForeground",
+          "serviceAllowsAnotherSelectedTargetToInterceptDuringSameSession",
+          "payloadCarriesOnlySelectedTargetsForBlockingSession",
+          "payloadStopsInterceptingDuringTemporaryUnlockAndAfterRelease"
+        ]
+      }
+    ]
+  },
+  "validatorReplay": {
+    "replayedAt": "2026-04-16T02:10:00Z",
+    "commands": [
+      {
+        "command": "/home/ubuntu/workspace/ancla/android/scripts/docker-gradle.sh :app:testDebugUnitTest --tests '*Accessibility*' --tests '*Blocking*' --tests '*LockSurface*'",
+        "exitCode": 0,
+        "observation": "Targeted Android blocking/accessibility/lock-surface JVM suite passed in the Docker Gradle lane, including compileDebugKotlin, compileDebugUnitTestKotlin, and testDebugUnitTest."
+      }
+    ],
+    "purpose": "Reconfirm the deterministic implementation evidence referenced by this bundle without claiming new user-surface proof."
+  },
+  "userSurfaceEvidenceStatus": {
+    "summary": "Mission-level user-surface captures for VAL-BLOCK-001..011 are still missing.",
+    "missingEvidenceKinds": [
+      "lock-surface screenshots or videos for blocked-target interception",
+      "user-visible copy proof for blocked state and release-path messaging",
+      "runtime captures for repeated blocked launches, temporary unlock windows, wrong-anchor retry, post-release normal open, fallback actions, history attribution, and session-bound UI details"
+    ],
+    "existingMissionAssessment": {
+      "path": ".factory/validation/final-user-testing/user-testing/synthesis.json",
+      "result": "fail",
+      "reason": "All VAL-BLOCK assertions remain failed because scrutiny proof exists but contract-matching user-testing evidence does not."
+    },
+    "nextCaptureAppendRule": "Future lock-surface or blocked-target screenshots/videos must be appended as new evidence references under each assertion entry instead of replacing the implementation-review baseline recorded here."
+  },
+  "browserstackBoundary": {
+    "allowedSource": ".factory/validation/final/user-testing/flows/release-browserstack.json",
+    "provenScope": [
+      "packaged upload/install/launch",
+      "setup/readiness progression",
+      "relaunch back into setup on the traced packaged candidate"
+    ],
+    "notProvenForBlocking": [
+      "blocked-target interception",
+      "lock-surface rendering or copy",
+      "temporary unlock or failsafe surfaces",
+      "history or recent-session surfaces",
+      "physical NFC behavior",
+      "long-running accessibility reliability"
+    ]
+  },
+  "assertions": [
+    {
+      "id": "VAL-BLOCK-001",
+      "implementationEvidence": [
+        ".factory/validation/blocking/scrutiny/synthesis-round2.json",
+        "android/app/src/test/java/dev/micr/ancla/BlockingLockSurfaceTest.kt",
+        "android/app/src/test/java/dev/micr/ancla/platform/AnclaAccessibilityServiceTest.kt"
+      ],
+      "userSurfaceEvidence": [],
+      "status": "missing_user_surface_proof",
+      "notes": "Deterministic tests cover interception contract, but no user-surface screenshot/video proves actual blocked app/browser lock surface.",
+      "futureCaptureTargets": [
+        "screenshot(blocked-target-intercepted)",
+        "browserstack-video(blocked-ui-checkpoint-where-possible)"
+      ]
+    },
+    {
+      "id": "VAL-BLOCK-002",
+      "implementationEvidence": [
+        ".factory/validation/blocking/scrutiny/synthesis-round2.json"
+      ],
+      "userSurfaceEvidence": [],
+      "status": "missing_user_surface_proof",
+      "notes": "No screenshot or runtime capture currently proves the lock-surface copy shown to users.",
+      "futureCaptureTargets": [
+        "screenshot(lock-surface-copy)"
+      ]
+    },
+    {
+      "id": "VAL-BLOCK-003",
+      "implementationEvidence": [
+        ".factory/validation/blocking-followup/scrutiny/reviews/fix-blocking-duplicate-suppression-service-path.json",
+        "android/app/src/test/java/dev/micr/ancla/platform/AnclaAccessibilityServiceTest.kt"
+      ],
+      "userSurfaceEvidence": [],
+      "status": "missing_user_surface_proof",
+      "notes": "Repeated-launch suppression is covered in service-path tests, but no packaged or device capture proves the blocked experience repeats visibly.",
+      "futureCaptureTargets": [
+        "browserstack-video(repeated-blocked-ui-checkpoints-where-possible)"
+      ]
+    },
+    {
+      "id": "VAL-BLOCK-004",
+      "implementationEvidence": [
+        ".factory/validation/blocking/scrutiny/synthesis-round2.json",
+        "android/app/src/test/java/dev/micr/ancla/BlockingLockSurfaceTest.kt"
+      ],
+      "userSurfaceEvidence": [],
+      "status": "missing_user_surface_proof",
+      "notes": "Temporary unlock timing is covered in JVM tests only; unlock-window and reblocked runtime captures are still missing.",
+      "futureCaptureTargets": [
+        "screenshot(unlocked-window)",
+        "screenshot(reblocked-after-expiry)"
+      ]
+    },
+    {
+      "id": "VAL-BLOCK-005",
+      "implementationEvidence": [
+        "android/app/src/test/java/dev/micr/ancla/BlockingLockSurfaceTest.kt",
+        "android/app/src/test/java/dev/micr/ancla/platform/AnclaAccessibilityServiceTest.kt"
+      ],
+      "userSurfaceEvidence": [],
+      "status": "missing_user_surface_proof",
+      "notes": "Wrong-anchor persistence is deterministic in tests, but no user-visible capture shows returning to the blocked experience after mismatch.",
+      "futureCaptureTargets": [
+        "screenshot(blocked-after-wrong-anchor)"
+      ]
+    },
+    {
+      "id": "VAL-BLOCK-006",
+      "implementationEvidence": [
+        "android/app/src/test/java/dev/micr/ancla/BlockingLockSurfaceTest.kt"
+      ],
+      "userSurfaceEvidence": [],
+      "status": "missing_user_surface_proof",
+      "notes": "Release cleanup is proven in tests, but no runtime capture shows previously blocked targets opening normally after release.",
+      "futureCaptureTargets": [
+        "screenshot(normal-open-after-release)",
+        "browserstack-video(post-release-open-where-possible)"
+      ]
+    },
+    {
+      "id": "VAL-BLOCK-007",
+      "implementationEvidence": [
+        "android/app/src/test/java/dev/micr/ancla/BlockingLockSurfaceTest.kt",
+        "android/app/src/test/java/dev/micr/ancla/platform/AnclaAccessibilityServiceTest.kt"
+      ],
+      "userSurfaceEvidence": [],
+      "status": "missing_user_surface_proof",
+      "notes": "Selected-vs-unselected target behavior is deterministic in tests; user-surface checkpoint pair is still missing.",
+      "futureCaptureTargets": [
+        "screenshot(selected-target-blocked)",
+        "screenshot(unselected-target-open)"
+      ]
+    },
+    {
+      "id": "VAL-BLOCK-008",
+      "implementationEvidence": [
+        ".factory/validation/blocking/scrutiny/synthesis-round2.json"
+      ],
+      "userSurfaceEvidence": [],
+      "status": "missing_user_surface_proof",
+      "notes": "Allowed fallback actions are implemented elsewhere in app flows, but no lock-surface capture currently proves their presentation for this assertion.",
+      "futureCaptureTargets": [
+        "screenshot(lock-surface-actions)",
+        "browserstack-video(locked-surface-navigation)"
+      ]
+    },
+    {
+      "id": "VAL-BLOCK-009",
+      "implementationEvidence": [
+        ".factory/validation/final-user-testing/user-testing/synthesis.json"
+      ],
+      "userSurfaceEvidence": [],
+      "status": "missing_user_surface_proof",
+      "notes": "Release attribution is implemented in later milestone code, but this blocking bundle intentionally does not claim history UI proof without captures.",
+      "futureCaptureTargets": [
+        "screenshot(history-multiple-release-types)"
+      ]
+    },
+    {
+      "id": "VAL-BLOCK-010",
+      "implementationEvidence": [
+        "android/app/src/test/java/dev/micr/ancla/BlockingLockSurfaceTest.kt",
+        "android/app/src/test/java/dev/micr/ancla/platform/AnclaAccessibilityServiceTest.kt"
+      ],
+      "userSurfaceEvidence": [],
+      "status": "missing_user_surface_proof",
+      "notes": "Session-bound mode/anchor details are carried through snapshots and tests, but blocked-state UI evidence is still absent.",
+      "futureCaptureTargets": [
+        "screenshot(blocked-state-session-details)"
+      ]
+    },
+    {
+      "id": "VAL-BLOCK-011",
+      "implementationEvidence": [
+        "android/app/src/test/java/dev/micr/ancla/BlockingLockSurfaceTest.kt",
+        "android/app/src/test/java/dev/micr/ancla/platform/AnclaAccessibilityServiceTest.kt"
+      ],
+      "userSurfaceEvidence": [],
+      "status": "missing_user_surface_proof",
+      "notes": "Blocked-presentation gating is well covered in tests, but user-surface captures for active, temp-unlock, and released states are still missing.",
+      "futureCaptureTargets": [
+        "screenshot(lock-surface-active)",
+        "screenshot(no-lock-surface-during-temp-unlock)",
+        "screenshot(no-lock-surface-after-release)"
+      ]
+    }
+  ],
+  "recommendedFutureEvidenceCapture": {
+    "capturePackage": [
+      "blocked-target-intercepted screenshot/video on selected app and browser",
+      "lock-surface-copy screenshot",
+      "repeated blocked launch checkpoint video",
+      "temporary unlock active and reblocked-after-expiry screenshots",
+      "wrong-anchor then blocked-again screenshot",
+      "normal-open-after-release screenshot",
+      "selected-target-blocked plus unselected-target-open screenshots",
+      "lock-surface-actions screenshot",
+      "blocked-state-session-details screenshot",
+      "no-lock-surface-during-temp-unlock and post-release screenshots"
+    ],
+    "rule": "Append future captures under this artifact rather than replacing its reviewed implementation evidence."
+  }
+}

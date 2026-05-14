@@ -1,0 +1,39 @@
+{
+  "featureId": "rerun-vendored-gradle-wrapper-cleanup-traceable",
+  "sourceFeatureId": "remove-vendored-gradle-wrapper-assets",
+  "recordedAtUtc": "2026-04-14T10:00:00Z",
+  "immutableProvenancePlan": "Use the feature-scoped commit created by this rerun as the truthful immutable artifact for the cleaned wrapper state.",
+  "liveWorkspaceArtifact": {
+    "android/gradlew": "5b7b44ed052c53a4a9f406be22a160ad40dbb91e7bc9f4884ec1edc14713824a",
+    "android/gradle/wrapper/gradle-wrapper.properties": "23b7b98fa7f086c7310fb49d39084bdb472003a03f3b8508b43098f381d53114",
+    "android/scripts/docker-gradle.sh": "e917dc3cdee7254fb02c1fcee80627bad944ca5c8a46a162016ff682606da185"
+  },
+  "wrapperState": {
+    "cacheBootstrapRoot": "${GRADLE_USER_HOME:-$HOME/.gradle}/ancla-gradle-wrapper",
+    "distributionUrl": "https://services.gradle.org/distributions/gradle-8.10.2-bin.zip",
+    "trackedVendoredGradleDistFilesPresent": false,
+    "trackedVendoredGradleZipPresent": false,
+    "workingTreeVendoredGradleDistDirectoryExists": false,
+    "workingTreeVendoredGradleZipExists": false
+  },
+  "androidGradlewBootstrapEvidence": {
+    "distributionZipPath": "$DIST_CACHE_DIR/$(basename \"$DIST_URL\")",
+    "distributionDirPath": "$DIST_CACHE_DIR/gradle-dist",
+    "gradleBinaryPath": "$DIST_DIR/bin/gradle",
+    "bootstrapBehavior": [
+      "Reads distributionUrl from android/gradle/wrapper/gradle-wrapper.properties",
+      "Uses GRADLE_USER_HOME or HOME .gradle as the cache root instead of repo-local vendored payloads",
+      "Downloads the distribution zip into the cache only when missing",
+      "Unzips the distribution into the cache and renames the extracted directory to gradle-dist before exec"
+    ]
+  },
+  "verificationTargets": [
+    "git ls-files android/gradle/wrapper | rg 'gradle-dist|gradle-8.10.2-bin.zip' -n",
+    "test ! -d android/gradle/wrapper/gradle-dist",
+    "test ! -f android/gradle/wrapper/gradle-8.10.2-bin.zip",
+    "android/scripts/docker-gradle.sh :app:testDebugUnitTest",
+    "android/scripts/docker-gradle.sh :app:compileDebugKotlin",
+    "android/scripts/docker-gradle.sh :app:lintDebug"
+  ],
+  "note": "This artifact intentionally records the exact cleaned wrapper state now present in the live workspace so the follow-up commit can serve as truthful immutable provenance, unlike the earlier rejected citation to unrelated commit bef1d3a."
+}

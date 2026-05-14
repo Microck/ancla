@@ -1,0 +1,71 @@
+# Ancla iOS
+
+This directory contains the native iPhone app scaffold for Ancla.
+
+## Notes
+
+- The current environment does not have `swift`, `xcodebuild`, or `xcodegen`.
+- The project is defined with `project.yml` so it can be generated on a macOS machine with XcodeGen.
+- The app is structured around one canonical path:
+  - request Screen Time authorization
+  - create one or more block modes
+  - set/override default mode
+  - pair one NFC sticker
+  - arm selected mode
+  - require the paired sticker to release the lock
+- Additional implemented UI flows:
+  - single-screen minimal control flow
+  - mode edit (name, targets, default toggle)
+  - mode delete with armed-session cleanup
+  - sticker rename and unpair
+  - mode selection summary surfaces
+
+## Tests
+
+- `ancla-tests/app-view-model-tests.swift` contains in-memory fake-backed tests for mode, sticker, and session logic.
+- `ancla-core-tests/ancla-core-tests.swift` is a pure SwiftPM test lane for the framework-free core logic.
+- Xcode tests still require macOS, but the core package can be executed on Linux with Docker.
+
+## Linux Verification
+
+```bash
+cd /home/ubuntu/workspace/ancla
+docker run --rm \
+  -v "$PWD/ios:/workspace" \
+  -w /workspace \
+  swift:5.10-jammy \
+  swift test
+```
+
+This validates the shared core logic without `FamilyControls`, `ManagedSettings`, or `CoreNFC`.
+
+## macOS Build/Test Commands
+
+```bash
+cd /home/ubuntu/workspace/ancla/ios
+xcodegen generate
+xcodebuild -project Ancla.xcodeproj -scheme Ancla -destination 'platform=iOS Simulator,name=iPhone 16' build
+xcodebuild -project Ancla.xcodeproj -scheme AnclaTests -destination 'platform=iOS Simulator,name=iPhone 16' test
+```
+
+Expected result:
+
+- app + extension build succeeds
+- `AnclaTests` passes
+
+## Sideload Artifact
+
+There is now a separate GitHub Actions workflow for sideload-first testing:
+
+- `.github/workflows/ios-sideload-ipa.yml`
+
+It builds an unsigned `.xcarchive`, packages `Payload/Ancla.app` into an unsigned `.ipa`, and uploads both as workflow artifacts.
+
+The full workflow now also uploads a build report artifact that confirms the embedded shield extension and entitlement source snapshot for the experiment build.
+
+Important limits:
+
+- the `.ipa` is not TestFlight-ready
+- it is not signed for direct installation
+- users still need a sideload tool or signing service to install it
+- if `FamilyControls` distribution restrictions block behavior on-device, this workflow does not solve that
